@@ -13,6 +13,7 @@
 
 #include "activity_actor_definitions.h"
 #include "avatar.h"
+#include "bionics.h"
 #include "bodygraph.h"
 #include "debug.h"
 #include "game.h"
@@ -420,6 +421,34 @@ std::string setting( npc &guy, const JsonObject &request )
     return "unknown setting \"" + what + "\"";
 }
 
+std::string power( npc &guy, const JsonObject &request )
+{
+    const bool on = request.get_bool( "on", true );
+    if( request.get_string( "what", "" ) == "bionic" ) {
+        const int index = request.get_int( "index", -1 );
+        if( index < 0 || static_cast<size_t>( index ) >= guy.my_bionics->size() ) {
+            return _( "no such bionic" );
+        }
+        bionic &bio = ( *guy.my_bionics )[index];
+        if( on ) {
+            guy.activate_bionic( bio );
+        } else {
+            guy.deactivate_bionic( bio );
+        }
+        return std::string();
+    }
+    const trait_id mut( request.get_string( "id", "" ) );
+    if( !guy.has_trait( mut ) ) {
+        return _( "you don't have that" );
+    }
+    if( on ) {
+        guy.activate_mutation( mut );
+    } else {
+        guy.deactivate_mutation( mut );
+    }
+    return std::string();
+}
+
 void set_client_active( const bool active )
 {
     client_on = active;
@@ -510,6 +539,8 @@ bool runs_host_code( const action_id act )
         case ACTION_TOGGLE_AUTO_TRAVEL_MODE:
         case ACTION_IGNORE_ENEMY:
         case ACTION_WHITELIST_ENEMY:
+        case ACTION_BIONICS:
+        case ACTION_MUTATIONS:
             return true;
         default:
             return false;
@@ -813,6 +844,33 @@ bool forward_activity( const Character &who, const player_activity &act )
     }
     send( "activity", [&]( JsonOut & json ) {
         json.member( "data", act );
+    } );
+    return true;
+}
+
+bool forward_bionic( const Character &who, const bionic &bio, const bool on )
+{
+    if( !client_on || &who != &get_avatar() ) {
+        return false;
+    }
+    const int index = static_cast<int>( &bio - who.my_bionics->data() );
+    send( "power", [&]( JsonOut & json ) {
+        json.member( "what", "bionic" );
+        json.member( "index", index );
+        json.member( "on", on );
+    } );
+    return true;
+}
+
+bool forward_mutation( const Character &who, const trait_id &mut, const bool on )
+{
+    if( !client_on || &who != &get_avatar() ) {
+        return false;
+    }
+    send( "power", [&]( JsonOut & json ) {
+        json.member( "what", "mutation" );
+        json.member( "id", mut.str() );
+        json.member( "on", on );
     } );
     return true;
 }

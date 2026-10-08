@@ -34,6 +34,7 @@
 #include "mapdata.h"
 #include "messages.h"
 #include "monster.h"
+#include "mp/remote_actions.h"
 #include "omdata.h"
 #include "npc.h"
 #include "options.h"
@@ -812,6 +813,10 @@ bool Character::can_install_cbm_on_bp( const std::vector<bodypart_id> &bps ) con
 
 void Character::activate_mutation( const trait_id &mut )
 {
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( mp::remote_actions::forward_mutation( *this, mut, true ) ) {
+        return;
+    }
     activate_cached_mutation( mut );
     if( my_mutations.count( mut ) ) {
         my_mutations[mut] = cached_mutations[mut];
@@ -1004,6 +1009,10 @@ void Character::activate_cached_mutation( const trait_id &mut )
 
 void Character::deactivate_mutation( const trait_id &mut )
 {
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( mp::remote_actions::forward_mutation( *this, mut, false ) ) {
+        return;
+    }
     cached_mutations[mut].powered = false;
     trait_flag_cache.clear();
 

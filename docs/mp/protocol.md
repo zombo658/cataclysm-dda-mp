@@ -33,6 +33,7 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `{"cmd":"tile_action","action":"up"}` / `"down"` | подняться/спуститься по лестнице под персонажем (`offset` не нужен) |
 | `{"cmd":"setting","what":"style","value":"style_karate"}` | стиль боя; `"what":"fire_mode"` — режим огня оружия в руках |
 | `{"cmd":"tile_action","action":"autoattack"}` | ударить ближайшего врага рядом |
+| `{"cmd":"power","what":"bionic","index":2,"on":true}` | включить/выключить бионику (номер в списке бионик персонажа); `"what":"mutation","id":"…"` — мутацию |
 | `{"cmd":"recipes"}` | id рецептов, доступных персонажу (известные, из книг рядом, известные помощникам); ответ — `recipes` |
 | `{"cmd":"recipe_states","items":[["blindfold",1],...]}` | можно ли сделать рецепт партией `batch` и каким цветом его рисовать; ответ — `recipe_states` |
 | `{"cmd":"recipe_info","recipe":"blindfold","batch":1,"width":45,"result_width":60}` | описание рецепта (как справа в окне крафта хоста) шириной `width`, строка скорости крафта и, если `result_width` > 0, описание результата; ответ — `recipe_info` |

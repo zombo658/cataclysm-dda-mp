@@ -9,6 +9,7 @@
 #include "type_id.h"
 
 class Character;
+struct bionic;
 class JsonObject;
 class player_activity;
 class item_location;
@@ -39,6 +40,8 @@ std::string move_mode( npc &guy, const JsonObject &request );
 // {"cmd":"setting","what":"style"/"fire_mode","value":...}: choices kept on
 // the character (martial arts style, the gun's firing mode).
 std::string setting( npc &guy, const JsonObject &request );
+// {"cmd":"power","what":"bionic"/"mutation","index"/"id":...,"on":true}
+std::string power( npc &guy, const JsonObject &request );
 
 // ---- Client ----
 
@@ -60,6 +63,11 @@ void run( action_id act );
 // Hook in Character::assign_activity(): what the host's code assigned to the
 // copy of the character goes to the host instead. True if it did.
 bool forward_activity( const Character &who, const player_activity &act );
+
+// Hooks in Character::(de)activate_bionic() and (de)activate_mutation():
+// switching them on the copy goes to the host. True if it did.
+bool forward_bionic( const Character &who, const bionic &bio, bool on );
+bool forward_mutation( const Character &who, const trait_id &mut, bool on );
 
 // Hook in place_construction(): the chosen construction and place go to the
 // host. True if they did.

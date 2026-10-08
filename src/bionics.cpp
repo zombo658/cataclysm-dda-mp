@@ -62,6 +62,7 @@
 #include "material.h"
 #include "messages.h"
 #include "monster.h"
+#include "mp/remote_actions.h"
 #include "mutation.h"
 #include "npc.h"
 #include "options.h"
@@ -725,6 +726,13 @@ void npc::check_or_use_weapon_cbm( const bionic_id &cbm_id )
 // share functions....
 bool Character::activate_bionic( bionic &bio, bool eff_only, bool *close_bionics_ui )
 {
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( !eff_only && mp::remote_actions::forward_bionic( *this, bio, true ) ) {
+        if( close_bionics_ui ) {
+            *close_bionics_ui = true;
+        }
+        return true;
+    }
     const bool mounted = is_mounted();
     if( bio.incapacitated_time > 0_turns ) {
         add_msg( m_info, _( "Your %s is shorting out and can't be activated." ),
@@ -1214,6 +1222,10 @@ ret_val<void> Character::can_deactivate_bionic( bionic &bio, bool eff_only ) con
 
 bool Character::deactivate_bionic( bionic &bio, bool eff_only )
 {
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( !eff_only && mp::remote_actions::forward_bionic( *this, bio, false ) ) {
+        return true;
+    }
     const map &here = get_map();
 
     const auto can_deactivate = can_deactivate_bionic( bio, eff_only );
