@@ -31,8 +31,10 @@
 #include "mp/protocol.h"
 #include "mp/remote_actions.h"
 #include "mp/remote_crafting.h"
+#include "mp/remote_prompt.h"
 #include "mp/sound_relay.h"
 #include "mp/view.h"
+#include "mp/world_actions.h"
 #include "mp/world_sync.h"
 #include "output.h"
 #include "point.h"
@@ -83,6 +85,8 @@ struct client_state {
     // screens on the client's avatar); run when the character comes.
     std::optional<action_id> character_action;
     bool character_loaded = false;
+    // Questions of the host's game, answered in the main loop.
+    std::vector<std::string> prompts;
     // Map updates that came before the game data was loaded.
     std::vector<std::string> pending_submaps;
     // The sidebar lines from the host, with color tags.
@@ -150,6 +154,8 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "rejected" ) {
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
+        } else if( type == "prompt" ) {
+            state.prompts.push_back( line );
         } else if( type == "submaps" ) {
             if( state.data_loaded ) {
                 world_sync::read( msg );
@@ -240,6 +246,9 @@ bool handle_action( client_state &state, const std::string &action, const input_
             state.show_crafting = true;
             break;
         default:
+            if( world_actions::run( act ) ) {
+                break;
+            }
             if( remote_actions::uses_character( act ) ) {
                 state.character_action = act;
                 state.character_loaded = false;
@@ -455,6 +464,17 @@ void run_join_screen()
             for( const std::string &line : pending ) {
                 handle_message( state, line );
             }
+        }
+        while( !state.prompts.empty() && !state.lost ) {
+            const std::string line = state.prompts.front();
+            state.prompts.erase( state.prompts.begin() );
+            try {
+                const JsonValue value = json_loader::from_string( line );
+                remote_prompt::answer( value.get_object() );
+            } catch( const JsonError &err ) {
+                state.add_log( string_format( _( "Bad message from the host: %s" ), err.what() ), c_red );
+            }
+            ui.invalidate_ui();
         }
         if( state.character_action && state.character_loaded && !state.lost ) {
             const action_id act = *state.character_action;

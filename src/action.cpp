@@ -31,6 +31,7 @@
 #include "mapdata.h"
 #include "memory_fast.h"
 #include "messages.h"
+#include "mp/remote_prompt.h"
 #include "options.h"
 #include "output.h"
 #include "path_info.h"
@@ -1088,6 +1089,10 @@ std::optional<tripoint_rel_ms> choose_direction( const std::string &message,
         const std::function<std::pair<bool, std::optional<tripoint_rel_ms>>(
             const input_context &ctxt, const std::string &action )> &action_cb )
 {
+    // Asked for the second player: their client answers (mp/remote_prompt.h).
+    if( const auto remote = mp::remote_prompt::ask_direction( message, allow_vertical ) ) {
+        return *remote;
+    }
     input_context ctxt( "DEFAULTMODE", keyboard_mode::keycode );
     if( timeout >= 0 ) {
         ctxt.set_timeout( timeout );

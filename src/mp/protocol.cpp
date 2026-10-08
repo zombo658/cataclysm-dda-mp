@@ -16,9 +16,11 @@
 #include "mp/rc_npc.h"
 #include "mp/remote_actions.h"
 #include "mp/remote_crafting.h"
+#include "mp/remote_prompt.h"
 #include "mp/remote_inventory.h"
 #include "mp/remote_sidebar.h"
 #include "mp/view.h"
+#include "mp/world_actions.h"
 #include "mp/world_sync.h"
 #include "npc.h"
 #include "scenario.h"
@@ -167,16 +169,27 @@ void handle_line( const std::string &line )
     // For "craft".
     std::string recipe;
     int batch = 1;
+    // For "tile_action".
+    std::optional<tripoint_rel_ms> tile_dir;
     try {
         const JsonValue value = json_loader::from_string( line );
         const JsonObject obj = value.get_object();
         obj.allow_omitted_members();
         cmd_name = obj.get_string( "cmd" );
-        dir_name = obj.get_string( "dir", "" );
+        if( obj.has_string( "dir" ) ) {
+            dir_name = obj.get_string( "dir" );
+        }
         revision = obj.get_int( "revision", 0 );
         index = obj.get_int( "index", -1 );
         action = obj.get_string( "action", "" );
         recipe = obj.get_string( "recipe", "" );
+        if( obj.has_array( "offset" ) ) {
+            JsonArray d = obj.get_array( "offset" );
+            const int x = d.next_int();
+            const int y = d.next_int();
+            const int z = d.next_int();
+            tile_dir = tripoint_rel_ms( x, y, z );
+        }
         batch = obj.get_int( "batch", 1 );
     } catch( const JsonError &err ) {
         send_error( "bad message: " + std::string( err.what() ) );
@@ -188,6 +201,8 @@ void handle_line( const std::string &line )
         send_error( "the host has no remote-controlled NPC nearby" );
         return;
     }
+    // Whatever the game asks while doing this, it asks the second player.
+    remote_prompt::asking_client asking;
     if( cmd_name == "status" ) {
         send_status( *guy, "status" );
         return;
@@ -250,6 +265,21 @@ void handle_line( const std::string &line )
             return;
         }
         const std::string why_not = remote_crafting::start( *guy, recipe, batch );
+        if( why_not.empty() ) {
+            run_instantly( *guy );
+            net::send_line( to_line( [&]( JsonOut & json ) {
+                json.member( "type", "ok" );
+                json.member( "cmd", cmd_name );
+            } ) );
+        } else {
+            send_rejected( why_not );
+        }
+        send_state( *guy );
+        return;
+    }
+    if( cmd_name == "tile_action" ) {
+        const std::string why_not = tile_dir ? world_actions::act( *guy, action, *tile_dir ) :
+                                    std::string( "no dir" );
         if( why_not.empty() ) {
             run_instantly( *guy );
             net::send_line( to_line( [&]( JsonOut & json ) {
@@ -416,6 +446,10 @@ void send_rejected( const std::string &reason )
 
 void poll()
 {
+    // Commands that came while the host waited for an answer to a question.
+    for( const std::string &line : remote_prompt::take_deferred() ) {
+        handle_line( line );
+    }
     net::handlers h;
     h.on_line = handle_line;
     h.on_connect = []() {

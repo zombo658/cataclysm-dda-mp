@@ -10,6 +10,7 @@
 #include "color.h"
 #include "imgui/imgui.h"
 #include "input_context.h"
+#include "mp/remote_prompt.h"
 #include "output.h"
 #include "string_formatter.h"
 #include "ui_manager.h"
@@ -398,6 +399,15 @@ std::shared_ptr<query_popup_impl> query_popup::create_or_get_impl()
 }
 query_popup::result query_popup::query()
 {
+    // Asked for the second player: their client answers (mp/remote_prompt.h).
+    std::vector<std::string> actions;
+    for( const query_option &opt : options ) {
+        actions.push_back( opt.action );
+    }
+    if( const std::optional<std::string> remote = mp::remote_prompt::ask_popup( text, actions,
+            category, cancel, anykey ) ) {
+        return result( false, *remote, input_event() );
+    }
     std::shared_ptr<query_popup_impl> ui = create_or_get_impl();
 
     result res;

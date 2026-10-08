@@ -10,6 +10,7 @@
 #include "input.h"
 #include "input_context.h"
 #include "input_enums.h"
+#include "mp/remote_prompt.h"
 #include "output.h"
 #include "point.h"
 #include "ret_val.h"
@@ -381,6 +382,17 @@ std::optional<int64_t> string_input_popup::query_int64_t( const bool loop, const
 
 const std::string &string_input_popup::query_string( const bool loop, const bool draw_only )
 {
+    // Asked for the second player: their client answers (mp/remote_prompt.h).
+    if( loop && !draw_only ) {
+        if( const auto remote = mp::remote_prompt::ask_string( _title, _description, _text, _width,
+                                _only_digits ) ) {
+            _canceled = !*remote;
+            if( *remote ) {
+                _text = **remote;
+            }
+            return _text;
+        }
+    }
     if( !custom_window && !w_full ) {
         create_window();
         _position = -1;

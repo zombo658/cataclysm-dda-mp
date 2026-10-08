@@ -24,6 +24,7 @@
 #include "cata_imgui.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
+#include "mp/remote_prompt.h"
 
 #if defined(__ANDROID__)
 #include <jni.h>
@@ -875,6 +876,11 @@ shared_ptr_fast<uilist_impl> uilist::create_or_get_ui()
 shared_ptr_fast<uilist_impl> uilist::query( bool loop, int timeout,
         bool allow_unfiltered_hotkeys )
 {
+    // Asked for the second player: their client answers (mp/remote_prompt.h).
+    if( const std::optional<int> remote = mp::remote_prompt::ask_uilist( *this ) ) {
+        ret = *remote;
+        return nullptr;
+    }
 #if defined(__ANDROID__)
     if( get_option<bool>( "ANDROID_NATIVE_UI" ) && !entries.empty() && !desired_bounds ) {
         if( !started ) {
