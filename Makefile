@@ -905,6 +905,8 @@ endif
 # Global settings for Windows targets (at end)
 ifeq ($(TARGETSYSTEM),WINDOWS)
   LDFLAGS += -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lversion
+  # Multiplayer server (src/mp/net_server.cpp)
+  LDFLAGS += -lws2_32
   ifeq ($(BACKTRACE),1)
     LDFLAGS += -ldbghelp
   endif

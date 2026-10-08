@@ -1,0 +1,87 @@
+name: "MP: Windows build"
+
+# Builds the multiplayer fork for Windows (tiles, MSVC) the same way the
+# upstream 0.I release does, and uploads a zip ready to play as an artifact.
+
+on:
+  push:
+    branches:
+      - mp
+      - 'claude/**'
+    paths:
+      - '.github/workflows/mp-windows.yml'
+      - 'data/**'
+      - 'msvc-full-features/**'
+      - 'src/**'
+      - 'tools/mp/**'
+  workflow_dispatch:
+
+concurrency:
+  group: mp-windows-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows Tiles x64 MSVC
+    runs-on: windows-2022
+    timeout-minutes: 300
+    env:
+      ZSTD_CLEVEL: 17
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: lukka/get-cmake@latest
+        with:
+          # 4.0.0 has issues compiling old packages in vcpkg
+          cmakeVersion: 3.31.6
+      - uses: microsoft/setup-msbuild@v2
+      - uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: '${{ runner.workspace }}/b/vcpkg'
+          vcpkgGitCommitId: 'f6672d8e480ccdecddfad3fd1b838ba369ffe6cd'
+      - name: Integrate vcpkg
+        run: |
+          vcpkg integrate install --vcpkg-root '${{ runner.workspace }}\b\vcpkg'
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          install: >-
+            gettext
+            make
+
+      - name: Write VERSION.txt
+        shell: bash
+        run: |
+          cat >VERSION.txt <<EOL
+          build type: cdda-mp windows-with-graphics-x64
+          commit sha: ${{ github.sha }}
+          commit url: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+          EOL
+
+      - name: Compile translations
+        shell: msys2 {0}
+        run: |
+          lang/compile_mo.sh all
+
+      - name: Build
+        env:
+          CDDA_RELEASE_BUILD: 1
+          VCPKG_OVERLAY_TRIPLETS: ${{ github.workspace }}\.github\vcpkg_triplets
+        run: |
+          msbuild -m -p:Configuration=Release -p:Platform=x64 "-target:Cataclysm-vcpkg-static;JsonFormatter-vcpkg-static;zzip" msvc-full-features\Cataclysm-vcpkg-static.sln
+
+      - name: Package
+        run: |
+          .\build-scripts\windist.ps1
+          mkdir mp-extra\mp
+          cp tools\mp\client.py mp-extra\mp\
+          cp docs\mp\*.md mp-extra\mp\
+          Compress-Archive -Update -Path mp-extra\mp -DestinationPath cataclysmdda-0.I.zip
+          mv cataclysmdda-0.I.zip cdda-mp-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cdda-mp-windows-x64
+          path: cdda-mp-windows-x64.zip
+          compression-level: 0
+          retention-days: 14
