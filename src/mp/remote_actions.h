@@ -23,6 +23,9 @@ namespace mp::remote_actions
 // {"cmd":"item_action"}: what the item menu of the inventory chose
 // ("key" is the menu's hotkey). Returns an empty string or why not.
 std::string item_action( npc &guy, const JsonObject &request );
+// {"cmd":"combat"}: firing or throwing at a target chosen on the client
+// with the game's own aiming screen.
+std::string combat( npc &guy, const JsonObject &request );
 
 // ---- Client ----
 

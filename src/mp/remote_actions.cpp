@@ -28,6 +28,9 @@
 #include "mp/net.h"
 #include "npc.h"
 #include "output.h"
+#include "overmap_ui.h"
+#include "projectile.h"
+#include "ranged.h"
 #include "string_formatter.h"
 #include "translations.h"
 #include "uilist.h"
@@ -285,6 +288,65 @@ std::string item_action( npc &guy, const JsonObject &request )
     return do_item_action( guy, loc, request.get_int( "key" ), request );
 }
 
+std::string combat( npc &guy, const JsonObject &request )
+{
+    map &here = get_map();
+    tripoint_abs_ms target_abs;
+    request.read( "target", target_abs );
+    const tripoint_bub_ms target = here.get_bub( target_abs );
+    if( !here.inbounds( target ) ) {
+        return _( "that target is too far away" );
+    }
+    const std::string action = request.get_string( "action", "" );
+    if( action == "fire" ) {
+        // aim_activity_actor::finish()
+        item_location weapon = guy.get_wielded_item();
+        if( !weapon || !weapon->is_gun() ) {
+            return _( "you are not wielding a gun" );
+        }
+        const std::string mode = request.get_string( "mode", "" );
+        if( !mode.empty() ) {
+            weapon->gun_set_mode( gun_mode_id( mode ) );
+        }
+        // Aiming took no time of the host's: the client's aim counts.
+        guy.recoil = request.get_float( "recoil", guy.recoil );
+        gun_mode gun = weapon->gun_current_mode();
+        if( !gun ) {
+            return _( "that gun can't fire now" );
+        }
+        guy.fire_gun( here, target, gun.qty, *gun );
+        return std::string();
+    }
+    if( action == "throw" ) {
+        // avatar_action::plthrow()
+        item_location loc = read_location( request, "item" );
+        if( !loc || loc.carrier() != &guy ) {
+            return _( "that is not yours" );
+        }
+        item *orig = loc.get_item();
+        item thrown = *orig;
+        if( guy.throw_range( thrown ) <= 0 ) {
+            return _( "that is too heavy to throw" );
+        }
+        if( guy.is_worn( *orig ) && !guy.can_takeoff( *orig ).success() ) {
+            return guy.can_takeoff( *orig ).str();
+        }
+        if( !guy.is_wielding( *orig ) && !guy.wield( *orig ) ) {
+            return _( "you can't hold that to throw it" );
+        }
+        item_location weapon = guy.get_wielded_item();
+        if( weapon->count_by_charges() && weapon->charges > 1 ) {
+            weapon->mod_charges( -1 );
+            thrown.charges = 1;
+        } else {
+            guy.remove_weapon();
+        }
+        guy.throw_item( target, thrown );
+        return std::string();
+    }
+    return "unknown combat action \"" + action + "\"";
+}
+
 void set_client_active( const bool active )
 {
     client_on = active;
@@ -318,6 +380,10 @@ bool uses_character( const action_id act )
         case ACTION_COMPARE:
         case ACTION_PICKUP:
         case ACTION_PICKUP_ALL:
+        case ACTION_FIRE:
+        case ACTION_THROW:
+        case ACTION_LOOK:
+        case ACTION_MAP:
             return true;
         default:
             return false;
@@ -435,6 +501,59 @@ void run( const action_id act )
         case ACTION_COMPARE:
             game_menus::inv::compare( std::nullopt );
             break;
+        case ACTION_LOOK:
+            g->look_around();
+            break;
+        case ACTION_MAP:
+            ui::omap::display();
+            break;
+        case ACTION_FIRE: {
+            const item_location weapon = you.get_wielded_item();
+            if( !weapon || !weapon->is_gun() ) {
+                add_msg( m_info, _( "You are not wielding a ranged weapon." ) );
+                break;
+            }
+            // The host's aiming screen (aim_activity_actor::do_turn()).
+            aim_activity_actor aim = aim_activity_actor::use_wielded();
+            target_handler::trajectory trajectory;
+            // Aiming ("aim and fire", '.') spends moves over several turns: the
+            // host's activity reopens the screen each turn. Time doesn't count
+            // for the second player, so it goes on at once.
+            for( int turns = 0; turns < 100 && trajectory.empty() && !aim.aborted; turns++ ) {
+                you.set_moves( you.get_speed() );
+                trajectory = target_handler::mode_fire( you, aim );
+                if( aim.action.empty() ) {
+                    break;
+                }
+            }
+            if( trajectory.empty() ) {
+                break;
+            }
+            send( "combat", [&]( JsonOut & json ) {
+                json.member( "action", "fire" );
+                json.member( "target", get_map().get_abs( trajectory.back() ) );
+                json.member( "recoil", you.recoil );
+                json.member( "mode", weapon->gun_get_mode_id().str() );
+            } );
+            break;
+        }
+        case ACTION_THROW: {
+            item_location loc = game_menus::inv::titled_menu( you, _( "Throw item" ),
+                                _( "You don't have any items to throw." ) );
+            if( !loc ) {
+                break;
+            }
+            const target_handler::trajectory trajectory = target_handler::mode_throw( you, *loc, false );
+            if( trajectory.empty() ) {
+                break;
+            }
+            send( "combat", [&]( JsonOut & json ) {
+                json.member( "action", "throw" );
+                json.member( "item", loc );
+                json.member( "target", get_map().get_abs( trajectory.back() ) );
+            } );
+            break;
+        }
         default:
             break;
     }
@@ -480,9 +599,20 @@ bool forward_item_action( const item_location &loc, const int key )
             // Done on both sides: the inventory stays open on this copy.
             send_item( key, loc );
             return false;
-        case 't':
-            popup( _( "Throwing is not available to the second player yet." ) );
+        case 't': {
+            // avatar_action::plthrow() from the item menu.
+            item_location thrown = loc;
+            const target_handler::trajectory trajectory = target_handler::mode_throw( get_avatar(), *thrown,
+                    false );
+            if( !trajectory.empty() ) {
+                send( "combat", [&]( JsonOut & json ) {
+                    json.member( "action", "throw" );
+                    json.member( "item", loc );
+                    json.member( "target", get_map().get_abs( trajectory.back() ) );
+                } );
+            }
             return true;
+        }
         default:
             // Only shows something (open, view recipe, ...): done here.
             return false;

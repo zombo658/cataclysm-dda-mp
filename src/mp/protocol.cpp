@@ -285,6 +285,28 @@ void handle_line( const std::string &line )
         send_state( *guy );
         return;
     }
+    if( cmd_name == "combat" ) {
+        std::string why_not;
+        try {
+            const JsonValue value = json_loader::from_string( line );
+            const JsonObject obj = value.get_object();
+            obj.allow_omitted_members();
+            why_not = remote_actions::combat( *guy, obj );
+        } catch( const JsonError &err ) {
+            why_not = "bad message: " + std::string( err.what() );
+        }
+        if( why_not.empty() ) {
+            run_instantly( *guy );
+            net::send_line( to_line( [&]( JsonOut & json ) {
+                json.member( "type", "ok" );
+                json.member( "cmd", cmd_name );
+            } ) );
+        } else {
+            send_rejected( why_not );
+        }
+        send_state( *guy );
+        return;
+    }
     if( cmd_name == "item_action" ) {
         std::string why_not;
         try {
