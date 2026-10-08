@@ -21,6 +21,7 @@
 #include "item_location.h"
 #include "item_pocket.h"
 #include "itype.h"
+#include "character_martial_arts.h"
 #include "messages.h"
 #include "move_mode.h"
 #include "json.h"
@@ -211,6 +212,14 @@ std::optional<std::string> choose_use_method( const item &used )
     return methods[umenu.ret];
 }
 
+void send_setting( const std::string &what, const std::string &value )
+{
+    send( "setting", [&]( JsonOut & json ) {
+        json.member( "what", what );
+        json.member( "value", value );
+    } );
+}
+
 void send_items( const int key, const drop_locations &what )
 {
     if( what.empty() ) {
@@ -388,6 +397,29 @@ std::string move_mode( npc &guy, const JsonObject &request )
     return std::string();
 }
 
+std::string setting( npc &guy, const JsonObject &request )
+{
+    const std::string what = request.get_string( "what", "" );
+    const std::string value = request.get_string( "value", "" );
+    if( what == "style" ) {
+        const matype_id style( value );
+        if( !style.is_valid() ) {
+            return _( "unknown style" );
+        }
+        guy.martial_arts_data->set_style( style );
+        return std::string();
+    }
+    if( what == "fire_mode" ) {
+        item_location weapon = guy.get_wielded_item();
+        if( !weapon || !weapon->is_gun() ) {
+            return _( "you are not wielding a gun" );
+        }
+        weapon->gun_set_mode( gun_mode_id( value ) );
+        return std::string();
+    }
+    return "unknown setting \"" + what + "\"";
+}
+
 void set_client_active( const bool active )
 {
     client_on = active;
@@ -425,6 +457,14 @@ bool uses_character( const action_id act )
         case ACTION_THROW:
         case ACTION_LOOK:
         case ACTION_MAP:
+        case ACTION_OPEN_CONSUME:
+        case ACTION_RELOAD_WIELDED:
+        case ACTION_THROW_WIELDED:
+        case ACTION_FIRE_BURST:
+        case ACTION_SELECT_FIRE_MODE:
+        case ACTION_PICK_STYLE:
+        case ACTION_RECRAFT:
+        case ACTION_LONGCRAFT:
             return true;
         default:
             return runs_host_code( act ) || changes_move_mode( act );
@@ -445,6 +485,31 @@ bool runs_host_code( const action_id act )
         case ACTION_INSERT_ITEM:
         case ACTION_DIR_DROP:
         case ACTION_CONSTRUCT:
+        case ACTION_WAIT:
+        case ACTION_RECAST_SPELL:
+        // Only about the view or this client's settings.
+        case ACTION_CENTER:
+        case ACTION_SHIFT_N:
+        case ACTION_SHIFT_NE:
+        case ACTION_SHIFT_E:
+        case ACTION_SHIFT_SE:
+        case ACTION_SHIFT_S:
+        case ACTION_SHIFT_SW:
+        case ACTION_SHIFT_W:
+        case ACTION_SHIFT_NW:
+        case ACTION_TOGGLE_MAP_MEMORY:
+        case ACTION_PEEK:
+        case ACTION_LIST_ITEMS:
+        case ACTION_MORALE:
+        case ACTION_HELP:
+        case ACTION_SKY:
+        case ACTION_TOGGLE_SAFEMODE:
+        case ACTION_TOGGLE_AUTOSAFE:
+        case ACTION_TOGGLE_THIEF_MODE:
+        case ACTION_TOGGLE_LANGUAGE_TO_EN:
+        case ACTION_TOGGLE_AUTO_TRAVEL_MODE:
+        case ACTION_IGNORE_ENEMY:
+        case ACTION_WHITELIST_ENEMY:
             return true;
         default:
             return false;
@@ -491,6 +556,7 @@ bool changes_move_mode( const action_id act )
         case ACTION_CYCLE_MOVE:
         case ACTION_CYCLE_MOVE_REVERSE:
         case ACTION_OPEN_MOVEMENT:
+        case ACTION_RESET_MOVE:
             return true;
         default:
             return false;
@@ -502,9 +568,12 @@ bool load_character( const std::string &data )
     try {
         const JsonValue value = json_loader::from_string( data );
         // A fresh avatar each time: loading over the old copy keeps its id
-        // and things the new data doesn't mention.
+        // and things the new data doesn't mention. Where the view looks is
+        // this client's own.
+        const tripoint_rel_ms view_offset = get_avatar().view_offset;
         get_avatar() = avatar();
         get_avatar().deserialize( value.get_object() );
+        get_avatar().view_offset = view_offset;
     } catch( const std::exception &err ) {
         debugmsg( "Can't load the character from the host: %s", err.what() );
         return false;
@@ -546,6 +615,7 @@ void run( const action_id act )
             }
             break;
         case ACTION_EAT:
+        case ACTION_OPEN_CONSUME:
             if( const item_location loc = game_menus::inv::consume() ) {
                 // avatar_action::eat_or_use()
                 if( loc->is_comestible() || loc->is_medication() ) {
@@ -584,7 +654,36 @@ void run( const action_id act )
             }, you, _( "Reload item" ), -1, _( "You have nothing to reload." ) ), false );
             break;
         case ACTION_RELOAD_WEAPON:
+        case ACTION_RELOAD_WIELDED:
             reload( you.get_wielded_item(), false );
+            break;
+        case ACTION_SELECT_FIRE_MODE: {
+            item_location weapon = you.get_wielded_item();
+            if( weapon && weapon->is_gun() && !weapon->is_gunmod() ) {
+                if( weapon->gun_all_modes().size() > 1 ) {
+                    weapon->gun_cycle_mode();
+                    send_setting( "fire_mode", weapon->gun_get_mode_id().str() );
+                } else {
+                    add_msg( m_info, _( "Your %s has only one firing mode." ), weapon->tname() );
+                }
+            }
+            break;
+        }
+        case ACTION_PICK_STYLE:
+            if( you.martial_arts_data->pick_style( you ) ) {
+                send_setting( "style", you.martial_arts_data->selected_style().str() );
+            }
+            break;
+        case ACTION_RECRAFT:
+        case ACTION_LONGCRAFT:
+            if( !you.lastrecipe.is_valid() || you.lastrecipe.is_null() ) {
+                popup( _( "Craft something first" ) );
+            } else {
+                send( "craft", [&]( JsonOut & json ) {
+                    json.member( "recipe", you.lastrecipe.str() );
+                    json.member( "batch", std::max( 1, you.last_batch ) );
+                } );
+            }
             break;
         case ACTION_UNLOAD: {
             const std::pair<item_location, bool> ret = game_menus::inv::unload( you );
@@ -616,6 +715,7 @@ void run( const action_id act )
         case ACTION_TOGGLE_PRONE:
         case ACTION_CYCLE_MOVE:
         case ACTION_CYCLE_MOVE_REVERSE:
+        case ACTION_RESET_MOVE:
         case ACTION_OPEN_MOVEMENT: {
             // The avatar's own toggles on the copy, then the result to the host.
             const move_mode_id before = you.current_movement_mode();
@@ -629,6 +729,8 @@ void run( const action_id act )
                 you.cycle_move_mode();
             } else if( act == ACTION_CYCLE_MOVE_REVERSE ) {
                 you.cycle_move_mode_reverse();
+            } else if( act == ACTION_RESET_MOVE ) {
+                you.reset_move_mode();
             } else {
                 movement_mode_menu( you );
             }
@@ -647,8 +749,13 @@ void run( const action_id act )
         case ACTION_MAP:
             ui::omap::display();
             break;
+        case ACTION_FIRE_BURST:
         case ACTION_FIRE: {
-            const item_location weapon = you.get_wielded_item();
+            item_location weapon = you.get_wielded_item();
+            if( act == ACTION_FIRE_BURST && weapon && weapon->is_gun() &&
+                !weapon->gun_set_mode( gun_mode_id( "BURST" ) ) && !weapon->gun_set_mode( gun_mode_id( "AUTO" ) ) ) {
+                break;
+            }
             if( !weapon || !weapon->is_gun() ) {
                 add_msg( m_info, _( "You are not wielding a ranged weapon." ) );
                 break;
@@ -677,9 +784,11 @@ void run( const action_id act )
             } );
             break;
         }
+        case ACTION_THROW_WIELDED:
         case ACTION_THROW: {
-            item_location loc = game_menus::inv::titled_menu( you, _( "Throw item" ),
-                                _( "You don't have any items to throw." ) );
+            item_location loc = act == ACTION_THROW_WIELDED ? you.get_wielded_item() :
+                                game_menus::inv::titled_menu( you, _( "Throw item" ),
+                                        _( "You don't have any items to throw." ) );
             if( !loc ) {
                 break;
             }

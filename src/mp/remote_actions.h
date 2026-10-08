@@ -36,6 +36,9 @@ std::string activity( npc &guy, const JsonObject &request );
 std::string construct( npc &guy, const JsonObject &request );
 // {"cmd":"move_mode","mode":"run"}: walk, run, crouch, prone...
 std::string move_mode( npc &guy, const JsonObject &request );
+// {"cmd":"setting","what":"style"/"fire_mode","value":...}: choices kept on
+// the character (martial arts style, the gun's firing mode).
+std::string setting( npc &guy, const JsonObject &request );
 
 // ---- Client ----
 

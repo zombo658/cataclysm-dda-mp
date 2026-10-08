@@ -7,7 +7,9 @@
 #include "activity_actor_definitions.h"
 #include "character.h"
 #include "creature_tracker.h"
+#include "game.h"
 #include "gates.h"
+#include "line.h"
 #include "item.h"
 #include "json.h"
 #include "map.h"
@@ -145,6 +147,25 @@ std::string act( npc &guy, const std::string &action, const tripoint_rel_ms &dir
         }
         guy.move_to( to, true );
         return std::string();
+    } else if( action == "autoattack" ) {
+        // avatar_action::autoattack(): the nearest hostile within reach.
+        map &here = get_map();
+        Creature *best = nullptr;
+        for( Creature &critter : g->all_creatures() ) {
+            if( &critter == &guy || critter.is_dead_state() || !guy.sees( here, critter ) ||
+                guy.attitude_to( critter ) != Creature::Attitude::HOSTILE ||
+                rl_dist( critter.pos_bub(), guy.pos_bub() ) > 1 ) {
+                continue;
+            }
+            if( best == nullptr || critter.get_hp() < best->get_hp() ) {
+                best = &critter;
+            }
+        }
+        if( best == nullptr ) {
+            return _( "No hostile creature in reach.  Waiting a turn." );
+        }
+        guy.melee_attack( *best, true );
+        return std::string();
     } else if( action == "smash" ) {
         return smash( guy, p );
     } else if( action == "examine" ) {
@@ -163,6 +184,9 @@ bool run( const action_id act )
             return true;
         case ACTION_MOVE_DOWN:
             send_command( "down", tripoint_rel_ms::zero );
+            return true;
+        case ACTION_AUTOATTACK:
+            send_command( "autoattack", tripoint_rel_ms::zero );
             return true;
         case ACTION_OPEN:
             action = "open";

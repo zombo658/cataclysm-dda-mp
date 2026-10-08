@@ -31,6 +31,8 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `{"cmd":"construct","id":"constr_…","target":[x,y,z]}` | начать постройку из меню строительства |
 | `{"cmd":"move_mode","mode":"run"}` | режим движения (`walk`, `run`, `crouch`, `prone`) |
 | `{"cmd":"tile_action","action":"up"}` / `"down"` | подняться/спуститься по лестнице под персонажем (`offset` не нужен) |
+| `{"cmd":"setting","what":"style","value":"style_karate"}` | стиль боя; `"what":"fire_mode"` — режим огня оружия в руках |
+| `{"cmd":"tile_action","action":"autoattack"}` | ударить ближайшего врага рядом |
 | `{"cmd":"recipes"}` | id рецептов, доступных персонажу (известные, из книг рядом, известные помощникам); ответ — `recipes` |
 | `{"cmd":"recipe_states","items":[["blindfold",1],...]}` | можно ли сделать рецепт партией `batch` и каким цветом его рисовать; ответ — `recipe_states` |
 | `{"cmd":"recipe_info","recipe":"blindfold","batch":1,"width":45,"result_width":60}` | описание рецепта (как справа в окне крафта хоста) шириной `width`, строка скорости крафта и, если `result_width` > 0, описание результата; ответ — `recipe_info` |
