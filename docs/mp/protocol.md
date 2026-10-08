@@ -36,6 +36,7 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `welcome` | сразу после подключения (за ним сразу `log`, `view`, `state`) | `version`, `npc` (имя персонажа, если он есть), `instant` (true — мгновенные действия, см. ниже), `mods` (моды мира хоста — клиент грузит их данные, чтобы рисовать тайлы) |
 | `inventory` | ответ на `inventory` | `revision`, `items`: `[{index, name, where, depth, actions}]` — что в руках (`where: "wielded"`), надето (`"worn"`), и, с `depth` > 0, что лежит внутри (в `where` — имя контейнера) |
 | `sfx` | хост проиграл звук | `kind` (`variant`, `ambient`, `fade`), `id`, `variant`, `season`, `indoors`, `night`, `volume`, `angle`, `channel`… — аргументы `sfx::play_*` |
+| `sidebar` | перед `view` в каждом `state` | `lines`: строки боковой панели с цветовыми тегами (`<color_…>`), собранные хостом теми же функциями `display::…`, что его собственная панель |
 | `state` | после каждой команды и раз в ход хоста (не чаще 4 раз в секунду); перед ним приходят `log` и `view` | `status` |
 | `log` | перед `your_turn`, если в логе хоста появились новые сообщения | `lines` (массив строк) |
 | `view` | перед каждым `your_turn` | `radius`, `rows`, `palette` (см. ниже) |

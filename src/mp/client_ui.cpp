@@ -1,5 +1,6 @@
 #include "mp/client_ui.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <deque>
 #include <map>
@@ -9,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "action.h"
 #include "color.h"
 #include "debug.h"
 #include "game.h"
@@ -69,6 +71,10 @@ struct client_state {
     std::unique_ptr<WORLD> host_world;
     // The inventory came; show it on the next round of the main loop.
     std::optional<inventory::listing> inventory_to_show;
+    // Which action the inventory was asked for ("" - any).
+    std::string inventory_filter;
+    // The sidebar lines from the host, with color tags.
+    std::vector<std::string> sidebar;
     std::deque<std::pair<std::string, nc_color>> log;
 
     void add_log( const std::string &text, const nc_color &color = c_light_gray ) {
@@ -134,6 +140,11 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "rejected" ) {
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
+        } else if( type == "sidebar" ) {
+            state.sidebar.clear();
+            for( const std::string line : msg.get_array( "lines" ) ) {
+                state.sidebar.push_back( line );
+            }
         } else if( type == "inventory" ) {
             state.inventory_to_show = inventory::read( msg );
         } else if( type == "sfx" ) {
@@ -177,27 +188,40 @@ std::string action_name( const std::string &action )
     return action;
 }
 
-// Item list, then what to do with the chosen item.
-void show_inventory( const inventory::listing &inv )
+// Item list, then what to do with the chosen item. With a filter (the host's
+// "wear", "eat", ... keys) only items that allow it are listed, and choosing
+// one does it.
+void show_inventory( const inventory::listing &inv, const std::string &filter )
 {
-    if( inv.entries.empty() ) {
-        popup( _( "You have nothing." ) );
+    std::vector<const inventory::entry *> shown;
+    for( const inventory::entry &e : inv.entries ) {
+        if( filter.empty() || std::find( e.actions.begin(), e.actions.end(), filter ) != e.actions.end() ) {
+            shown.push_back( &e );
+        }
+    }
+    if( shown.empty() ) {
+        popup( filter.empty() ? _( "You have nothing." ) : _( "You have nothing for that." ) );
         return;
     }
     uilist items;
-    items.text = _( "Inventory" );
-    for( size_t i = 0; i < inv.entries.size(); i++ ) {
-        const inventory::entry &e = inv.entries[i];
-        const std::string indent( e.depth * 2, ' ' );
+    items.text = filter.empty() ? _( "Inventory" ) : action_name( filter );
+    for( size_t i = 0; i < shown.size(); i++ ) {
+        const inventory::entry &e = *shown[i];
+        const std::string indent( filter.empty() ? e.depth * 2 : 0, ' ' );
         const std::string where = e.depth == 0 ? string_format( " <color_dark_gray>(%s)</color>",
-                                  e.where == "wielded" ? _( "in hands" ) : e.where == "worn" ? _( "worn" ) : _( "carried" ) ) : "";
+                                  e.where == "wielded" ? _( "in hands" ) : e.where == "worn" ? _( "worn" ) : _( "carried" ) ) :
+                                  filter.empty() ? "" : string_format( " <color_dark_gray>(%s)</color>", e.where );
         items.addentry( static_cast<int>( i ), true, MENU_AUTOASSIGN, indent + e.name + where );
     }
     items.query();
-    if( items.ret < 0 || static_cast<size_t>( items.ret ) >= inv.entries.size() ) {
+    if( items.ret < 0 || static_cast<size_t>( items.ret ) >= shown.size() ) {
         return;
     }
-    const inventory::entry &chosen = inv.entries[items.ret];
+    const inventory::entry &chosen = *shown[items.ret];
+    if( !filter.empty() ) {
+        send_item_command( inv.revision, chosen.index, filter );
+        return;
+    }
     uilist actions;
     actions.text = chosen.name;
     for( size_t i = 0; i < chosen.actions.size(); i++ ) {
@@ -221,79 +245,94 @@ void send_command( client_state &state, const std::string &cmd, const std::strin
     }
     json.end_object();
     net::client_send_line( os.str() );
-    if( cmd != "status" ) {
+    if( cmd != "status" && cmd != "inventory" ) {
         state.my_turn = false;
     }
 }
 
-std::optional<std::string> key_direction( const int ch )
+std::string direction_name( const point_rel_ms &d )
 {
-    static const std::map<int, std::string> dirs = {
-        { 'k', "n" }, { 'u', "ne" }, { 'l', "e" }, { 'n', "se" },
-        { 'j', "s" }, { 'b', "sw" }, { 'h', "w" }, { 'y', "nw" },
-        { '8', "n" }, { '9', "ne" }, { '6', "e" }, { '3', "se" },
-        { '2', "s" }, { '1', "sw" }, { '4', "w" }, { '7', "nw" },
-        { KEY_UP, "n" }, { KEY_RIGHT, "e" }, { KEY_DOWN, "s" }, { KEY_LEFT, "w" },
-        { KEY_HOME, "nw" }, { KEY_PPAGE, "ne" }, { KEY_END, "sw" }, { KEY_NPAGE, "se" },
+    static const std::map<std::pair<int, int>, std::string> names = {
+        { { 0, -1 }, "n" }, { { 1, -1 }, "ne" }, { { 1, 0 }, "e" }, { { 1, 1 }, "se" },
+        { { 0, 1 }, "s" }, { { -1, 1 }, "sw" }, { { -1, 0 }, "w" }, { { -1, -1 }, "nw" },
     };
-    const auto it = dirs.find( ch );
-    if( it == dirs.end() ) {
-        return std::nullopt;
-    }
-    return it->second;
+    const auto it = names.find( { d.x(), d.y() } );
+    return it == names.end() ? "" : it->second;
 }
 
-// Returns false when the player wants to leave.
-bool handle_key( client_state &state, const int ch )
+// The whole log, newest last.
+void show_messages( const client_state &state )
 {
-    const std::optional<std::string> dir = key_direction( ch );
-    if( state.attack_pending ) {
-        state.attack_pending = false;
-        if( dir ) {
-            send_command( state, "attack", *dir );
-        } else {
-            state.add_log( _( "Attack cancelled." ) );
-        }
-    } else if( dir ) {
-        send_command( state, "move", *dir );
-    } else if( ch == 'a' ) {
-        state.attack_pending = true;
-        state.add_log( _( "Attack in which direction?" ), c_yellow );
-    } else if( ch == '.' || ch == '5' ) {
-        send_command( state, "wait" );
-    } else if( ch == 'g' || ch == ',' ) {
-        send_command( state, "pickup" );
-    } else if( ch == 's' ) {
-        send_command( state, "status" );
-    } else if( ch == 'i' ) {
-        send_command( state, "inventory" );
-    } else if( ch == 'q' || ch == KEY_ESCAPE ) {
-        return !query_yn( _( "Leave the game?" ) );
+    std::string text;
+    const size_t first = state.log.size() > 60 ? state.log.size() - 60 : 0;
+    for( size_t i = first; i < state.log.size(); i++ ) {
+        text += colorize( state.log[i].first, state.log[i].second ) + "\n";
+    }
+    popup( text.empty() ? std::string( _( "No messages." ) ) : text );
+}
+
+// The host's keys, as the game's actions. Returns false when the player
+// wants to leave.
+bool handle_action( client_state &state, const std::string &action, const input_context &ctxt )
+{
+    const action_id act = look_up_action( action );
+    switch( act ) {
+        case ACTION_MOVE_FORTH:
+        case ACTION_MOVE_FORTH_RIGHT:
+        case ACTION_MOVE_RIGHT:
+        case ACTION_MOVE_BACK_RIGHT:
+        case ACTION_MOVE_BACK:
+        case ACTION_MOVE_BACK_LEFT:
+        case ACTION_MOVE_LEFT:
+        case ACTION_MOVE_FORTH_LEFT:
+            send_command( state, "move",
+                          direction_name( get_delta_from_movement_action( act, iso_rotate::yes ) ) );
+            break;
+        case ACTION_PAUSE:
+            send_command( state, "wait" );
+            break;
+        case ACTION_PICKUP:
+        case ACTION_PICKUP_ALL:
+            send_command( state, "pickup" );
+            break;
+        case ACTION_INVENTORY:
+            state.inventory_filter.clear();
+            send_command( state, "inventory" );
+            break;
+        case ACTION_WIELD:
+            state.inventory_filter = "wield";
+            send_command( state, "inventory" );
+            break;
+        case ACTION_WEAR:
+            state.inventory_filter = "wear";
+            send_command( state, "inventory" );
+            break;
+        case ACTION_TAKE_OFF:
+            state.inventory_filter = "takeoff";
+            send_command( state, "inventory" );
+            break;
+        case ACTION_EAT:
+            state.inventory_filter = "eat";
+            send_command( state, "inventory" );
+            break;
+        case ACTION_DROP:
+            state.inventory_filter = "drop";
+            send_command( state, "inventory" );
+            break;
+        case ACTION_MESSAGES:
+            show_messages( state );
+            break;
+        case ACTION_MAIN_MENU:
+            return !query_yn( _( "Leave the game?" ) );
+        case ACTION_NULL:
+        case ACTION_TIMEOUT:
+            break;
+        default:
+            state.add_log( string_format( _( "%s: not available to the second player yet." ),
+                                          ctxt.get_action_name( action ) ), c_dark_gray );
+            break;
     }
     return true;
-}
-
-constexpr int log_height = 8;
-constexpr int map_top = 2;
-
-int map_height( const int screen_height )
-{
-    return std::max( 1, screen_height - map_top - log_height - 1 );
-}
-
-// Bottom of the screen: the log and the keys.
-void draw_log_and_keys( const catacurses::window &w, const client_state &state )
-{
-    const int width = getmaxx( w );
-    const int height = getmaxy( w );
-    const int log_top = height - log_height - 1;
-    const int shown = std::min<int>( log_height, state.log.size() );
-    for( int i = 0; i < shown; i++ ) {
-        const auto &entry = state.log[state.log.size() - shown + i];
-        trim_and_print( w, point( 0, log_top + i ), width, entry.second, entry.first );
-    }
-    trim_and_print( w, point( 0, height - 1 ), width, c_dark_gray,
-                    _( "hjklyubn/arrows/numpad move  a+dir attack  . wait  g pick up  i inventory  s status  q leave" ) );
 }
 
 // Loads the data of the host's mods, so that tiles can be looked up the way
@@ -326,40 +365,68 @@ void load_host_data( client_state &state )
     loading_ui::done();
 }
 
-void draw( const catacurses::window &w, [[maybe_unused]] const catacurses::window &w_map,
-           const client_state &state )
+// Width of the sidebar, like the host's.
+int sidebar_width( const int screen_width )
+{
+    return screen_width >= 110 ? 55 : std::max( 32, screen_width / 3 );
+}
+
+// Right: the sidebar from the host, then the log, newest at the bottom.
+void draw_sidebar( const catacurses::window &w, const client_state &state )
 {
     werase( w );
     const int width = getmaxx( w );
     const int height = getmaxy( w );
-    const int map_height = mp::client_ui::map_height( height );
+    int y = 0;
+    const std::string connection = state.lost ? colorize( _( "Disconnected" ), c_red ) :
+                                   state.instant || state.my_turn ? colorize( state.character, c_light_green ) :
+                                   colorize( _( "Waiting for the host…" ), c_yellow );
+    trim_and_print( w, point( 0, y++ ), width, c_white, connection );
+    for( const std::string &line : state.sidebar ) {
+        if( y >= height ) {
+            break;
+        }
+        trim_and_print( w, point( 0, y++ ), width, c_white, line );
+    }
+    y++;
+    // The log fills the rest, wrapped, newest at the bottom.
+    std::vector<std::pair<std::string, nc_color>> wrapped;
+    for( auto it = state.log.rbegin(); it != state.log.rend() &&
+         static_cast<int>( wrapped.size() ) < height; ++it ) {
+        const std::vector<std::string> folded = foldstring( it->first, width );
+        for( auto f = folded.rbegin(); f != folded.rend(); ++f ) {
+            wrapped.emplace_back( *f, it->second );
+        }
+    }
+    const int room = std::max( 0, height - y );
+    const int count = std::min<int>( room, wrapped.size() );
+    for( int i = 0; i < count; i++ ) {
+        const auto &line = wrapped[count - 1 - i];
+        trim_and_print( w, point( 0, y + i ), width, line.second, line.first );
+    }
+    wnoutrefresh( w );
+}
 
-    // Top: who we are and whose turn it is.
-    const bool can_act = state.instant || state.my_turn;
-    const std::string turn = state.lost ? _( "Disconnected" ) :
-                             state.instant ? _( "Connected" ) :
-                             state.my_turn ? _( "YOUR TURN" ) : _( "Waiting for the host…" );
-    mvwprintz( w, point( 0, 0 ), can_act && !state.lost ? c_light_green : c_yellow, turn );
-    mvwprintz( w, point( utf8_width( turn ) + 2, 0 ), c_white, state.status );
-
-    // Middle: the map, the character in the middle.
+// Left: the map, the character in the middle.
+void draw_map( const catacurses::window &w_map, const client_state &state )
+{
+    werase( w_map );
     const view::grid &grid = state.grid;
 #if defined(TILES)
     if( use_tiles && tilecontext && state.data_loaded ) {
-        // The text window has to be on the screen first: tiles go over it.
-        draw_log_and_keys( w, state );
-        wnoutrefresh( w );
-        // A real window: get_window_dimensions() of a bare rectangle takes it
-        // for the game's (here absent) terrain window and returns no size.
+        // The window goes to the screen first: the tiles are drawn over it.
+        wnoutrefresh( w_map );
         const window_dimensions dim = get_window_dimensions( w_map );
         tilecontext->draw_remote_view( dim.window_pos_pixel, dim.window_size_pixel.x,
                                        dim.window_size_pixel.y, grid );
         return;
     }
 #endif
+    const int width = getmaxx( w_map );
+    const int height = getmaxy( w_map );
     const int size = static_cast<int>( grid.rows.size() );
-    const point screen_center( width / 2, map_top + map_height / 2 );
-    for( int sy = map_top; sy < map_top + map_height; sy++ ) {
+    const point screen_center( width / 2, height / 2 );
+    for( int sy = 0; sy < height; sy++ ) {
         const int row = grid.radius + ( sy - screen_center.y );
         if( row < 0 || row >= size ) {
             continue;
@@ -375,12 +442,10 @@ void draw( const catacurses::window &w, [[maybe_unused]] const catacurses::windo
                 continue;
             }
             const nc_color color = get_all_colors().name_to_color( c.color, report_color_error::no );
-            mvwprintz( w, point( sx, sy ), color, c.symbol );
+            mvwprintz( w_map, point( sx, sy ), color, c.symbol );
         }
     }
-
-    draw_log_and_keys( w, state );
-    wnoutrefresh( w );
+    wnoutrefresh( w_map );
 }
 
 } // namespace
@@ -418,18 +483,21 @@ void run_join_screen()
     }
 
     client_state state;
-    catacurses::window w;
-    // Where the tiles go: between the status line and the log.
+    // The same layout as the host's screen: the map on the left, the sidebar
+    // and the log on the right.
     catacurses::window w_map;
+    catacurses::window w_side;
     ui_adaptor ui;
     ui.on_screen_resize( [&]( ui_adaptor & ui ) {
-        w = catacurses::newwin( TERMY, TERMX, point::zero );
-        w_map = catacurses::newwin( map_height( TERMY ), TERMX, point( 0, map_top ) );
-        ui.position_from_window( w );
+        const int side = sidebar_width( TERMX );
+        w_map = catacurses::newwin( TERMY, TERMX - side, point::zero );
+        w_side = catacurses::newwin( TERMY, side, point( TERMX - side, 0 ) );
+        ui.position( point::zero, point( TERMX, TERMY ) );
     } );
     ui.mark_resize();
     ui.on_redraw( [&]( const ui_adaptor & ) {
-        draw( w, w_map, state );
+        draw_sidebar( w_side, state );
+        draw_map( w_map, state );
     } );
 
     net::handlers h;
@@ -444,19 +512,19 @@ void run_join_screen()
         ui.invalidate_ui();
     };
 
-    input_context ctxt( "MP_CLIENT" );
-    ctxt.register_action( "ANY_INPUT" );
+    // The host's own keys.
+    input_context ctxt = get_default_mode_input_context();
     ctxt.set_timeout( 100 );
     while( true ) {
         net::client_poll( h );
         if( state.data_requested ) {
             load_host_data( state );
-            ui.invalidate_ui();
+            ui.mark_resize();
         }
         if( state.inventory_to_show ) {
             const inventory::listing inv = *state.inventory_to_show;
             state.inventory_to_show.reset();
-            show_inventory( inv );
+            show_inventory( inv, state.inventory_filter );
             ui.invalidate_ui();
         }
         ui_manager::redraw();
@@ -464,14 +532,14 @@ void run_join_screen()
         if( action == "TIMEOUT" ) {
             continue;
         }
-        const int ch = ctxt.get_raw_input().get_first_input();
         if( state.lost ) {
+            const int ch = ctxt.get_raw_input().get_first_input();
             if( ch == 'q' || ch == KEY_ESCAPE || ch == '\n' ) {
                 break;
             }
             continue;
         }
-        if( !handle_key( state, ch ) ) {
+        if( !handle_action( state, action, ctxt ) ) {
             break;
         }
         ui.invalidate_ui();

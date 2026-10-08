@@ -15,6 +15,7 @@
 #include "mp/net.h"
 #include "mp/rc_npc.h"
 #include "mp/remote_inventory.h"
+#include "mp/remote_sidebar.h"
 #include "mp/view.h"
 #include "npc.h"
 #include "translations.h"
@@ -271,6 +272,10 @@ void send_view( const npc &guy )
 void send_state( const npc &guy )
 {
     send_new_messages();
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "sidebar" );
+        remote_sidebar::write( json, guy );
+    } ) );
     send_view( guy );
     send_status( guy, "state" );
     last_state_sent = std::chrono::steady_clock::now();
