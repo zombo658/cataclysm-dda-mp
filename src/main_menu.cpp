@@ -42,7 +42,7 @@
 #include "mapsharing.h"
 #include "messages.h"
 #include "mp/client_ui.h"
-#include "mp/main_menu.h"
+#include "mp/menu_tab.h"
 #include "mp/rc_npc.h"
 #include "music.h"
 #include "options.h"

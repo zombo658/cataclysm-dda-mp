@@ -30,6 +30,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # MSVC puts all objects of a project into one folder by file name, so
+      # src/mp/foo.cpp must not share a name with src/foo.cpp. Fail fast
+      # instead of at the link step half an hour later.
+      - name: Check src/mp file names
+        shell: bash
+        run: |
+          status=0
+          for f in src/mp/*.cpp; do
+            if [ -e "src/$(basename "$f")" ]; then
+              echo "::error file=$f::$(basename "$f") also exists in src/; MSVC would overwrite one object with the other"
+              status=1
+            fi
+          done
+          exit $status
+
       - uses: lukka/get-cmake@latest
         with:
           # 4.0.0 has issues compiling old packages in vcpkg

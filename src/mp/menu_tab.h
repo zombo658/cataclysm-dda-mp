@@ -1,6 +1,6 @@
 #pragma once
-#ifndef CATA_SRC_MP_MAIN_MENU_H
-#define CATA_SRC_MP_MAIN_MENU_H
+#ifndef CATA_SRC_MP_MENU_TAB_H
+#define CATA_SRC_MP_MENU_TAB_H
 
 #include <optional>
 #include <string>
@@ -18,4 +18,4 @@ std::optional<std::string> pick_world_to_host();
 
 } // namespace mp
 
-#endif // CATA_SRC_MP_MAIN_MENU_H
+#endif // CATA_SRC_MP_MENU_TAB_H

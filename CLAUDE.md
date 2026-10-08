@@ -59,6 +59,8 @@
 Результат — артефакт `cdda-mp-windows-x64` (zip: игра с графикой и переводами + папка `mp` с клиентом и докой). Идёт 1–2 часа.
 Инструкция для игроков — `docs/mp/how-to-play.md`.
 
+**Имена файлов в `src/mp/` не должны совпадать с файлами в `src/`**: MSVC кладёт все `.obj` проекта в одну папку по имени файла, и один объект затирает другой (так сломалась сборка с `src/mp/main_menu.cpp`). Workflow проверяет это первым шагом.
+
 Новые `.cpp` в `src/mp/` MSVC-проект подхватывает сам (`msvc-full-features/Cataclysm-lib-vcpkg-static.vcxproj`, маска `..\src\mp\*.cpp`).
 Проверить, что код компилируется под Windows, можно здесь же: `apt-get install g++-mingw-w64-x86-64` и
 `x86_64-w64-mingw32-g++-posix <флаги из сборки без -D_XOPEN_SOURCE=600> -fsyntax-only src/mp/<файл>.cpp`.
@@ -171,7 +173,7 @@ LANG=C.UTF-8 LC_ALL=C.UTF-8 ./cataclysm --userdir ../cdda-userdir/
 
 #### Как это устроено
 
-* Вкладка **Multiplayer** в стартовом меню (`src/main_menu.cpp`, правки в 5 местах; пункты и выбор мира — `src/mp/main_menu.cpp`).
+* Вкладка **Multiplayer** в стартовом меню (`src/main_menu.cpp`, правки в 5 местах; пункты и выбор мира — `src/mp/menu_tab.cpp`).
 * **Host game**: выбор мира → обычная загрузка сохранения → `mp::request_host()`; на первом ходу `mp::wait_for_remote_players()` запускает сервер и, если RC-NPC нет, спрашивает, кем играет второй игрок (NPC рядом или новый случайный, `spawn_partner()`).
 * **Join game**: `src/mp/client_ui.cpp` — ввод адреса, подключение с таймаутом 5 с, свой экран (статус, карта, лог), мир не загружается.
 * Сервер шлёт `log`, `view` и `your_turn` каждый раз, когда ждёт второго игрока (`src/mp/view.cpp` — что видит RC-NPC: `npc::sees()` по клеткам радиуса 25).
