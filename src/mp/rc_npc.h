@@ -46,6 +46,12 @@ bool remote_move( npc &guy );
 // leaves them their remaining moves.
 bool waits_for_commands( const npc &guy );
 
+// While the server runs, the second player's actions take no game time: the
+// world never waits for them and each command runs as soon as it arrives.
+bool instant_mode();
+// Runs guy's queued commands and the activities they start right away.
+void run_instantly( npc &guy );
+
 // Hook at the start of do_turn(). While a remote NPC has moves left and no
 // commands, game time stands still: this loop keeps the screen alive and lets
 // the host use only actions that take no game time.

@@ -1,5 +1,6 @@
 #include "mp/protocol.h"
 
+#include <chrono>
 #include <map>
 #include <optional>
 #include <sstream>
@@ -33,6 +34,9 @@ std::string to_line( const Writer &write )
     json.end_object();
     return os.str();
 }
+
+// When the client last got the view and the status.
+std::chrono::steady_clock::time_point last_state_sent;
 
 // The newest message of the host's log already sent to the client.
 std::optional<std::pair<std::string, std::string>> last_sent_message;
@@ -191,6 +195,10 @@ void handle_line( const std::string &line )
         json.member( "type", "ok" );
         json.member( "cmd", cmd_name );
     } ) );
+    if( instant_mode() ) {
+        run_instantly( *guy );
+        send_state( *guy );
+    }
 }
 
 } // namespace
@@ -200,6 +208,7 @@ void send_welcome()
     net::send_line( to_line( [&]( JsonOut & json ) {
         json.member( "type", "welcome" );
         json.member( "version", version );
+        json.member( "instant", instant_mode() );
         const npc *guy = network_npc();
         if( guy != nullptr ) {
             json.member( "npc", guy->get_name() );
@@ -213,6 +222,29 @@ void send_view( const npc &guy )
         json.member( "type", "view" );
         view::write( json, guy );
     } ) );
+}
+
+void send_state( const npc &guy )
+{
+    send_new_messages();
+    send_view( guy );
+    send_status( guy, "state" );
+    last_state_sent = std::chrono::steady_clock::now();
+}
+
+void send_state_if_due()
+{
+    if( !net::has_client() ) {
+        return;
+    }
+    // At most a few times a second, so that a sleeping host doesn't flood
+    // the network.
+    if( std::chrono::steady_clock::now() - last_state_sent < std::chrono::milliseconds( 250 ) ) {
+        return;
+    }
+    if( const npc *guy = network_npc() ) {
+        send_state( *guy );
+    }
 }
 
 void send_your_turn( const npc &guy )

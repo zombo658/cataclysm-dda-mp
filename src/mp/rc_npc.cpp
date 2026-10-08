@@ -193,6 +193,28 @@ bool remote_move( npc &guy )
     return true;
 }
 
+bool instant_mode()
+{
+    return net::running();
+}
+
+void run_instantly( npc &guy )
+{
+    if( !is_remote( guy ) ) {
+        return;
+    }
+    // The second player's time is not counted: give the NPC whatever it needs
+    // for every step, so that commands and the activities they start (picking
+    // up, ...) finish at once. The cap only guards against an activity that
+    // never ends.
+    for( int steps = 0; steps < 10000 && ( has_commands( guy ) || guy.activity ); steps++ ) {
+        guy.set_moves( std::max( guy.get_speed(), 100 ) );
+        remote_move( guy );
+    }
+    guy.set_moves( 0 );
+    g->invalidate_main_ui_adaptor();
+}
+
 bool waits_for_commands( const npc &guy )
 {
     return is_remote( guy ) && !guy.activity && !has_commands( guy );
@@ -222,6 +244,7 @@ void wait_for_remote_players( const std::function<bool()> &host_input )
         host_requested = false;
         start_hosting();
     }
+    protocol::send_state_if_due();
     bool announced = false;
     // Tell the client once per state it has to act in.
     const npc *notified_npc = nullptr;
@@ -231,6 +254,12 @@ void wait_for_remote_players( const std::function<bool()> &host_input )
         npc *guy = first_waiting_npc();
         if( guy == nullptr ) {
             break;
+        }
+        if( instant_mode() ) {
+            // The world never waits for the second player; their commands run
+            // as they arrive (see run_instantly()).
+            run_instantly( *guy );
+            continue;
         }
         if( !waits_for_commands( *guy ) ) {
             const int moves_before = guy->get_moves();

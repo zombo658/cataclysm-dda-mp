@@ -39,6 +39,8 @@ struct client_state {
     std::string character;
     std::string status;
     bool my_turn = false;
+    // The host runs with instant actions: no turns to wait for.
+    bool instant = false;
     bool attack_pending = false;
     bool lost = false;
     std::deque<std::pair<std::string, nc_color>> log;
@@ -76,13 +78,14 @@ void handle_message( client_state &state, const std::string &line )
         const std::string type = msg.get_string( "type", "" );
         if( type == "view" ) {
             state.grid = view::read( msg );
-        } else if( type == "your_turn" || type == "status" ) {
+        } else if( type == "your_turn" || type == "status" || type == "state" ) {
             state.status = format_status( msg.get_object( "status" ) );
             if( type == "your_turn" ) {
                 state.my_turn = true;
             }
         } else if( type == "welcome" ) {
             state.character = msg.get_string( "npc", "" );
+            state.instant = msg.get_bool( "instant", false );
             if( msg.get_int( "version", 0 ) != protocol::version ) {
                 state.add_log( _( "Warning: the host runs a different version of the game." ), c_yellow );
             }
@@ -175,9 +178,11 @@ void draw( const catacurses::window &w, const client_state &state )
     const int map_height = std::max( 1, height - map_top - log_height - 1 );
 
     // Top: who we are and whose turn it is.
+    const bool can_act = state.instant || state.my_turn;
     const std::string turn = state.lost ? _( "Disconnected" ) :
+                             state.instant ? _( "Connected" ) :
                              state.my_turn ? _( "YOUR TURN" ) : _( "Waiting for the host…" );
-    mvwprintz( w, point( 0, 0 ), state.my_turn ? c_light_green : c_yellow, turn );
+    mvwprintz( w, point( 0, 0 ), can_act && !state.lost ? c_light_green : c_yellow, turn );
     mvwprintz( w, point( utf8_width( turn ) + 2, 0 ), c_white, state.status );
 
     // Middle: the map, the character in the middle.

@@ -69,7 +69,7 @@ def parse_short(text):
 
 def describe(message):
     kind = message.get('type')
-    if kind in ('status', 'your_turn'):
+    if kind in ('status', 'your_turn', 'state'):
         s = message['status']
         text = ('{name}: HP {hp}/{hp_max}  stamina {stamina}/{stamina_max}  '
                 'hunger {hunger}  thirst {thirst}  sleepiness {sleepiness}  '
