@@ -103,10 +103,12 @@ LANG=C.UTF-8 LC_ALL=C.UTF-8 ./cataclysm --userdir ../cdda-userdir/
 `npc::store/load` (`src/savegame_json.cpp`), пункт debug-меню (`src/debug_menu.{h,cpp}`).
 
 Проверка вручную:
-1. В `<userdir>/config/keybindings.json` привязать debug-меню (без привязки игра показывает только «Info…»):
-   `[{"type":"keybinding","id":"debug","category":"DEFAULTMODE","bindings":[{"input_method":"keyboard_char","key":"`"}]}]`
+1. В `<userdir>/config/keybindings.json` привязать debug-меню к обратной кавычке (без привязки игра показывает только «Info…»):
+   ```
+   [{"type":"keybinding","id":"debug","category":"DEFAULTMODE","bindings":[{"input_method":"keyboard_char","key":"`"}]}]
+   ```
 2. Новая игра «Play Now! (Default Scenario)» — в убежище есть NPC.
-3. `` ` `` → `p` Player… → `X` Multiplayer: remote NPC → `t` → выбрать NPC. Он становится последователем с флагом.
+3. Обратная кавычка → `p` Player… → `X` Multiplayer: remote NPC → `t` → выбрать NPC. Он становится последователем с флагом.
 4. После хода хоста появляется «Waiting for <имя> to act…». Клавиши движения, `.` и `g` теперь управляют NPC; действия хоста, тратящие время, запрещены. Время идёт на 1 секунду после хода NPC и хода хоста.
 5. Debug-меню → `q` ставит команду в очередь вручную (так же будут приходить команды из сети).
 
