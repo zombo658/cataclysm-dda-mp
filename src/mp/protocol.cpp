@@ -19,6 +19,7 @@
 #include "mp/remote_inventory.h"
 #include "mp/remote_sidebar.h"
 #include "mp/view.h"
+#include "mp/world_sync.h"
 #include "npc.h"
 #include "scenario.h"
 #include "translations.h"
@@ -370,6 +371,15 @@ void send_state( const npc &guy )
         remote_sidebar::write( json, guy );
     } ) );
     send_view( guy );
+    // The map around the character, for the game's own screens on the client.
+    bool submaps_changed = false;
+    const std::string submaps = to_line( [&]( JsonOut & json ) {
+        json.member( "type", "submaps" );
+        submaps_changed = world_sync::write_changed( json, guy );
+    } );
+    if( submaps_changed ) {
+        net::send_line( submaps );
+    }
     send_status( guy, "state" );
     last_state_sent = std::chrono::steady_clock::now();
 }
@@ -411,6 +421,7 @@ void poll()
     h.on_connect = []() {
         add_msg( m_info, _( "The second player has connected." ) );
         skip_old_messages();
+        world_sync::reset();
         send_welcome();
         // Something to look at right away, not after the first action.
         if( const npc *guy = network_npc() ) {

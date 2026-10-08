@@ -72,6 +72,7 @@
 #include "math_defines.h"
 #include "mission.h"
 #include "memory_fast.h"
+#include "mp/world_sync.h"
 #include "messages.h"
 #include "mongroup.h"
 #include "monster.h"
@@ -8171,7 +8172,8 @@ void map::loadn( const point_bub_sm &grid, bool update_vehicles )
         }
     }
 
-    if( map_incomplete ) {
+    // The second player's client has no world to generate from (mp/world_sync.h).
+    if( map_incomplete && !mp::world_sync::fill_missing( grid_sm_base ) ) {
         smallmap tmp_map;
         swap_map swap( *tmp_map.cast_to_map() );
         tmp_map.main_cleanup_override( false );

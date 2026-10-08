@@ -23,6 +23,9 @@
 #include "input_context.h"
 #include "avatar.h"
 #include "json.h"
+#include "map.h"
+#include "mapbuffer.h"
+#include "messages.h"
 #include "json_loader.h"
 #include "mp/net.h"
 #include "mp/protocol.h"
@@ -30,6 +33,7 @@
 #include "mp/remote_crafting.h"
 #include "mp/sound_relay.h"
 #include "mp/view.h"
+#include "mp/world_sync.h"
 #include "output.h"
 #include "point.h"
 #include "popup.h"
@@ -79,6 +83,8 @@ struct client_state {
     // screens on the client's avatar); run when the character comes.
     std::optional<action_id> character_action;
     bool character_loaded = false;
+    // Map updates that came before the game data was loaded.
+    std::vector<std::string> pending_submaps;
     // The sidebar lines from the host, with color tags.
     std::vector<std::string> sidebar;
     std::deque<std::pair<std::string, nc_color>> log;
@@ -144,6 +150,12 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "rejected" ) {
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
+        } else if( type == "submaps" ) {
+            if( state.data_loaded ) {
+                world_sync::read( msg );
+            } else {
+                state.pending_submaps.push_back( line );
+            }
         } else if( type == "character" ) {
             state.character_loaded = remote_actions::load_character( msg.get_string( "data" ) );
             if( !state.character_loaded ) {
@@ -224,10 +236,6 @@ bool handle_action( client_state &state, const std::string &action, const input_
         case ACTION_PAUSE:
             send_command( state, "wait" );
             break;
-        case ACTION_PICKUP:
-        case ACTION_PICKUP_ALL:
-            send_command( state, "pickup" );
-            break;
         case ACTION_CRAFT:
             state.show_crafting = true;
             break;
@@ -275,6 +283,8 @@ void load_host_data( client_state &state )
         g->load_core_data();
         g->load_packs( _( "Loading the host's game data" ), mods );
         DynamicDataLoader::get_instance().finalize_loaded_data();
+        // A fresh map sized for the loaded data (traps...), as game::setup() does.
+        get_map() = map();
         state.data_loaded = true;
         state.add_log( _( "Loaded the host's game data." ), c_light_gray );
     } catch( const std::exception &err ) {
@@ -440,11 +450,22 @@ void run_join_screen()
         if( state.data_requested ) {
             load_host_data( state );
             ui.mark_resize();
+            const std::vector<std::string> pending = std::move( state.pending_submaps );
+            state.pending_submaps.clear();
+            for( const std::string &line : pending ) {
+                handle_message( state, line );
+            }
         }
         if( state.character_action && state.character_loaded && !state.lost ) {
             const action_id act = *state.character_action;
             state.character_action.reset();
+            const size_t messages_before = Messages::size();
             remote_actions::run( act );
+            // What the game's screens said here ("There is nothing to pick up.").
+            const size_t count = Messages::size() - std::min( Messages::size(), messages_before );
+            for( const std::pair<std::string, std::string> &m : Messages::recent_messages( count ) ) {
+                state.add_log( m.second );
+            }
             ui.invalidate_ui();
         }
         if( state.show_crafting && !state.lost ) {
@@ -476,6 +497,8 @@ void run_join_screen()
     remote_actions::set_client_active( false );
     // The avatar held a copy of the remote character.
     get_avatar() = avatar();
+    // And the map buffer, copies of the host's submaps.
+    MAPBUFFER.clear();
     if( state.host_world ) {
         // Back to what the main menu expects: core data only, no world.
         try {

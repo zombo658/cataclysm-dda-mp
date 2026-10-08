@@ -14,6 +14,7 @@
 #include "avatar.h"
 #include "bodygraph.h"
 #include "debug.h"
+#include "game.h"
 #include "game_inventory.h"
 #include "item.h"
 #include "item_location.h"
@@ -68,6 +69,22 @@ std::string do_item_action( npc &guy, item_location loc, const int key, const Js
         case 'T':
             guy.takeoff( loc.obtain( guy ) );
             break;
+        case 'g': {
+            drop_locations what;
+            for( JsonArray entry : request.get_array( "items" ) ) {
+                item_location it;
+                it.deserialize( entry.get_object( 0 ) );
+                if( it && it.carrier() == nullptr &&
+                    rl_dist( it.pos_bub( get_map() ), guy.pos_bub() ) <= 1 ) {
+                    what.emplace_back( it, entry.get_int( 1 ) );
+                }
+            }
+            if( what.empty() ) {
+                return _( "those things are gone" );
+            }
+            guy.pick_up( what );
+            break;
+        }
         case 'd':
             if( request.has_array( "items" ) ) {
                 drop_locations what;
@@ -189,6 +206,25 @@ std::optional<std::string> choose_use_method( const item &used )
     return methods[umenu.ret];
 }
 
+void send_items( const int key, const drop_locations &what )
+{
+    if( what.empty() ) {
+        return;
+    }
+    send( "item_action", [&]( JsonOut & json ) {
+        json.member( "key", key );
+        json.member( "items" );
+        json.start_array();
+        for( const drop_location &d : what ) {
+            json.start_array();
+            json.write( d.first );
+            json.write( d.second );
+            json.end_array();
+        }
+        json.end_array();
+    } );
+}
+
 void send_item( const int key, const item_location &loc, const std::optional<std::string> &method = std::nullopt,
                 const std::optional<item::reload_option> &reload = std::nullopt )
 {
@@ -280,6 +316,8 @@ bool uses_character( const action_id act )
         case ACTION_MEND:
         case ACTION_DISASSEMBLE:
         case ACTION_COMPARE:
+        case ACTION_PICKUP:
+        case ACTION_PICKUP_ALL:
             return true;
         default:
             return false;
@@ -344,24 +382,18 @@ void run( const action_id act )
                 }
             }
             break;
-        case ACTION_DROP: {
-            const drop_locations what = game_menus::inv::multidrop( you );
-            if( !what.empty() ) {
-                send( "item_action", [&]( JsonOut & json ) {
-                    json.member( "key", static_cast<int>( 'd' ) );
-                    json.member( "items" );
-                    json.start_array();
-                    for( const drop_location &d : what ) {
-                        json.start_array();
-                        json.write( d.first );
-                        json.write( d.second );
-                        json.end_array();
-                    }
-                    json.end_array();
-                } );
+        case ACTION_DROP:
+            send_items( 'd', game_menus::inv::multidrop( you ) );
+            break;
+        case ACTION_PICKUP:
+            // game::pickup()
+            if( const std::optional<tripoint_bub_ms> where = choose_adjacent( _( "Pick up items where?" ) ) ) {
+                send_items( 'g', game_menus::inv::pickup( where ) );
             }
             break;
-        }
+        case ACTION_PICKUP_ALL:
+            send_items( 'g', game_menus::inv::pickup() );
+            break;
         case ACTION_READ:
             if( const item_location loc = game_menus::inv::read( you ) ) {
                 send_item( 'R', loc );
