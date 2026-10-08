@@ -1,0 +1,183 @@
+#include "mp/protocol.h"
+
+#include <map>
+#include <optional>
+#include <sstream>
+#include <string>
+
+#include "coordinates.h"
+#include "json.h"
+#include "json_loader.h"
+#include "messages.h"
+#include "mp/net_server.h"
+#include "mp/rc_npc.h"
+#include "npc.h"
+#include "translations.h"
+
+namespace mp::protocol
+{
+
+namespace
+{
+
+template<typename Writer>
+std::string to_line( const Writer &write )
+{
+    std::ostringstream os;
+    JsonOut json( os );
+    json.start_object();
+    write( json );
+    json.end_object();
+    return os.str();
+}
+
+void send_error( const std::string &message )
+{
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "error" );
+        json.member( "message", message );
+    } ) );
+}
+
+void write_status( JsonOut &json, const npc &guy )
+{
+    const tripoint_abs_ms pos = guy.pos_abs();
+    json.member( "name", guy.get_name() );
+    json.member( "hp", guy.get_hp() );
+    json.member( "hp_max", guy.get_hp_max() );
+    json.member( "stamina", guy.get_stamina() );
+    json.member( "stamina_max", guy.get_stamina_max() );
+    json.member( "hunger", guy.get_hunger() );
+    json.member( "thirst", guy.get_thirst() );
+    json.member( "sleepiness", guy.get_sleepiness() );
+    json.member( "pain", guy.get_pain() );
+    json.member( "moves", guy.get_moves() );
+    json.member( "pos" );
+    json.start_array();
+    json.write( pos.x() );
+    json.write( pos.y() );
+    json.write( pos.z() );
+    json.end_array();
+}
+
+void send_status( const npc &guy, const std::string &type )
+{
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", type );
+        json.member( "status" );
+        json.start_object();
+        write_status( json, guy );
+        json.end_object();
+    } ) );
+}
+
+std::optional<point_rel_ms> parse_dir( const std::string &dir )
+{
+    static const std::map<std::string, point_rel_ms> dirs = {
+        { "n", point_rel_ms::north },
+        { "ne", point_rel_ms::north_east },
+        { "e", point_rel_ms::east },
+        { "se", point_rel_ms::south_east },
+        { "s", point_rel_ms::south },
+        { "sw", point_rel_ms::south_west },
+        { "w", point_rel_ms::west },
+        { "nw", point_rel_ms::north_west },
+    };
+    const auto it = dirs.find( dir );
+    if( it == dirs.end() ) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
+void handle_line( const std::string &line )
+{
+    std::string cmd_name;
+    std::string dir_name;
+    try {
+        const JsonValue value = json_loader::from_string( line );
+        const JsonObject obj = value.get_object();
+        obj.allow_omitted_members();
+        cmd_name = obj.get_string( "cmd" );
+        dir_name = obj.get_string( "dir", "" );
+    } catch( const JsonError &err ) {
+        send_error( "bad message: " + std::string( err.what() ) );
+        return;
+    }
+
+    npc *guy = network_npc();
+    if( guy == nullptr ) {
+        send_error( "the host has no remote-controlled NPC nearby" );
+        return;
+    }
+    if( cmd_name == "status" ) {
+        send_status( *guy, "status" );
+        return;
+    }
+
+    command cmd;
+    if( cmd_name == "move" || cmd_name == "attack" ) {
+        const std::optional<point_rel_ms> dir = parse_dir( dir_name );
+        if( !dir ) {
+            send_error( "bad dir \"" + dir_name + "\", expected n, ne, e, se, s, sw, w or nw" );
+            return;
+        }
+        cmd.type = cmd_name == "move" ? command_type::move : command_type::attack;
+        cmd.dir = *dir;
+    } else if( cmd_name == "wait" ) {
+        cmd.type = command_type::wait;
+    } else if( cmd_name == "pickup" ) {
+        cmd.type = command_type::pickup_all;
+    } else {
+        send_error( "unknown cmd \"" + cmd_name + "\"" );
+        return;
+    }
+    push_command( *guy, cmd );
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "ok" );
+        json.member( "cmd", cmd_name );
+    } ) );
+}
+
+} // namespace
+
+void send_welcome()
+{
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "welcome" );
+        json.member( "version", version );
+        const npc *guy = network_npc();
+        if( guy != nullptr ) {
+            json.member( "npc", guy->get_name() );
+        }
+    } ) );
+}
+
+void send_your_turn( const npc &guy )
+{
+    send_status( guy, "your_turn" );
+}
+
+void send_rejected( const std::string &reason )
+{
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "rejected" );
+        json.member( "reason", reason );
+    } ) );
+}
+
+void poll()
+{
+    net::handlers h;
+    h.on_line = handle_line;
+    h.on_connect = []() {
+        add_msg( m_info, _( "The second player has connected." ) );
+        send_welcome();
+    };
+    h.on_disconnect = []() {
+        add_msg( m_warning, _( "The second player has disconnected." ) );
+    };
+    net::poll( h );
+}
+
+} // namespace mp::protocol

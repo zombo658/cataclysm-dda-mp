@@ -437,12 +437,14 @@ input_context game::get_player_input( std::string &action )
 
             ui_manager::redraw_invalidated();
         } while( handle_mouseview( ctxt, action ) && uquit != QUIT_WATCH
-                 && ( action != "TIMEOUT" || !current_turn.has_timeout_elapsed() ) );
+                 && ( action != "TIMEOUT" || !( current_turn.has_timeout_elapsed() ||
+                                                mp::host_input_should_yield() ) ) );
         ctxt.reset_timeout();
     } else {
         ctxt.set_timeout( 125 );
         while( handle_mouseview( ctxt, action ) ) {
-            if( action == "TIMEOUT" && current_turn.has_timeout_elapsed() ) {
+            if( action == "TIMEOUT" && ( current_turn.has_timeout_elapsed() ||
+                                         mp::host_input_should_yield() ) ) {
                 break;
             }
         }

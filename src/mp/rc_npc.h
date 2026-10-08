@@ -33,6 +33,9 @@ struct command {
 };
 
 void push_command( const npc &guy, const command &cmd );
+// The remote NPC that network commands go to: the first one in the reality
+// bubble. nullptr if there is none.
+npc *network_npc();
 bool has_commands( const npc &guy );
 
 // Hook for npc::move(): runs queued commands instead of the AI.
@@ -53,6 +56,9 @@ void wait_for_remote_players( const std::function<bool()> &host_input );
 // remote NPC (hot-seat control for testing), other actions that take time
 // are refused.
 bool intercept_host_action( action_id act );
+// Hook in game::get_player_input(): true if the host's input should stop
+// waiting for a key, because something arrived from the network.
+bool host_input_should_yield();
 
 // Hooks for npc::store() / npc::load() in savegame_json.cpp.
 void store_npc( const npc &guy, JsonOut &json );

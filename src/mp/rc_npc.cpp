@@ -21,6 +21,8 @@
 #include "map_selector.h"
 #include "mapdata.h"
 #include "messages.h"
+#include "mp/net_server.h"
+#include "mp/protocol.h"
 #include "npc.h"
 #include "output.h"
 #include "translations.h"
@@ -75,9 +77,20 @@ bool has_commands( const npc &guy )
     return it != queues.end() && !it->second.empty();
 }
 
+npc *network_npc()
+{
+    for( npc &guy : g->all_npcs() ) {
+        if( is_remote( guy ) ) {
+            return &guy;
+        }
+    }
+    return nullptr;
+}
+
 static void reject( const npc &guy, const std::string &why )
 {
     add_msg( m_bad, _( "%1$s can't do that: %2$s" ), guy.get_name(), why );
+    protocol::send_rejected( why );
 }
 
 static void do_move( npc &guy, const point_rel_ms &dir )
@@ -189,10 +202,24 @@ static npc *first_waiting_npc()
     return nullptr;
 }
 
+// No client is connected to the running server: nobody can give the order.
+static bool nobody_to_ask()
+{
+    return net::running() && !net::has_client();
+}
+
 void wait_for_remote_players( const std::function<bool()> &host_input )
 {
     bool announced = false;
-    while( npc *guy = first_waiting_npc() ) {
+    // Tell the client once per state it has to act in.
+    const npc *notified_npc = nullptr;
+    int notified_moves = 0;
+    for( ;; ) {
+        protocol::poll();
+        npc *guy = first_waiting_npc();
+        if( guy == nullptr ) {
+            break;
+        }
         if( !waits_for_commands( *guy ) ) {
             const int moves_before = guy->get_moves();
             guy->move();
@@ -201,6 +228,17 @@ void wait_for_remote_players( const std::function<bool()> &host_input )
                 guy->set_moves( 0 );
             }
             continue;
+        }
+        if( nobody_to_ask() ) {
+            // TODO: open question, what happens when the client is away. For
+            // now the character stands still and the game goes on.
+            guy->pause();
+            continue;
+        }
+        if( net::has_client() && ( notified_npc != guy || notified_moves != guy->get_moves() ) ) {
+            protocol::send_your_turn( *guy );
+            notified_npc = guy;
+            notified_moves = guy->get_moves();
         }
         if( !announced ) {
             add_msg( m_info, _( "Waiting for %s to act…" ), guy->get_name() );
@@ -219,6 +257,16 @@ void wait_for_remote_players( const std::function<bool()> &host_input )
     }
 }
 
+bool host_input_should_yield()
+{
+    if( !host_blocked ) {
+        return false;
+    }
+    protocol::poll();
+    const npc *guy = first_waiting_npc();
+    return guy == nullptr || !waits_for_commands( *guy ) || nobody_to_ask();
+}
+
 bool intercept_host_action( const action_id act )
 {
     if( !host_blocked || !can_action_change_worldstate( act ) ) {
@@ -227,6 +275,10 @@ bool intercept_host_action( const action_id act )
     npc *guy = first_waiting_npc();
     if( guy == nullptr ) {
         return false;
+    }
+    if( net::running() ) {
+        add_msg( m_info, _( "Waiting for the second player (%s)." ), guy->get_name() );
+        return true;
     }
     command cmd;
     switch( act ) {
@@ -374,12 +426,29 @@ static void queue_command_menu()
     push_command( *guy, cmd );
 }
 
+static void toggle_server()
+{
+    if( net::running() ) {
+        net::stop();
+        add_msg( m_info, _( "Multiplayer server stopped." ) );
+        return;
+    }
+    std::string error;
+    if( net::start( net::default_port, error ) ) {
+        add_msg( m_info, _( "Multiplayer server is listening on port %d." ), net::default_port );
+    } else {
+        popup( _( "Can't start the multiplayer server on port %1$d: %2$s" ), net::default_port, error );
+    }
+}
+
 void debug_menu()
 {
     uilist menu;
     menu.text = _( "Multiplayer" );
     menu.addentry( 0, true, 't', _( "Toggle remote control of an NPC" ) );
     menu.addentry( 1, true, 'q', _( "Queue a command for a remote NPC" ) );
+    menu.addentry( 2, true, 's', net::running() ? _( "Stop the server" ) :
+                   string_format( _( "Start the server (port %d)" ), net::default_port ) );
     menu.query();
     switch( menu.ret ) {
         case 0:
@@ -387,6 +456,9 @@ void debug_menu()
             break;
         case 1:
             queue_command_menu();
+            break;
+        case 2:
+            toggle_server();
             break;
         default:
             break;
