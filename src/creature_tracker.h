@@ -97,6 +97,10 @@ class creature_tracker
         void clear_npcs() {
             active_npc.clear();
         }
+        // The second player's client shows copies of the host's NPCs (mp/world_sync.h).
+        void add_npc( const shared_ptr_fast<npc> &guy ) {
+            active_npc.push_back( guy );
+        }
         /** Swaps the positions of two monsters */
         void swap_positions( monster &first, monster &second );
         /** Kills 0 hp monsters. Returns if it killed any. */

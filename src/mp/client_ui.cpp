@@ -26,6 +26,10 @@
 #include "map.h"
 #include "mapbuffer.h"
 #include "messages.h"
+#include "calendar.h"
+#include "weather.h"
+#include "options.h"
+#include "panels.h"
 #include "json_loader.h"
 #include "mp/net.h"
 #include "mp/protocol.h"
@@ -150,21 +154,35 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "log" ) {
             for( const std::string text : msg.get_array( "lines" ) ) {
                 state.add_log( text );
+                // For the game's own message panel.
+                Messages::add_msg( text );
             }
         } else if( type == "rejected" ) {
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
         } else if( type == "prompt" ) {
             state.prompts.push_back( line );
-        } else if( type == "submaps" ) {
-            if( state.data_loaded ) {
-                world_sync::read( msg );
-            } else {
+        } else if( type == "submaps" || type == "creatures" || type == "world" || type == "overmap" ) {
+            if( !state.data_loaded ) {
                 state.pending_submaps.push_back( line );
+            } else if( type == "submaps" ) {
+                world_sync::read( msg );
+            } else if( type == "creatures" ) {
+                world_sync::read_creatures( msg );
+            } else if( type == "overmap" ) {
+                world_sync::read_overmap( msg );
+            } else {
+                world_sync::read_world( msg );
             }
         } else if( type == "character" ) {
+            if( !state.data_loaded ) {
+                state.pending_submaps.push_back( line );
+                return;
+            }
             state.character_loaded = remote_actions::load_character( msg.get_string( "data" ) );
-            if( !state.character_loaded ) {
+            if( state.character_loaded ) {
+                world_sync::follow_avatar();
+            } else {
                 state.add_log( _( "Can't read the character from the host." ), c_red );
                 state.character_action.reset();
             }
@@ -292,8 +310,16 @@ void load_host_data( client_state &state )
         g->load_core_data();
         g->load_packs( _( "Loading the host's game data" ), mods );
         DynamicDataLoader::get_instance().finalize_loaded_data();
-        // A fresh map sized for the loaded data (traps...), as game::setup() does.
+        // What game::setup() does after loading the data, for the game's own
+        // screen: a fresh map (sized for traps...), the sidebar's panels,
+        // the calendar's settings and an empty log.
         get_map() = map();
+        panel_manager::get_manager().init();
+        calendar::set_eternal_season( ::get_option<bool>( "ETERNAL_SEASON" ) );
+        calendar::set_season_length( ::get_option<int>( "SEASON_LENGTH" ) );
+        calendar::set_location( ::get_option<float>( "LATITUDE" ), ::get_option<float>( "LONGITUDE" ) );
+        get_weather().weather_id = WEATHER_CLEAR;
+        Messages::clear_messages();
         state.data_loaded = true;
         state.add_log( _( "Loaded the host's game data." ), c_light_gray );
     } catch( const std::exception &err ) {
@@ -432,7 +458,13 @@ void run_join_screen()
         ui.position( point::zero, point( TERMX, TERMY ) );
     } );
     ui.mark_resize();
+    // The game's own main screen (map, sidebar, messages), drawn from the
+    // copies of the map, the character and the creatures, once they are here.
+    shared_ptr_fast<ui_adaptor> game_screen;
     ui.on_redraw( [&]( const ui_adaptor & ) {
+        if( game_screen ) {
+            return;
+        }
         draw_sidebar( w_side, state );
         draw_map( w_map, state );
     } );
@@ -464,6 +496,9 @@ void run_join_screen()
             for( const std::string &line : pending ) {
                 handle_message( state, line );
             }
+        }
+        if( !game_screen && state.data_loaded && state.character_loaded && !state.lost ) {
+            game_screen = g->create_or_get_main_ui_adaptor();
         }
         while( !state.prompts.empty() && !state.lost ) {
             const std::string line = state.prompts.front();
@@ -513,6 +548,7 @@ void run_join_screen()
         }
         ui.invalidate_ui();
     }
+    game_screen.reset();
     net::disconnect();
     remote_actions::set_client_active( false );
     // The avatar held a copy of the remote character.

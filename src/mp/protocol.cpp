@@ -223,14 +223,7 @@ void handle_line( const std::string &line )
     };
     if( cmd_name == "character" ) {
         // The whole character, for the client's copy of the host's screens.
-        // It is loaded there into an avatar, which also wants a scenario.
-        std::ostringstream os;
-        JsonOut character( os );
-        guy->serialize( character );
-        std::string data = os.str();
-        if( !data.empty() && data[0] == '{' && get_scenario() != nullptr ) {
-            data.insert( 1, "\"scenario\":\"" + get_scenario()->ident().str() + "\"," );
-        }
+        const std::string data = world_sync::character_if_changed( *guy, true );
         net::send_line( to_line( [&]( JsonOut & json ) {
             json.member( "type", "character" );
             json.member( "data", data );
@@ -409,6 +402,33 @@ void send_state( const npc &guy )
     } );
     if( submaps_changed ) {
         net::send_line( submaps );
+    }
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "world" );
+        world_sync::write_world( json );
+    } ) );
+    const std::string character = world_sync::character_if_changed( guy, false );
+    if( !character.empty() ) {
+        net::send_line( to_line( [&]( JsonOut & json ) {
+            json.member( "type", "character" );
+            json.member( "data", character );
+        } ) );
+    }
+    bool overmap_changed = false;
+    const std::string overmap = to_line( [&]( JsonOut & json ) {
+        json.member( "type", "overmap" );
+        overmap_changed = world_sync::write_overmap( json, guy );
+    } );
+    if( overmap_changed ) {
+        net::send_line( overmap );
+    }
+    bool creatures_changed = false;
+    const std::string creatures = to_line( [&]( JsonOut & json ) {
+        json.member( "type", "creatures" );
+        creatures_changed = world_sync::write_creatures( json, guy );
+    } );
+    if( creatures_changed ) {
+        net::send_line( creatures );
     }
     send_status( guy, "state" );
     last_state_sent = std::chrono::steady_clock::now();

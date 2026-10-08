@@ -22,10 +22,26 @@ void reset();
 // Members of a "submaps" message with the submaps around guy that changed
 // since they were last sent; false if none did.
 bool write_changed( JsonOut &json, const npc &guy );
+// Members of a "creatures" message: the monsters and NPCs guy sees (the
+// host's avatar as an NPC); false if nothing changed since last time.
+bool write_creatures( JsonOut &json, const npc &guy );
+// Members of an "overmap" message: the overmap terrain around guy, for the
+// sidebar and the minimap; false if unchanged.
+bool write_overmap( JsonOut &json, const npc &guy );
+// Members of a "world" message: time and weather.
+void write_world( JsonOut &json );
+// The character as the client loads it into its avatar; empty if unchanged
+// since last time (or always, with force).
+std::string character_if_changed( const npc &guy, bool force );
 
 // ---- Client ----
 
 void read( const JsonObject &message );
+void read_creatures( const JsonObject &message );
+void read_world( const JsonObject &message );
+void read_overmap( const JsonObject &message );
+// Keeps the client's map around its avatar (the copy of the character).
+void follow_avatar();
 // Hook in map::loadn(): the client has no world to generate missing
 // submaps from; puts empty ones there instead. True if it did.
 bool fill_missing( const tripoint_abs_sm &omt_base );

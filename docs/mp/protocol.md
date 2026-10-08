@@ -46,7 +46,10 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `inventory` | ответ на `inventory` | `revision`, `items`: `[{index, name, where, depth, actions}]` — что в руках (`where: "wielded"`), надето (`"worn"`), и, с `depth` > 0, что лежит внутри (в `where` — имя контейнера) |
 | `submaps` | в `state`, если изменились субкарты вокруг персонажа (радиус 3 субкарты, z±1) | `turn` (ход игры), `center` (субкарта персонажа), `list`: субкарты в формате сохранения (`version`, `coordinates`, …) — клиент кладёт их в свою карту |
 | `prompt` | игра хоста задаёт вопрос, выполняя команду второго игрока; хост ждёт `prompt_answer` с тем же `id` (до 5 минут, игра хоста стоит) | `id`, `kind`: `uilist` (`title`, `text`, `entries`: `retval`, `enabled`, `txt`, `desc`, `ctxt`, `color`), `popup` (`text`, `actions`, `category`, `cancel`, `anykey`), `direction` (`text`, `vertical`), `string` (`title`, `description`, `text`, `width`, `only_digits`), `message` (`text`; `id` 0, ответа не ждут) |
-| `character` | ответ на `character` | `data`: строка JSON персонажа (`npc::serialize`, плюс `scenario`); клиент грузит её в свой аватар |
+| `world` | в каждом `state` | `turn`, `weather`, `temperature` (К), `windspeed`, `winddirection`, `lightning` |
+| `creatures` | в `state`, если изменились | `list`: `[{kind: "monster"/"npc", data}]` — кого видит персонаж, в формате сохранения; аватар хоста — как `npc` |
+| `overmap` | в `state`, если изменилась | `center`, `radius` (12), `ids` (oter id по строкам), `seen` (уровень разведки) |
+| `character` | ответ на `character`; также в `state`, если персонаж изменился | `data`: строка JSON персонажа (`npc::serialize`, плюс `scenario`); клиент грузит её в свой аватар |
 | `recipes` | ответ на `recipes` | `ids` |
 | `recipe_states` | ответ на `recipe_states` | `items`: `[id, batch, можно_сделать, хватает_навыка, цвет, цвет_выделенного, цвет_описания]`, цвета — имена CDDA |
 | `recipe_info` | ответ на `recipe_info` | `recipe`, `batch`, `width`, `result_width` (как в запросе), `lines` (строки с цветовыми тегами), `indicator_color`, `indicator`, `result` |
