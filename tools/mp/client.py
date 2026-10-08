@@ -4,7 +4,8 @@
 Connects to the host's game (TCP, one JSON object per line, see
 docs/mp/protocol.md) and sends commands for the remote-controlled NPC.
 
-Interactive mode (default) uses curses:
+Interactive mode (default) uses curses, or on Windows without the
+windows-curses package a plain console:
     h j k l y u b n, arrow keys or numpad 1-9 - move / bump attack
     a + direction - attack
     . or 5 - wait        g - pick up everything here
@@ -105,14 +106,72 @@ def run_script(conn, commands, wait):
         drain(wait)
 
 
+def handle_key(conn, key, direction, state, show):
+    """Shared by both interactive front ends. Returns False to quit."""
+    if state.get('attack'):
+        state['attack'] = False
+        if direction:
+            conn.send({'cmd': 'attack', 'dir': direction})
+        else:
+            show('attack cancelled')
+    elif direction:
+        conn.send({'cmd': 'move', 'dir': direction})
+    elif key == 'a':
+        state['attack'] = True
+        show('attack where?')
+    elif key in ('.', '5'):
+        conn.send({'cmd': 'wait'})
+    elif key == 'g':
+        conn.send({'cmd': 'pickup'})
+    elif key == 's':
+        conn.send({'cmd': 'status'})
+    elif key == 'q':
+        return False
+    return True
+
+
+HELP = ('CDDA multiplayer - hjklyubn/arrows/numpad move, a+dir attack, '
+        '. wait, g pick up, s status, q quit')
+
+
+def run_console_windows(conn):
+    """Fallback for Windows, where Python ships without curses."""
+    import msvcrt
+
+    arrows = {'H': 'n', 'P': 's', 'K': 'w', 'M': 'e',
+              'G': 'nw', 'I': 'ne', 'O': 'sw', 'Q': 'se'}
+    state = {}
+    print(HELP, flush=True)
+    while True:
+        for message in conn.receive(0.05):
+            print(describe(message), flush=True)
+        if not msvcrt.kbhit():
+            continue
+        key = msvcrt.getwch()
+        direction = None
+        if key in ('\x00', '\xe0'):
+            direction = arrows.get(msvcrt.getwch())
+            key = ''
+        else:
+            direction = DIR_KEYS.get(key)
+        if not handle_key(conn, key, direction, state, lambda t: print(t, flush=True)):
+            return
+
+
 def run_curses(conn):
-    import curses
+    try:
+        import curses
+    except ImportError:
+        if sys.platform == 'win32':
+            run_console_windows(conn)
+            return
+        raise
 
     def main(screen):
         curses.curs_set(0)
         screen.timeout(100)
         log = []
-        pending_attack = False
+        state = {}
 
         def show(text):
             log.append(text)
@@ -123,8 +182,7 @@ def run_curses(conn):
                 show(describe(message))
             screen.erase()
             height, width = screen.getmaxyx()
-            screen.addnstr(0, 0, 'CDDA multiplayer - hjklyubn move, a+dir attack, '
-                           '. wait, g pick up, s status, q quit', width - 1)
+            screen.addnstr(0, 0, HELP, width - 1)
             for row, text in enumerate(log[-(height - 2):]):
                 screen.addnstr(row + 2, 0, text, width - 1)
             screen.refresh()
@@ -136,24 +194,7 @@ def run_curses(conn):
                       curses.KEY_LEFT: 'w', curses.KEY_RIGHT: 'e'}
             ch = chr(key) if 0 <= key < 256 else ''
             direction = arrows.get(key) or DIR_KEYS.get(ch)
-            if pending_attack:
-                pending_attack = False
-                if direction:
-                    conn.send({'cmd': 'attack', 'dir': direction})
-                else:
-                    show('attack cancelled')
-            elif direction:
-                conn.send({'cmd': 'move', 'dir': direction})
-            elif ch == 'a':
-                pending_attack = True
-                show('attack where?')
-            elif ch in ('.', '5'):
-                conn.send({'cmd': 'wait'})
-            elif ch == 'g':
-                conn.send({'cmd': 'pickup'})
-            elif ch == 's':
-                conn.send({'cmd': 'status'})
-            elif ch == 'q':
+            if not handle_key(conn, ch, direction, state, show):
                 return
 
     curses.wrapper(main)
