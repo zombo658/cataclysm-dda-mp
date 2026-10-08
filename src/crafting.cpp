@@ -51,6 +51,7 @@
 #include "map.h"
 #include "map_iterator.h"
 #include "map_selector.h"
+#include "mp/rc_npc.h"
 #include "mapdata.h"
 #include "messages.h"
 #include "mutation.h"
@@ -870,7 +871,8 @@ static item_location place_craft_or_disassembly(
     if( !target ) {
         if( !ch.has_two_arms_lifting() ) {
             craft_in_world = set_item_map_or_vehicle( ch, ch.pos_bub(), craft );
-        } else if( !ch.has_wield_conflicts( craft ) || ch.is_npc() ) {
+        } else if( !ch.has_wield_conflicts( craft ) ||
+                   ( ch.is_npc() && !mp::is_remote_character( ch ) ) ) {
             // NPC always tries wield craft first
             if( std::optional<item_location> it_loc = wield_craft( ch, craft ) ) {
                 craft_in_world = *it_loc;
@@ -878,6 +880,9 @@ static item_location place_craft_or_disassembly(
                 // This almost certainly shouldn't happen
                 put_into_vehicle_or_drop( ch, item_drop_reason::tumbling, {craft} );
             }
+        } else if( mp::is_remote_character( ch ) ) {
+            // Nobody to ask for the second player: keep the weapon, work on the floor.
+            craft_in_world = set_item_map_or_vehicle( ch, ch.pos_bub(), craft );
         } else {
             enum option : int {
                 WIELD_CRAFT = 0,
@@ -964,7 +969,8 @@ void Character::start_craft( craft_command &command, const std::optional<tripoin
         return;
     }
 
-    if( is_avatar() ) {
+    // The second player crafts like the avatar, not like an NPC with zones.
+    if( is_avatar() || mp::is_remote_character( *this ) ) {
         assign_activity( craft_activity_actor( craft_in_world, command.is_long() ) );
     } else {
         // set flag to craft
@@ -1911,6 +1917,9 @@ comp_selection<item_comp> Character::select_item_component( const std::vector<it
         } else if( !map_has.empty() ) {
             selected.use_from = usage_from::map;
             selected.comp = map_has[0].first;
+        } else if( !mixed.empty() ) {
+            selected.use_from = usage_from::both;
+            selected.comp = mixed[0].first;
         } else {
             debugmsg( "Attempted a recipe with no available components!" );
             selected.use_from = usage_from::cancel;

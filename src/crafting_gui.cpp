@@ -64,6 +64,7 @@
 #include "ui_iteminfo.h"
 #include "ui_manager.h"
 #include "uistate.h"
+#include "mp/craft_screen.h"
 
 static const limb_score_id limb_score_manip( "manip" );
 
@@ -115,6 +116,7 @@ bool string_id<crafting_category>::is_valid() const
 }
 
 static bool query_is_yes( std::string_view query );
+static std::string filter_help_text();
 static void draw_hidden_amount( const catacurses::window &w, int amount, int num_recipe );
 static void draw_can_craft_indicator( const catacurses::window &w, const recipe &rec,
                                       Character &crafter );
@@ -1117,6 +1119,44 @@ static const translation filter_help_start = to_translation(
             "\n\n"
             "<color_white>Examples:</color>\n" );
 
+static std::string filter_help_text()
+{
+    int max_example_length = 0;
+    for( const auto &prefix : prefixes ) {
+        max_example_length = std::max( max_example_length, utf8_width( prefix.example.translated() ) );
+    }
+    std::string spaces( max_example_length, ' ' );
+
+    std::string description = filter_help_start.translated();
+
+    {
+        std::string example_name = _( "shirt" );
+        int padding = max_example_length - utf8_width( example_name );
+        description += string_format(
+                           _( "  <color_white>%s</color>%.*s    %s\n" ),
+                           example_name, padding, spaces,
+                           _( "<color_cyan>name</color> of resulting item" ) );
+
+        std::string example_exclude = _( "clean" );
+        padding = max_example_length - utf8_width( example_exclude );
+        description += string_format(
+                           _( "  <color_yellow>-</color><color_white>%s</color>%.*s   %s\n" ),
+                           example_exclude, padding, spaces,
+                           _( "<color_cyan>names</color> to exclude" ) );
+    }
+
+    for( const auto &prefix : prefixes ) {
+        int padding = max_example_length - utf8_width( prefix.example.translated() );
+        description += string_format(
+                           _( "  <color_yellow>%c</color><color_white>:%s</color>%.*s  %s\n" ),
+                           prefix.key, prefix.example, padding, spaces, prefix.description );
+    }
+
+    description +=
+        _( "\nUse <color_red>up/down arrow</color> to go through your search history." );
+    return description;
+}
+
 static bool mouse_in_window( std::optional<point> coord, const catacurses::window &w_ )
 {
     if( coord.has_value() ) {
@@ -1915,39 +1955,7 @@ std::pair<Character *, const recipe *> select_crafter_and_crafting_recipe( int &
                                          info_width, info_height );
             info_window.execute();
         } else if( action == "FILTER" ) {
-            int max_example_length = 0;
-            for( const auto &prefix : prefixes ) {
-                max_example_length = std::max( max_example_length, utf8_width( prefix.example.translated() ) );
-            }
-            std::string spaces( max_example_length, ' ' );
-
-            std::string description = filter_help_start.translated();
-
-            {
-                std::string example_name = _( "shirt" );
-                int padding = max_example_length - utf8_width( example_name );
-                description += string_format(
-                                   _( "  <color_white>%s</color>%.*s    %s\n" ),
-                                   example_name, padding, spaces,
-                                   _( "<color_cyan>name</color> of resulting item" ) );
-
-                std::string example_exclude = _( "clean" );
-                padding = max_example_length - utf8_width( example_exclude );
-                description += string_format(
-                                   _( "  <color_yellow>-</color><color_white>%s</color>%.*s   %s\n" ),
-                                   example_exclude, padding, spaces,
-                                   _( "<color_cyan>names</color> to exclude" ) );
-            }
-
-            for( const auto &prefix : prefixes ) {
-                int padding = max_example_length - utf8_width( prefix.example.translated() );
-                description += string_format(
-                                   _( "  <color_yellow>%c</color><color_white>:%s</color>%.*s  %s\n" ),
-                                   prefix.key, prefix.example, padding, spaces, prefix.description );
-            }
-
-            description +=
-                _( "\nUse <color_red>up/down arrow</color> to go through your search history." );
+            const std::string description = filter_help_text();
 
             string_input_popup popup;
             popup
@@ -2367,8 +2375,8 @@ static void draw_hidden_amount( const catacurses::window &w, int amount, int num
 }
 
 // Anchors top-right
-static void draw_can_craft_indicator( const catacurses::window &w, const recipe &rec,
-                                      Character &crafter )
+static std::pair<nc_color, std::string> can_craft_indicator( const recipe &rec,
+        Character &crafter )
 {
     int limb_modifier = rec.has_flag( flag_NO_MANIP ) ? 100 : crafter.get_limb_score(
                             limb_score_manip ) * 100;
@@ -2392,9 +2400,9 @@ static void draw_can_craft_indicator( const catacurses::window &w, const recipe 
     }
 
     if( crafter.lighting_craft_speed_multiplier( rec ) <= 0.0f ) {
-        right_print( w, 0, 1, i_red, craft_speed_reason_strings.at( TOO_DARK_TO_CRAFT ).translated() );
+        return { i_red, craft_speed_reason_strings.at( TOO_DARK_TO_CRAFT ).translated() };
     } else if( crafter.crafting_speed_multiplier( rec ) <= 0.0f ) {
-        right_print( w, 0, 1, i_red, craft_speed_reason_strings.at( TOO_SLOW_TO_CRAFT ).translated() );
+        return { i_red, craft_speed_reason_strings.at( TOO_SLOW_TO_CRAFT ).translated() };
     } else if( crafter.crafting_speed_multiplier( rec ) < 1.0f ) {
         int morale_modifier = crafter.morale_crafting_speed_multiplier( rec ) * 100;
         int lighting_modifier = crafter.lighting_craft_speed_multiplier( rec ) * 100;
@@ -2420,18 +2428,25 @@ static void draw_can_craft_indicator( const catacurses::window &w, const recipe 
             modifiers_list << _( "pain" ) << " " << pain_multi << "%";
         }
 
-        right_print( w, 0, 1, i_yellow,
-                     string_format( craft_speed_reason_strings.at( SLOW_BUT_CRAFTABLE ).translated(),
+        return { i_yellow,
+                 string_format( craft_speed_reason_strings.at( SLOW_BUT_CRAFTABLE ).translated(),
                                     static_cast<int>( crafter.crafting_speed_multiplier( rec ) * 100 ),
-                                    modifiers_list.str() ) );
+                                    modifiers_list.str() ) };
     } else if( crafter.crafting_speed_multiplier( rec ) > 1.0f ) {
-        right_print( w, 0, 1, i_green,
-                     string_format( craft_speed_reason_strings.at( FAST_CRAFTING ).translated(),
+        return { i_green,
+                 string_format( craft_speed_reason_strings.at( FAST_CRAFTING ).translated(),
                                     static_cast<int>( crafter.crafting_speed_multiplier( rec ) * 100 ),
-                                    modifiers_list.str() ) );
+                                    modifiers_list.str() ) };
     } else {
-        right_print( w, 0, 1, i_green, craft_speed_reason_strings.at( NORMAL_CRAFTING ).translated() );
+        return { i_green, craft_speed_reason_strings.at( NORMAL_CRAFTING ).translated() };
     }
+}
+
+static void draw_can_craft_indicator( const catacurses::window &w, const recipe &rec,
+                                      Character &crafter )
+{
+    const std::pair<nc_color, std::string> indicator = can_craft_indicator( rec, crafter );
+    right_print( w, 0, 1, indicator.first, indicator.second );
     wnoutrefresh( w );
 }
 
@@ -2571,3 +2586,79 @@ const std::vector<std::string> *subcategories_for_category( const std::string &c
     }
     return &cat->subcategories;
 }
+
+// ---- The same data for the second player's copy of this screen (mp/craft_screen.h) ----
+
+namespace mp::craft_screen
+{
+
+recipe_state state( Character &crafter, const recipe &r, const int batch )
+{
+    const availability avail( crafter, &r, batch );
+    recipe_state result;
+    result.can_craft = avail.can_craft;
+    result.has_primary_skill = avail.crafter_has_primary_skill;
+    result.color = avail.color();
+    result.selected_color = avail.selected_color();
+    result.info_color = avail.color( true );
+    return result;
+}
+
+std::vector<std::string> info( Character &crafter, const recipe &r, const int batch,
+                               const int fold_width )
+{
+    const availability avail( crafter, &r, batch );
+    return recipe_info( r, avail, crafter, "", batch, fold_width, avail.color( true ),
+                        crafter.get_crafting_group() );
+}
+
+std::pair<nc_color, std::string> speed_indicator( Character &crafter, const recipe &r )
+{
+    return can_craft_indicator( r, crafter );
+}
+
+std::string result_info( Character &crafter, const recipe &r, const int batch, const int width )
+{
+    recipe_result_info_cache cache( crafter );
+    int scroll = 0;
+    const catacurses::window w = catacurses::newwin( 1, std::max( 1, std::min( width, TERMX ) ),
+                                 point::zero );
+    const item_info_data data = cache.get_result_data( &r, batch, scroll, w );
+    return format_item_info( data.get_item_display(), data.get_item_compare() );
+}
+
+std::vector<const recipe *> filter( const recipe_subset &recipes, const std::string &query,
+                                    const Character &crafter )
+{
+    const recipe_subset found = filter_recipes( recipes, trim( query ), crafter,
+    []( size_t, size_t ) {} );
+    return std::vector<const recipe *>( found.begin(), found.end() );
+}
+
+std::string filter_help()
+{
+    return filter_help_text();
+}
+
+std::vector<std::string> categories()
+{
+    std::vector<std::string> result;
+    for( const crafting_category &cat : craft_cat_list.get_all() ) {
+        if( !cat.is_hidden ) {
+            result.emplace_back( cat.id.str() );
+        }
+    }
+    return result;
+}
+
+std::string category_name( const std::string &category )
+{
+    return get_cat_unprefixed( category );
+}
+
+std::string subcategory_name( const std::string &category, const std::string &subcategory )
+{
+    return get_subcat_unprefixed( category, subcategory );
+}
+
+} // namespace mp::craft_screen

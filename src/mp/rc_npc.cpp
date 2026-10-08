@@ -60,6 +60,12 @@ bool is_remote( const npc &guy )
     return remote_ids.count( guy.getID() ) > 0;
 }
 
+bool is_remote_character( const Character &who )
+{
+    const npc *guy = who.as_npc();
+    return guy != nullptr && is_remote( *guy );
+}
+
 void set_remote( npc &guy, const bool remote )
 {
     if( remote ) {
@@ -207,7 +213,8 @@ void run_instantly( npc &guy )
     // for every step, so that commands and the activities they start (picking
     // up, ...) finish at once. The cap only guards against an activity that
     // never ends.
-    for( int steps = 0; steps < 10000 && ( has_commands( guy ) || guy.activity ); steps++ ) {
+    // 200000 one-second steps cover even a craft of two days.
+    for( int steps = 0; steps < 200000 && ( has_commands( guy ) || guy.activity ); steps++ ) {
         guy.set_moves( std::max( guy.get_speed(), 100 ) );
         remote_move( guy );
     }
@@ -471,13 +478,14 @@ static void start_hosting()
         choose_partner();
     }
     const npc *partner = network_npc();
-    popup( _( "The game is hosted on port %1$d.\n\n"
-              "The second player chooses Multiplayer > Join game in the main menu and enters "
-              "your IP address (ipconfig shows it; over the internet use a virtual network like "
-              "Radmin VPN or forward TCP port %1$d).\n\n%2$s" ),
-           net::default_port,
-           partner != nullptr ? string_format( _( "They will play %s." ), partner->get_name() ) :
-           _( "No character is chosen for them yet." ) );
+    // In the log, not a popup: a popup would hold the network until closed.
+    add_msg( m_info, _( "The game is hosted on port %1$d.  The second player chooses "
+                        "Multiplayer > Join game in the main menu and enters your IP address "
+                        "(ipconfig shows it; over the internet use a virtual network like Radmin VPN "
+                        "or forward TCP port %1$d)." ), net::default_port );
+    add_msg( m_info, partner != nullptr ?
+             string_format( _( "They will play %s." ), partner->get_name() ) :
+             _( "No character is chosen for them yet." ) );
 }
 
 static void toggle_remote_menu()

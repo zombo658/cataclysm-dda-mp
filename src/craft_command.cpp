@@ -29,6 +29,7 @@
 #include "line.h"
 #include "map.h"
 #include "map_iterator.h"
+#include "mp/rc_npc.h"
 #include "output.h"
 #include "pocket_type.h"
 #include "recipe.h"
@@ -125,6 +126,9 @@ void craft_command::execute( bool only_cache_comps )
     }
 
     bool need_selections = true;
+    // Nobody sits at the host's screen for the second player's character:
+    // don't ask, pick components like other NPCs do.
+    const bool ask = !mp::is_remote_character( *crafter );
     inventory map_inv;
     map_inv.form_from_map( crafter->pos_bub(), PICKUP_RANGE, crafter );
 
@@ -135,7 +139,7 @@ void craft_command::execute( bool only_cache_comps )
         if( missing_items.empty() && missing_tools.empty() ) {
             // All items we used previously are still there, so we don't need to do selection.
             need_selections = false;
-        } else if( !only_cache_comps && !query_continue( missing_items, missing_tools ) ) {
+        } else if( !only_cache_comps && ask && !query_continue( missing_items, missing_tools ) ) {
             return;
         }
     }
@@ -143,7 +147,7 @@ void craft_command::execute( bool only_cache_comps )
     if( need_selections ) {
         if( !crafter->can_make( rec, batch_size ) ) {
             if( crafter->can_start_craft( rec, recipe_filter_flags::none, batch_size ) ) {
-                if( !query_yn( _( "You don't have enough charges to complete the %s.\n"
+                if( ask && !query_yn( _( "You don't have enough charges to complete the %s.\n"
                                   "Start crafting anyway?" ), rec->result_name() ) ) {
                     return;
                 }
@@ -159,7 +163,7 @@ void craft_command::execute( bool only_cache_comps )
         flags = recipe_filter_flags::no_rotten;
 
         if( !crafter->can_start_craft( rec, flags, batch_size ) ) {
-            if( !query_yn( _( "This craft will use rotten components.\n"
+            if( ask && !query_yn( _( "This craft will use rotten components.\n"
                               "Start crafting anyway?" ) ) ) {
                 return;
             }
@@ -168,7 +172,7 @@ void craft_command::execute( bool only_cache_comps )
 
         flags |= recipe_filter_flags::no_favorite;
         if( !crafter->can_start_craft( rec, flags, batch_size ) ) {
-            if( !query_yn( _( "This craft will use favorited components.\n"
+            if( ask && !query_yn( _( "This craft will use favorited components.\n"
                               "Start crafting anyway?" ) ) ) {
                 return;
             }
@@ -186,7 +190,7 @@ void craft_command::execute( bool only_cache_comps )
 
         for( const auto &it : needs->get_components() ) {
             comp_selection<item_comp> is =
-                crafter->select_item_component( it, batch_size, map_inv, true, filter, true, true, rec );
+                crafter->select_item_component( it, batch_size, map_inv, true, filter, true, ask, rec );
             if( is.use_from == usage_from::cancel ) {
                 return;
             }
@@ -196,7 +200,7 @@ void craft_command::execute( bool only_cache_comps )
         tool_selections.clear();
         for( const auto &it : needs->get_tools() ) {
             comp_selection<tool_comp> ts = crafter->select_tool_component(
-            it, batch_size, map_inv, true, true, true, []( int charges ) {
+            it, batch_size, map_inv, true, true, ask, []( int charges ) {
                 return charges / 20 + charges % 20;
             } );
             if( ts.use_from == usage_from::cancel ) {

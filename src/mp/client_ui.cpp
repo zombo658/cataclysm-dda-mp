@@ -25,6 +25,7 @@
 #include "json_loader.h"
 #include "mp/net.h"
 #include "mp/protocol.h"
+#include "mp/remote_crafting.h"
 #include "mp/remote_inventory.h"
 #include "mp/sound_relay.h"
 #include "mp/view.h"
@@ -73,6 +74,10 @@ struct client_state {
     std::optional<inventory::listing> inventory_to_show;
     // Which action the inventory was asked for ("" - any).
     std::string inventory_filter;
+    // The host's answers for the crafting screen.
+    remote_crafting::client_cache crafting;
+    // Open the crafting screen on the next round of the main loop.
+    bool show_crafting = false;
     // The sidebar lines from the host, with color tags.
     std::vector<std::string> sidebar;
     std::deque<std::pair<std::string, nc_color>> log;
@@ -122,10 +127,8 @@ void handle_message( client_state &state, const std::string &line )
                 for( const std::string mod : msg.get_array( "mods" ) ) {
                     state.mods.push_back( mod );
                 }
-#if defined(TILES)
-                // Only tiles need the data; the text map comes ready to draw.
-                state.data_requested = use_tiles;
-#endif
+                // Tiles and the crafting screen need the host's data.
+                state.data_requested = true;
             }
             if( msg.get_int( "version", 0 ) != protocol::version ) {
                 state.add_log( _( "Warning: the host runs a different version of the game." ), c_yellow );
@@ -140,6 +143,8 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "rejected" ) {
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
+        } else if( remote_crafting::read_message( state.crafting, type, msg ) ) {
+            // Taken by the crafting screen.
         } else if( type == "sidebar" ) {
             state.sidebar.clear();
             for( const std::string line : msg.get_array( "lines" ) ) {
@@ -318,6 +323,9 @@ bool handle_action( client_state &state, const std::string &action, const input_
         case ACTION_DROP:
             state.inventory_filter = "drop";
             send_command( state, "inventory" );
+            break;
+        case ACTION_CRAFT:
+            state.show_crafting = true;
             break;
         case ACTION_MESSAGES:
             show_messages( state );
@@ -520,6 +528,14 @@ void run_join_screen()
         if( state.data_requested ) {
             load_host_data( state );
             ui.mark_resize();
+        }
+        if( state.show_crafting && !state.lost ) {
+            state.show_crafting = false;
+            remote_crafting::show_screen( state.crafting, [&]() {
+                net::client_poll( h );
+                return !state.lost;
+            } );
+            ui.invalidate_ui();
         }
         if( state.inventory_to_show ) {
             const inventory::listing inv = *state.inventory_to_show;

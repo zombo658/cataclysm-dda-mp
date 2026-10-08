@@ -57,7 +57,9 @@ class Connection:
 
 
 def parse_short(text):
-    """'move n' -> {'cmd': 'move', 'dir': 'n'}"""
+    """'move n' -> {'cmd': 'move', 'dir': 'n'}; a JSON object is sent as is."""
+    if text.lstrip().startswith('{'):
+        return json.loads(text)
     parts = text.split()
     if not parts:
         return None

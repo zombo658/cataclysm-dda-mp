@@ -14,6 +14,7 @@
 #include "messages.h"
 #include "mp/net.h"
 #include "mp/rc_npc.h"
+#include "mp/remote_crafting.h"
 #include "mp/remote_inventory.h"
 #include "mp/remote_sidebar.h"
 #include "mp/view.h"
@@ -160,6 +161,9 @@ void handle_line( const std::string &line )
     int revision = 0;
     int index = -1;
     std::string action;
+    // For "craft".
+    std::string recipe;
+    int batch = 1;
     try {
         const JsonValue value = json_loader::from_string( line );
         const JsonObject obj = value.get_object();
@@ -169,6 +173,8 @@ void handle_line( const std::string &line )
         revision = obj.get_int( "revision", 0 );
         index = obj.get_int( "index", -1 );
         action = obj.get_string( "action", "" );
+        recipe = obj.get_string( "recipe", "" );
+        batch = obj.get_int( "batch", 1 );
     } catch( const JsonError &err ) {
         send_error( "bad message: " + std::string( err.what() ) );
         return;
@@ -188,6 +194,53 @@ void handle_line( const std::string &line )
             json.member( "type", "inventory" );
             inventory::write( json, *guy );
         } ) );
+        return;
+    }
+    // The crafting screen's questions; answered with a message of the same name.
+    using craft_writer = void( * )( JsonOut &, npc &, const JsonObject & );
+    static const std::map<std::string, craft_writer> craft_questions = {
+        { "recipe_states", remote_crafting::write_states },
+        { "recipe_info", remote_crafting::write_info },
+        { "recipe_filter", remote_crafting::write_filter },
+    };
+    if( cmd_name == "recipes" ) {
+        net::send_line( to_line( [&]( JsonOut & json ) {
+            json.member( "type", "recipes" );
+            remote_crafting::write_recipes( json, *guy );
+        } ) );
+        return;
+    }
+    if( const auto question = craft_questions.find( cmd_name ); question != craft_questions.end() ) {
+        try {
+            const JsonValue value = json_loader::from_string( line );
+            const JsonObject obj = value.get_object();
+            obj.allow_omitted_members();
+            const std::string answer = to_line( [&]( JsonOut & json ) {
+                json.member( "type", cmd_name );
+                question->second( json, *guy, obj );
+            } );
+            net::send_line( answer );
+        } catch( const JsonError &err ) {
+            send_error( "bad message: " + std::string( err.what() ) );
+        }
+        return;
+    }
+    if( cmd_name == "craft" ) {
+        if( !instant_mode() ) {
+            send_error( "crafting works only while the server runs" );
+            return;
+        }
+        const std::string why_not = remote_crafting::start( *guy, recipe, batch );
+        if( why_not.empty() ) {
+            run_instantly( *guy );
+            net::send_line( to_line( [&]( JsonOut & json ) {
+                json.member( "type", "ok" );
+                json.member( "cmd", cmd_name );
+            } ) );
+        } else {
+            send_rejected( why_not );
+        }
+        send_state( *guy );
         return;
     }
     if( cmd_name == "item" ) {

@@ -7,6 +7,7 @@
 #include "action.h"
 #include "coordinates.h"
 
+class Character;
 class JsonObject;
 class JsonOut;
 class npc;
@@ -17,6 +18,8 @@ namespace mp
 {
 
 bool is_remote( const npc &guy );
+// The same for any character: false for the avatar and AI-driven NPCs.
+bool is_remote_character( const Character &who );
 void set_remote( npc &guy, bool remote );
 
 enum class command_type : int {
