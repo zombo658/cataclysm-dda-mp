@@ -21,12 +21,13 @@
 #include "cursesdef.h"
 #include "input.h"
 #include "input_context.h"
+#include "avatar.h"
 #include "json.h"
 #include "json_loader.h"
 #include "mp/net.h"
 #include "mp/protocol.h"
+#include "mp/remote_actions.h"
 #include "mp/remote_crafting.h"
-#include "mp/remote_inventory.h"
 #include "mp/sound_relay.h"
 #include "mp/view.h"
 #include "output.h"
@@ -70,14 +71,14 @@ struct client_state {
     // The game's loading code expects an active world (mod list, options):
     // a world in memory only, with the host's mods.
     std::unique_ptr<WORLD> host_world;
-    // The inventory came; show it on the next round of the main loop.
-    std::optional<inventory::listing> inventory_to_show;
-    // Which action the inventory was asked for ("" - any).
-    std::string inventory_filter;
     // The host's answers for the crafting screen.
     remote_crafting::client_cache crafting;
     // Open the crafting screen on the next round of the main loop.
     bool show_crafting = false;
+    // An action that needs the copy of the character (the host's own
+    // screens on the client's avatar); run when the character comes.
+    std::optional<action_id> character_action;
+    bool character_loaded = false;
     // The sidebar lines from the host, with color tags.
     std::vector<std::string> sidebar;
     std::deque<std::pair<std::string, nc_color>> log;
@@ -143,6 +144,12 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "rejected" ) {
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
+        } else if( type == "character" ) {
+            state.character_loaded = remote_actions::load_character( msg.get_string( "data" ) );
+            if( !state.character_loaded ) {
+                state.add_log( _( "Can't read the character from the host." ), c_red );
+                state.character_action.reset();
+            }
         } else if( remote_crafting::read_message( state.crafting, type, msg ) ) {
             // Taken by the crafting screen.
         } else if( type == "sidebar" ) {
@@ -150,8 +157,6 @@ void handle_message( client_state &state, const std::string &line )
             for( const std::string line : msg.get_array( "lines" ) ) {
                 state.sidebar.push_back( line );
             }
-        } else if( type == "inventory" ) {
-            state.inventory_to_show = inventory::read( msg );
         } else if( type == "sfx" ) {
             sound_relay::play( msg );
         } else if( type == "error" ) {
@@ -160,83 +165,6 @@ void handle_message( client_state &state, const std::string &line )
     } catch( const JsonError &err ) {
         state.add_log( string_format( _( "Bad message from the host: %s" ), err.what() ), c_red );
     }
-}
-
-void send_item_command( const int revision, const int index, const std::string &action )
-{
-    std::ostringstream os;
-    JsonOut json( os );
-    json.start_object();
-    json.member( "cmd", "item" );
-    json.member( "revision", revision );
-    json.member( "index", index );
-    json.member( "action", action );
-    json.end_object();
-    net::client_send_line( os.str() );
-}
-
-std::string action_name( const std::string &action )
-{
-    if( action == "wield" ) {
-        return _( "Wield" );
-    } else if( action == "unwield" ) {
-        return _( "Put away" );
-    } else if( action == "wear" ) {
-        return _( "Wear" );
-    } else if( action == "takeoff" ) {
-        return _( "Take off" );
-    } else if( action == "eat" ) {
-        return _( "Eat / drink" );
-    } else if( action == "drop" ) {
-        return _( "Drop" );
-    }
-    return action;
-}
-
-// Item list, then what to do with the chosen item. With a filter (the host's
-// "wear", "eat", ... keys) only items that allow it are listed, and choosing
-// one does it.
-void show_inventory( const inventory::listing &inv, const std::string &filter )
-{
-    std::vector<const inventory::entry *> shown;
-    for( const inventory::entry &e : inv.entries ) {
-        if( filter.empty() || std::find( e.actions.begin(), e.actions.end(), filter ) != e.actions.end() ) {
-            shown.push_back( &e );
-        }
-    }
-    if( shown.empty() ) {
-        popup( filter.empty() ? _( "You have nothing." ) : _( "You have nothing for that." ) );
-        return;
-    }
-    uilist items;
-    items.text = filter.empty() ? _( "Inventory" ) : action_name( filter );
-    for( size_t i = 0; i < shown.size(); i++ ) {
-        const inventory::entry &e = *shown[i];
-        const std::string indent( filter.empty() ? e.depth * 2 : 0, ' ' );
-        const std::string where = e.depth == 0 ? string_format( " <color_dark_gray>(%s)</color>",
-                                  e.where == "wielded" ? _( "in hands" ) : e.where == "worn" ? _( "worn" ) : _( "carried" ) ) :
-                                  filter.empty() ? "" : string_format( " <color_dark_gray>(%s)</color>", e.where );
-        items.addentry( static_cast<int>( i ), true, MENU_AUTOASSIGN, indent + e.name + where );
-    }
-    items.query();
-    if( items.ret < 0 || static_cast<size_t>( items.ret ) >= shown.size() ) {
-        return;
-    }
-    const inventory::entry &chosen = *shown[items.ret];
-    if( !filter.empty() ) {
-        send_item_command( inv.revision, chosen.index, filter );
-        return;
-    }
-    uilist actions;
-    actions.text = chosen.name;
-    for( size_t i = 0; i < chosen.actions.size(); i++ ) {
-        actions.addentry( static_cast<int>( i ), true, MENU_AUTOASSIGN, action_name( chosen.actions[i] ) );
-    }
-    actions.query();
-    if( actions.ret < 0 || static_cast<size_t>( actions.ret ) >= chosen.actions.size() ) {
-        return;
-    }
-    send_item_command( inv.revision, chosen.index, chosen.actions[actions.ret] );
 }
 
 void send_command( client_state &state, const std::string &cmd, const std::string &dir = "" )
@@ -250,7 +178,7 @@ void send_command( client_state &state, const std::string &cmd, const std::strin
     }
     json.end_object();
     net::client_send_line( os.str() );
-    if( cmd != "status" && cmd != "inventory" ) {
+    if( cmd != "status" && cmd != "inventory" && cmd != "character" ) {
         state.my_turn = false;
     }
 }
@@ -300,32 +228,18 @@ bool handle_action( client_state &state, const std::string &action, const input_
         case ACTION_PICKUP_ALL:
             send_command( state, "pickup" );
             break;
-        case ACTION_INVENTORY:
-            state.inventory_filter.clear();
-            send_command( state, "inventory" );
-            break;
-        case ACTION_WIELD:
-            state.inventory_filter = "wield";
-            send_command( state, "inventory" );
-            break;
-        case ACTION_WEAR:
-            state.inventory_filter = "wear";
-            send_command( state, "inventory" );
-            break;
-        case ACTION_TAKE_OFF:
-            state.inventory_filter = "takeoff";
-            send_command( state, "inventory" );
-            break;
-        case ACTION_EAT:
-            state.inventory_filter = "eat";
-            send_command( state, "inventory" );
-            break;
-        case ACTION_DROP:
-            state.inventory_filter = "drop";
-            send_command( state, "inventory" );
-            break;
         case ACTION_CRAFT:
             state.show_crafting = true;
+            break;
+        default:
+            if( remote_actions::uses_character( act ) ) {
+                state.character_action = act;
+                state.character_loaded = false;
+                send_command( state, "character" );
+                break;
+            }
+            state.add_log( string_format( _( "%s: not available to the second player yet." ),
+                                          ctxt.get_action_name( action ) ), c_dark_gray );
             break;
         case ACTION_MESSAGES:
             show_messages( state );
@@ -334,10 +248,6 @@ bool handle_action( client_state &state, const std::string &action, const input_
             return !query_yn( _( "Leave the game?" ) );
         case ACTION_NULL:
         case ACTION_TIMEOUT:
-            break;
-        default:
-            state.add_log( string_format( _( "%s: not available to the second player yet." ),
-                                          ctxt.get_action_name( action ) ), c_dark_gray );
             break;
     }
     return true;
@@ -520,6 +430,8 @@ void run_join_screen()
         ui.invalidate_ui();
     };
 
+    // The host's own screens open on the copy of the character from now on.
+    remote_actions::set_client_active( true );
     // The host's own keys.
     input_context ctxt = get_default_mode_input_context();
     ctxt.set_timeout( 100 );
@@ -529,18 +441,18 @@ void run_join_screen()
             load_host_data( state );
             ui.mark_resize();
         }
+        if( state.character_action && state.character_loaded && !state.lost ) {
+            const action_id act = *state.character_action;
+            state.character_action.reset();
+            remote_actions::run( act );
+            ui.invalidate_ui();
+        }
         if( state.show_crafting && !state.lost ) {
             state.show_crafting = false;
             remote_crafting::show_screen( state.crafting, [&]() {
                 net::client_poll( h );
                 return !state.lost;
             } );
-            ui.invalidate_ui();
-        }
-        if( state.inventory_to_show ) {
-            const inventory::listing inv = *state.inventory_to_show;
-            state.inventory_to_show.reset();
-            show_inventory( inv, state.inventory_filter );
             ui.invalidate_ui();
         }
         ui_manager::redraw();
@@ -561,6 +473,9 @@ void run_join_screen()
         ui.invalidate_ui();
     }
     net::disconnect();
+    remote_actions::set_client_active( false );
+    // The avatar held a copy of the remote character.
+    get_avatar() = avatar();
     if( state.host_world ) {
         // Back to what the main menu expects: core data only, no world.
         try {

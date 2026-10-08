@@ -14,11 +14,13 @@
 #include "messages.h"
 #include "mp/net.h"
 #include "mp/rc_npc.h"
+#include "mp/remote_actions.h"
 #include "mp/remote_crafting.h"
 #include "mp/remote_inventory.h"
 #include "mp/remote_sidebar.h"
 #include "mp/view.h"
 #include "npc.h"
+#include "scenario.h"
 #include "translations.h"
 #include "type_id.h"
 #include "worldfactory.h"
@@ -203,6 +205,22 @@ void handle_line( const std::string &line )
         { "recipe_info", remote_crafting::write_info },
         { "recipe_filter", remote_crafting::write_filter },
     };
+    if( cmd_name == "character" ) {
+        // The whole character, for the client's copy of the host's screens.
+        // It is loaded there into an avatar, which also wants a scenario.
+        std::ostringstream os;
+        JsonOut character( os );
+        guy->serialize( character );
+        std::string data = os.str();
+        if( !data.empty() && data[0] == '{' && get_scenario() != nullptr ) {
+            data.insert( 1, "\"scenario\":\"" + get_scenario()->ident().str() + "\"," );
+        }
+        net::send_line( to_line( [&]( JsonOut & json ) {
+            json.member( "type", "character" );
+            json.member( "data", data );
+        } ) );
+        return;
+    }
     if( cmd_name == "recipes" ) {
         net::send_line( to_line( [&]( JsonOut & json ) {
             json.member( "type", "recipes" );
@@ -231,6 +249,28 @@ void handle_line( const std::string &line )
             return;
         }
         const std::string why_not = remote_crafting::start( *guy, recipe, batch );
+        if( why_not.empty() ) {
+            run_instantly( *guy );
+            net::send_line( to_line( [&]( JsonOut & json ) {
+                json.member( "type", "ok" );
+                json.member( "cmd", cmd_name );
+            } ) );
+        } else {
+            send_rejected( why_not );
+        }
+        send_state( *guy );
+        return;
+    }
+    if( cmd_name == "item_action" ) {
+        std::string why_not;
+        try {
+            const JsonValue value = json_loader::from_string( line );
+            const JsonObject obj = value.get_object();
+            obj.allow_omitted_members();
+            why_not = remote_actions::item_action( *guy, obj );
+        } catch( const JsonError &err ) {
+            why_not = "bad message: " + std::string( err.what() );
+        }
         if( why_not.empty() ) {
             run_instantly( *guy );
             net::send_line( to_line( [&]( JsonOut & json ) {

@@ -21,6 +21,8 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `{"cmd":"status"}` | запросить статус, в очередь не ставится |
 | `{"cmd":"inventory"}` | запросить список вещей, ответ — `inventory` |
 | `{"cmd":"item","revision":7,"index":3,"action":"wear"}` | действие с вещью № `index` из списка `revision`: `wield`, `unwield`, `wear`, `takeoff`, `eat`, `drop` |
+| `{"cmd":"character"}` | весь персонаж (как в сохранении); ответ — `character` |
+| `{"cmd":"item_action","key":87,"item":{…}}` | действие из меню вещи хоста (`key` — его горячая клавиша: `W` надеть, `w` взять, `T` снять, `d` выбросить, `E` съесть, `R` читать, `a` активировать (`method`), `r` перезарядить (`ammo`, `qty`), `U` разрядить, `D` разобрать, `m` починить, `c` сторона, `f` избранное, `<`/`>` свернуть); `item` — `item_location` в формате сохранения. Для `d` можно `items: [[item, count], …]` |
 | `{"cmd":"recipes"}` | id рецептов, доступных персонажу (известные, из книг рядом, известные помощникам); ответ — `recipes` |
 | `{"cmd":"recipe_states","items":[["blindfold",1],...]}` | можно ли сделать рецепт партией `batch` и каким цветом его рисовать; ответ — `recipe_states` |
 | `{"cmd":"recipe_info","recipe":"blindfold","batch":1,"width":45,"result_width":60}` | описание рецепта (как справа в окне крафта хоста) шириной `width`, строка скорости крафта и, если `result_width` > 0, описание результата; ответ — `recipe_info` |
@@ -40,6 +42,7 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 |---|---|---|
 | `welcome` | сразу после подключения (за ним сразу `log`, `view`, `state`) | `version`, `npc` (имя персонажа, если он есть), `instant` (true — мгновенные действия, см. ниже), `mods` (моды мира хоста — клиент грузит их данные, чтобы рисовать тайлы) |
 | `inventory` | ответ на `inventory` | `revision`, `items`: `[{index, name, where, depth, actions}]` — что в руках (`where: "wielded"`), надето (`"worn"`), и, с `depth` > 0, что лежит внутри (в `where` — имя контейнера) |
+| `character` | ответ на `character` | `data`: строка JSON персонажа (`npc::serialize`, плюс `scenario`); клиент грузит её в свой аватар |
 | `recipes` | ответ на `recipes` | `ids` |
 | `recipe_states` | ответ на `recipe_states` | `items`: `[id, batch, можно_сделать, хватает_навыка, цвет, цвет_выделенного, цвет_описания]`, цвета — имена CDDA |
 | `recipe_info` | ответ на `recipe_info` | `recipe`, `batch`, `width`, `result_width` (как в запросе), `lines` (строки с цветовыми тегами), `indicator_color`, `indicator`, `result` |

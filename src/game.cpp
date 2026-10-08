@@ -157,6 +157,7 @@
 #include "monster.h"
 #include "monstergenerator.h"
 #include "move_mode.h"
+#include "mp/remote_actions.h"
 #include "mtype.h"
 #include "npc.h"
 #include "npctrade.h"
@@ -2396,6 +2397,11 @@ int game::inventory_item_menu( item_location locThisItem,
                 ui = nullptr;
             }
 
+            // On the second player's client the host does it (mp/remote_actions.h).
+            if( mp::remote_actions::forward_item_action( locThisItem, cMenu ) ) {
+                exit = true;
+                continue;
+            }
 #if defined(TILES)
             action_menu.set_hide( true );
 #endif
