@@ -34,6 +34,8 @@ std::string combat( npc &guy, const JsonObject &request );
 std::string activity( npc &guy, const JsonObject &request );
 // {"cmd":"construct"}: start a construction chosen in the construction menu.
 std::string construct( npc &guy, const JsonObject &request );
+// {"cmd":"move_mode","mode":"run"}: walk, run, crouch, prone...
+std::string move_mode( npc &guy, const JsonObject &request );
 
 // ---- Client ----
 
@@ -45,6 +47,8 @@ bool client_active();
 bool uses_character( action_id act );
 // Whether the host's own code of the action runs on the copy for it.
 bool runs_host_code( action_id act );
+// Whether the action switches walking, running, crouching...
+bool changes_move_mode( action_id act );
 // Loads the character sent by the host into the client's avatar.
 bool load_character( const std::string &data );
 // Opens the action's screen on the loaded character.

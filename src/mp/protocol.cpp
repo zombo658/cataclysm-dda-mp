@@ -285,7 +285,8 @@ void handle_line( const std::string &line )
         send_state( *guy );
         return;
     }
-    if( cmd_name == "combat" || cmd_name == "activity" || cmd_name == "construct" ) {
+    if( cmd_name == "combat" || cmd_name == "activity" || cmd_name == "construct" ||
+        cmd_name == "move_mode" ) {
         std::string why_not;
         try {
             const JsonValue value = json_loader::from_string( line );
@@ -293,7 +294,8 @@ void handle_line( const std::string &line )
             obj.allow_omitted_members();
             why_not = cmd_name == "combat" ? remote_actions::combat( *guy, obj ) :
                       cmd_name == "activity" ? remote_actions::activity( *guy, obj ) :
-                      remote_actions::construct( *guy, obj );
+                      cmd_name == "construct" ? remote_actions::construct( *guy, obj ) :
+                      remote_actions::move_mode( *guy, obj );
         } catch( const JsonError &err ) {
             why_not = "bad message: " + std::string( err.what() );
         }

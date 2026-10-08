@@ -1,6 +1,7 @@
 #include "mp/remote_actions.h"
 
 #include <algorithm>
+#include <cmath>
 #include <exception>
 #include <functional>
 #include <optional>
@@ -21,6 +22,7 @@
 #include "item_pocket.h"
 #include "itype.h"
 #include "messages.h"
+#include "move_mode.h"
 #include "json.h"
 #include "json_loader.h"
 #include "line.h"
@@ -373,6 +375,19 @@ std::string construct( npc &guy, const JsonObject &request )
     return construction_hooks::start( guy, id.id(), p );
 }
 
+std::string move_mode( npc &guy, const JsonObject &request )
+{
+    const move_mode_id mode( request.get_string( "mode", "" ) );
+    if( !mode.is_valid() ) {
+        return _( "unknown movement mode" );
+    }
+    if( !guy.can_switch_to( mode ) ) {
+        return string_format( _( "you can't %s now" ), mode->name() );
+    }
+    guy.set_movement_mode( mode );
+    return std::string();
+}
+
 void set_client_active( const bool active )
 {
     client_on = active;
@@ -412,7 +427,7 @@ bool uses_character( const action_id act )
         case ACTION_MAP:
             return true;
         default:
-            return runs_host_code( act );
+            return runs_host_code( act ) || changes_move_mode( act );
     }
 }
 
@@ -430,6 +445,52 @@ bool runs_host_code( const action_id act )
         case ACTION_INSERT_ITEM:
         case ACTION_DIR_DROP:
         case ACTION_CONSTRUCT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+namespace
+{
+
+// handle_action.cpp, open_movement_mode_menu(), on the copy.
+void movement_mode_menu( avatar &you )
+{
+    const std::vector<move_mode_id> &modes = move_modes_by_speed();
+    const int cycle = 1027;
+    uilist as_m;
+    as_m.text = _( "Change to which movement mode?" );
+    for( size_t i = 0; i < modes.size(); ++i ) {
+        const move_mode_id &curr = modes[i];
+        as_m.entries.emplace_back( static_cast<int>( i ), you.can_switch_to( curr ), curr->letter(),
+                                   curr->name() );
+    }
+    as_m.entries.emplace_back( cycle, you.can_switch_to( you.current_movement_mode()->cycle() ),
+                               hotkey_for_action( ACTION_OPEN_MOVEMENT, /*maximum_modifier_count=*/1 ),
+                               _( "Cycle move mode" ) );
+    as_m.selected = std::floor( modes.size() / 2 );
+    as_m.query();
+    if( as_m.ret != UILIST_CANCEL ) {
+        if( as_m.ret == cycle ) {
+            you.cycle_move_mode();
+        } else if( as_m.ret >= 0 && static_cast<size_t>( as_m.ret ) < modes.size() ) {
+            you.set_movement_mode( modes[as_m.ret] );
+        }
+    }
+}
+
+} // namespace
+
+bool changes_move_mode( const action_id act )
+{
+    switch( act ) {
+        case ACTION_TOGGLE_RUN:
+        case ACTION_TOGGLE_CROUCH:
+        case ACTION_TOGGLE_PRONE:
+        case ACTION_CYCLE_MOVE:
+        case ACTION_CYCLE_MOVE_REVERSE:
+        case ACTION_OPEN_MOVEMENT:
             return true;
         default:
             return false;
@@ -550,6 +611,34 @@ void run( const action_id act )
         case ACTION_LOOK:
             g->look_around();
             break;
+        case ACTION_TOGGLE_RUN:
+        case ACTION_TOGGLE_CROUCH:
+        case ACTION_TOGGLE_PRONE:
+        case ACTION_CYCLE_MOVE:
+        case ACTION_CYCLE_MOVE_REVERSE:
+        case ACTION_OPEN_MOVEMENT: {
+            // The avatar's own toggles on the copy, then the result to the host.
+            const move_mode_id before = you.current_movement_mode();
+            if( act == ACTION_TOGGLE_RUN ) {
+                you.toggle_run_mode();
+            } else if( act == ACTION_TOGGLE_CROUCH ) {
+                you.toggle_crouch_mode();
+            } else if( act == ACTION_TOGGLE_PRONE ) {
+                you.toggle_prone_mode();
+            } else if( act == ACTION_CYCLE_MOVE ) {
+                you.cycle_move_mode();
+            } else if( act == ACTION_CYCLE_MOVE_REVERSE ) {
+                you.cycle_move_mode_reverse();
+            } else {
+                movement_mode_menu( you );
+            }
+            if( you.current_movement_mode() != before ) {
+                send( "move_mode", [&]( JsonOut & json ) {
+                    json.member( "mode", you.current_movement_mode().str() );
+                } );
+            }
+            break;
+        }
         default:
             if( runs_host_code( act ) ) {
                 g->do_action_for_mirror( act );

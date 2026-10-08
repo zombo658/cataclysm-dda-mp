@@ -131,6 +131,20 @@ std::string act( npc &guy, const std::string &action, const tripoint_rel_ms &dir
             add_msg( _( "%1$s closes the %2$s." ), guy.get_name(), before );
         }
         return std::string();
+    } else if( action == "up" || action == "down" ) {
+        // npc::move_to() takes a z-level step as a climb of the stairs.
+        map &here = get_map();
+        const tripoint_bub_ms from = guy.pos_bub();
+        const bool up = action == "up";
+        if( !here.has_flag( up ? ter_furn_flag::TFLAG_GOES_UP : ter_furn_flag::TFLAG_GOES_DOWN, from ) ) {
+            return up ? _( "You can't go up here!" ) : _( "You can't go down here!" );
+        }
+        const tripoint_bub_ms to = from + tripoint_rel_ms( 0, 0, up ? 1 : -1 );
+        if( !here.inbounds( to ) ) {
+            return _( "too far from the host" );
+        }
+        guy.move_to( to, true );
+        return std::string();
     } else if( action == "smash" ) {
         return smash( guy, p );
     } else if( action == "examine" ) {
@@ -144,6 +158,12 @@ bool run( const action_id act )
     std::string action;
     std::string question;
     switch( act ) {
+        case ACTION_MOVE_UP:
+            send_command( "up", tripoint_rel_ms::zero );
+            return true;
+        case ACTION_MOVE_DOWN:
+            send_command( "down", tripoint_rel_ms::zero );
+            return true;
         case ACTION_OPEN:
             action = "open";
             question = _( "Open where?" );
