@@ -2,6 +2,9 @@
 #ifndef CATA_SRC_MP_RC_NPC_H
 #define CATA_SRC_MP_RC_NPC_H
 
+#include <functional>
+
+#include "action.h"
 #include "coordinates.h"
 
 class JsonObject;
@@ -39,6 +42,17 @@ bool remote_move( npc &guy );
 // command arrives. monmove() stops calling npc::move() for such NPCs and
 // leaves them their remaining moves.
 bool waits_for_commands( const npc &guy );
+
+// Hook at the start of do_turn(). While a remote NPC has moves left and no
+// commands, game time stands still: this loop keeps the screen alive and lets
+// the host use only actions that take no game time.
+// host_input handles one host action and returns true if the game is over.
+void wait_for_remote_players( const std::function<bool()> &host_input );
+// Hook in game::handle_action(). Returns true if the action was taken over:
+// while the world waits, movement, wait and pickup keys go to the waiting
+// remote NPC (hot-seat control for testing), other actions that take time
+// are refused.
+bool intercept_host_action( action_id act );
 
 // Hooks for npc::store() / npc::load() in savegame_json.cpp.
 void store_npc( const npc &guy, JsonOut &json );

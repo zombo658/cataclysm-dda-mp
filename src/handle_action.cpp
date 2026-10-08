@@ -69,6 +69,7 @@
 #include "mdarray.h"
 #include "messages.h"
 #include "monster.h"
+#include "mp/rc_npc.h"
 #include "move_mode.h"
 #include "mtype.h"
 #include "mutation.h"
@@ -3262,6 +3263,10 @@ bool game::handle_action()
                 add_msg( m_info, msg );
             }
         }
+        return false;
+    }
+
+    if( mp::intercept_host_action( act ) ) {
         return false;
     }
 

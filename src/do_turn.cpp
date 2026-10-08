@@ -459,6 +459,15 @@ bool do_turn()
         return turn_handler::cleanup_at_end();
     }
 
+    // The lambda runs the host's input with do_turn()'s access to game internals.
+    mp::wait_for_remote_players( []() {
+        g->handle_action();
+        return g->is_game_over() || g->uquit == QUIT_WATCH;
+    } );
+    if( g->is_game_over() ) {
+        return turn_handler::cleanup_at_end();
+    }
+
     weather_manager &weather = get_weather();
     // Actual stuff
     if( g->new_game ) {

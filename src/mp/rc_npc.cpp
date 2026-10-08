@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "avatar.h"
 #include "character_id.h"
 #include "creature.h"
 #include "creature_tracker.h"
@@ -23,6 +24,7 @@
 #include "npc.h"
 #include "output.h"
 #include "translations.h"
+#include "ui_manager.h"
 #include "uilist.h"
 
 namespace mp
@@ -36,6 +38,9 @@ namespace
 // IDs of NPCs controlled by the second player. Mirrors the "mp_remote" member
 // of the NPC save; npc::load() keeps it in sync for every loaded NPC.
 std::set<character_id> remote_ids;
+
+// True while wait_for_remote_players() runs the host's input.
+bool host_blocked = false;
 
 // Commands are not saved: a save in the middle of a queue drops the queue.
 std::map<character_id, std::deque<command>> queues;
@@ -172,6 +177,84 @@ bool remote_move( npc &guy )
 bool waits_for_commands( const npc &guy )
 {
     return is_remote( guy ) && !guy.activity && !has_commands( guy );
+}
+
+static npc *first_waiting_npc()
+{
+    for( npc &guy : g->all_npcs() ) {
+        if( is_remote( guy ) && !guy.is_dead() && !guy.in_sleep_state() && guy.get_moves() > 0 ) {
+            return &guy;
+        }
+    }
+    return nullptr;
+}
+
+void wait_for_remote_players( const std::function<bool()> &host_input )
+{
+    bool announced = false;
+    while( npc *guy = first_waiting_npc() ) {
+        if( !waits_for_commands( *guy ) ) {
+            const int moves_before = guy->get_moves();
+            guy->move();
+            if( guy->get_moves() == moves_before && !waits_for_commands( *guy ) ) {
+                // An activity that does not spend moves; don't spin forever.
+                guy->set_moves( 0 );
+            }
+            continue;
+        }
+        if( !announced ) {
+            add_msg( m_info, _( "Waiting for %s to act…" ), guy->get_name() );
+            announced = true;
+            // Auto-move would feed the host's own steps to the remote NPC.
+            get_avatar().clear_destination();
+        }
+        g->wait_popup_reset();
+        ui_manager::redraw();
+        host_blocked = true;
+        const bool game_over = host_input();
+        host_blocked = false;
+        if( game_over ) {
+            return;
+        }
+    }
+}
+
+bool intercept_host_action( const action_id act )
+{
+    if( !host_blocked || !can_action_change_worldstate( act ) ) {
+        return false;
+    }
+    npc *guy = first_waiting_npc();
+    if( guy == nullptr ) {
+        return false;
+    }
+    command cmd;
+    switch( act ) {
+        case ACTION_MOVE_FORTH:
+        case ACTION_MOVE_FORTH_RIGHT:
+        case ACTION_MOVE_RIGHT:
+        case ACTION_MOVE_BACK_RIGHT:
+        case ACTION_MOVE_BACK:
+        case ACTION_MOVE_BACK_LEFT:
+        case ACTION_MOVE_LEFT:
+        case ACTION_MOVE_FORTH_LEFT:
+            cmd.type = command_type::move;
+            cmd.dir = get_delta_from_movement_action( act, iso_rotate::yes );
+            break;
+        case ACTION_PAUSE:
+            cmd.type = command_type::wait;
+            break;
+        case ACTION_PICKUP:
+        case ACTION_PICKUP_ALL:
+            cmd.type = command_type::pickup_all;
+            break;
+        default:
+            add_msg( m_info, _( "Waiting for %s.  Only actions that take no time are allowed." ),
+                     guy->get_name() );
+            return true;
+    }
+    push_command( *guy, cmd );
+    return true;
 }
 
 void store_npc( const npc &guy, JsonOut &json )
