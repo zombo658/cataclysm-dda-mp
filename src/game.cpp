@@ -13484,6 +13484,10 @@ void game::init_autosave()
 
 void game::quicksave()
 {
+    // The second player's client has no world of its own to save.
+    if( mp::remote_actions::client_active() ) {
+        return;
+    }
     //Don't autosave if the player hasn't done anything since the last autosave/quicksave,
     if( !moves_since_last_save ) {
         return;

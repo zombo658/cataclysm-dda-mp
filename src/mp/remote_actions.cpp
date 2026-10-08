@@ -347,6 +347,32 @@ std::string combat( npc &guy, const JsonObject &request )
     return "unknown combat action \"" + action + "\"";
 }
 
+std::string activity( npc &guy, const JsonObject &request )
+{
+    player_activity act;
+    act.deserialize( request.get_object( "data" ) );
+    if( !act ) {
+        return _( "nothing to do" );
+    }
+    guy.assign_activity( act );
+    return std::string();
+}
+
+std::string construct( npc &guy, const JsonObject &request )
+{
+    tripoint_abs_ms where;
+    request.read( "target", where );
+    const tripoint_bub_ms p = get_map().get_bub( where );
+    if( rl_dist( p, guy.pos_bub() ) > 1 ) {
+        return _( "that is too far away" );
+    }
+    const construction_str_id id( request.get_string( "id", "" ) );
+    if( !id.is_valid() ) {
+        return _( "unknown construction" );
+    }
+    return construction_hooks::start( guy, id.id(), p );
+}
+
 void set_client_active( const bool active )
 {
     client_on = active;
@@ -384,6 +410,26 @@ bool uses_character( const action_id act )
         case ACTION_THROW:
         case ACTION_LOOK:
         case ACTION_MAP:
+            return true;
+        default:
+            return runs_host_code( act );
+    }
+}
+
+bool runs_host_code( const action_id act )
+{
+    // The host's own code on the copy: what it does goes to the host as an
+    // activity (forward_activity()) or a question answered here.
+    switch( act ) {
+        case ACTION_BUTCHER:
+        case ACTION_ADVANCEDINV:
+        case ACTION_SLEEP:
+        case ACTION_WORKOUT:
+        case ACTION_CAST_SPELL:
+        case ACTION_UNLOAD_CONTAINER:
+        case ACTION_INSERT_ITEM:
+        case ACTION_DIR_DROP:
+        case ACTION_CONSTRUCT:
             return true;
         default:
             return false;
@@ -504,6 +550,11 @@ void run( const action_id act )
         case ACTION_LOOK:
             g->look_around();
             break;
+        default:
+            if( runs_host_code( act ) ) {
+                g->do_action_for_mirror( act );
+            }
+            break;
         case ACTION_MAP:
             ui::omap::display();
             break;
@@ -554,9 +605,30 @@ void run( const action_id act )
             } );
             break;
         }
-        default:
-            break;
     }
+}
+
+bool forward_activity( const Character &who, const player_activity &act )
+{
+    if( !client_on || &who != &get_avatar() || !act ) {
+        return false;
+    }
+    send( "activity", [&]( JsonOut & json ) {
+        json.member( "data", act );
+    } );
+    return true;
+}
+
+bool forward_construction( const construction_id &id, const tripoint_abs_ms &where )
+{
+    if( !client_on ) {
+        return false;
+    }
+    send( "construct", [&]( JsonOut & json ) {
+        json.member( "id", id.id().str() );
+        json.member( "target", where );
+    } );
+    return true;
 }
 
 bool forward_item_action( const item_location &loc, const int key )

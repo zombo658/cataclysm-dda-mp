@@ -27,6 +27,7 @@
 #include "mp/net.h"
 #include "mp/protocol.h"
 #include "npc.h"
+#include "player_activity.h"
 #include "output.h"
 #include "translations.h"
 #include "ui_manager.h"
@@ -204,9 +205,29 @@ bool instant_mode()
     return net::running();
 }
 
+// Activities that are about time passing (sleeping, waiting): they take the
+// host's time, a turn per turn, even when the second player's time is not
+// counted.
+static bool takes_real_time( const player_activity &act )
+{
+    static const std::set<std::string> real_time = {
+        "ACT_TRY_SLEEP", "ACT_WAIT", "ACT_WAIT_WEATHER", "ACT_WAIT_NPC", "ACT_WAIT_STAMINA",
+        "ACT_WAIT_FOLLOWERS"
+    };
+    return real_time.count( act.id().str() ) > 0;
+}
+
 void run_instantly( npc &guy )
 {
     if( !is_remote( guy ) ) {
+        return;
+    }
+    if( guy.activity && takes_real_time( guy.activity ) ) {
+        // One turn of it now; the next on the host's next turn.
+        if( guy.get_moves() > 0 ) {
+            remote_move( guy );
+        }
+        guy.set_moves( 0 );
         return;
     }
     // The second player's time is not counted: give the NPC whatever it needs
@@ -214,7 +235,8 @@ void run_instantly( npc &guy )
     // up, ...) finish at once. The cap only guards against an activity that
     // never ends.
     // 200000 one-second steps cover even a craft of two days.
-    for( int steps = 0; steps < 200000 && ( has_commands( guy ) || guy.activity ); steps++ ) {
+    for( int steps = 0; steps < 200000 && ( has_commands( guy ) || guy.activity ) &&
+         !( guy.activity && takes_real_time( guy.activity ) ); steps++ ) {
         guy.set_moves( std::max( guy.get_speed(), 100 ) );
         remote_move( guy );
     }
@@ -230,7 +252,9 @@ bool waits_for_commands( const npc &guy )
 static npc *first_waiting_npc()
 {
     for( npc &guy : g->all_npcs() ) {
-        if( is_remote( guy ) && !guy.is_dead() && !guy.in_sleep_state() && guy.get_moves() > 0 ) {
+        // Trying to fall asleep counts as asleep, but the activity has to go on.
+        if( is_remote( guy ) && !guy.is_dead() && ( !guy.in_sleep_state() || guy.activity ) &&
+            guy.get_moves() > 0 ) {
             return &guy;
         }
     }

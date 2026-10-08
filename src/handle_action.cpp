@@ -2277,6 +2277,11 @@ static std::map<action_id, std::string> get_actions_disabled_mounted()
     };
 }
 
+bool game::do_action_for_mirror( action_id act )
+{
+    return do_regular_action( act, u, std::nullopt );
+}
+
 bool game::do_regular_action( action_id &act, avatar &player_character,
                               const std::optional<tripoint_bub_ms> &mouse_target )
 {

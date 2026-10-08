@@ -87,6 +87,7 @@
 #include "monster.h"
 #include "morale.h"
 #include "move_mode.h"
+#include "mp/remote_actions.h"
 #include "mtype.h"
 #include "mutation.h"
 #include "npc.h"
@@ -9050,6 +9051,10 @@ void Character::assign_activity( const activity_actor &actor )
 
 void Character::assign_activity( const player_activity &act )
 {
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( mp::remote_actions::forward_activity( *this, act ) ) {
+        return;
+    }
     bool resuming = false;
     if( !backlog.empty() && backlog.front().can_resume_with( act, *this ) ) {
         resuming = true;

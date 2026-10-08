@@ -1037,6 +1037,9 @@ class game
         void despawn_monster( monster &critter );
         // Despawn all monsters not in the reality bubble
         void despawn_nonlocal_monsters();
+        // The second player's client runs the host's code of an action on its
+        // copy of the character (mp/remote_actions.h).
+        bool do_action_for_mirror( action_id act );
     private:
         // Routine loop functions, approximately in order of execution
         void open_consume_item_menu(); // Custom menu for consuming specific group of items

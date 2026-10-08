@@ -285,13 +285,15 @@ void handle_line( const std::string &line )
         send_state( *guy );
         return;
     }
-    if( cmd_name == "combat" ) {
+    if( cmd_name == "combat" || cmd_name == "activity" || cmd_name == "construct" ) {
         std::string why_not;
         try {
             const JsonValue value = json_loader::from_string( line );
             const JsonObject obj = value.get_object();
             obj.allow_omitted_members();
-            why_not = remote_actions::combat( *guy, obj );
+            why_not = cmd_name == "combat" ? remote_actions::combat( *guy, obj ) :
+                      cmd_name == "activity" ? remote_actions::activity( *guy, obj ) :
+                      remote_actions::construct( *guy, obj );
         } catch( const JsonError &err ) {
             why_not = "bad message: " + std::string( err.what() );
         }

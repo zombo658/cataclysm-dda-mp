@@ -43,6 +43,7 @@
 #include "mapdata.h"
 #include "memory_fast.h"
 #include "messages.h"
+#include "mp/remote_actions.h"
 #include "mtype.h"
 #include "npc.h"
 #include "options.h"
@@ -1230,6 +1231,9 @@ std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<construct
     return ret;
 }
 
+static void start_construction( Character &who, const construction &con,
+                                const tripoint_bub_ms &pnt );
+
 void place_construction( std::vector<construction_group_str_id> const &groups )
 {
     avatar &player_character = get_avatar();
@@ -1299,12 +1303,23 @@ void place_construction( std::vector<construction_group_str_id> const &groups )
                  _( "There is already an unfinished construction there, examine it to continue working on it." ) );
         return;
     }
-    std::list<item> used;
     const construction &con = *valid.find( pnt )->second;
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( mp::remote_actions::forward_construction( con.id, here.get_abs( pnt ) ) ) {
+        return;
+    }
+    start_construction( player_character, con, pnt );
+}
+
+// The end of place_construction(): uses up the components and starts building.
+static void start_construction( Character &who, const construction &con, const tripoint_bub_ms &pnt )
+{
+    map &here = get_map();
+    std::list<item> used;
     // create the partial construction struct
     partial_con pc;
     pc.id = con.id;
-    if( player_character.has_trait( trait_DEBUG_HS ) ) {
+    if( who.has_trait( trait_DEBUG_HS ) ) {
         // Gift components
         for( const auto &it : con.requirements->get_components() ) {
             used.emplace_back( it.front().type );
@@ -1312,7 +1327,7 @@ void place_construction( std::vector<construction_group_str_id> const &groups )
     } else {
         // Use up the components
         for( const std::vector<item_comp> &it : con.requirements->get_components() ) {
-            std::list<item> tmp = player_character.consume_items( it, 1, is_crafting_component,
+            std::list<item> tmp = who.consume_items( it, 1, is_crafting_component,
                                   return_false<itype_id>, true );
             if( tmp.empty() ) {
                 return;
@@ -1323,12 +1338,12 @@ void place_construction( std::vector<construction_group_str_id> const &groups )
     pc.components = used;
     here.partial_con_set( pnt, pc );
     for( const auto &it : con.requirements->get_tools() ) {
-        player_character.consume_tools( it );
+        who.consume_tools( it );
     }
-    player_character.invalidate_crafting_inventory();
-    player_character.invalidate_weight_carried_cache();
-    player_character.assign_activity( ACT_BUILD );
-    player_character.activity.placement = here.get_abs( pnt );
+    who.invalidate_crafting_inventory();
+    who.invalidate_weight_carried_cache();
+    who.assign_activity( ACT_BUILD );
+    who.activity.placement = here.get_abs( pnt );
 }
 
 void complete_construction( Character *you )
@@ -2768,3 +2783,26 @@ bool construction_str_id::is_valid() const
     }
     return construction_id_map.find( *this ) != construction_id_map.end();
 }
+
+// The second player's constructions (mp/remote_actions.h), started on the host.
+namespace mp::construction_hooks
+{
+
+std::string start( Character &who, const construction_id &id, const tripoint_bub_ms &pnt )
+{
+    if( !id.is_valid() ) {
+        return _( "unknown construction" );
+    }
+    const construction &con = id.obj();
+    map &here = get_map();
+    if( here.partial_con_at( pnt ) ) {
+        return _( "There is already an unfinished construction there, examine it to continue working on it." );
+    }
+    if( !player_can_build( who, who.crafting_inventory(), con ) || !can_construct( con, pnt ) ) {
+        return _( "you can't build that there" );
+    }
+    start_construction( who, con, pnt );
+    return std::string();
+}
+
+} // namespace mp::construction_hooks

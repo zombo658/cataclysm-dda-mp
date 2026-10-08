@@ -27,6 +27,8 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `{"cmd":"prompt_answer","id":3,…}` | ответ на `prompt`: `ret` (uilist), `action` (popup), `dir` `[x,y,z]` (direction; нет — отмена), `text` (string; нет — отмена) |
 | `{"cmd":"combat","action":"fire","target":[x,y,z],"recoil":150,"mode":"DEFAULT"}` | выстрел из оружия в руках по точке (абсолютные координаты); `recoil` — как прицелился на клиенте, `mode` — режим огня |
 | `{"cmd":"combat","action":"throw","item":{…},"target":[x,y,z]}` | бросить вещь |
+| `{"cmd":"activity","data":{…}}` | активность (`player_activity` в формате сохранения), которую код хоста назначил копии персонажа на клиенте (разделка, AIM, сон, тренировка, заклинание…) |
+| `{"cmd":"construct","id":"constr_…","target":[x,y,z]}` | начать постройку из меню строительства |
 | `{"cmd":"recipes"}` | id рецептов, доступных персонажу (известные, из книг рядом, известные помощникам); ответ — `recipes` |
 | `{"cmd":"recipe_states","items":[["blindfold",1],...]}` | можно ли сделать рецепт партией `batch` и каким цветом его рисовать; ответ — `recipe_states` |
 | `{"cmd":"recipe_info","recipe":"blindfold","batch":1,"width":45,"result_width":60}` | описание рецепта (как справа в окне крафта хоста) шириной `width`, строка скорости крафта и, если `result_width` > 0, описание результата; ответ — `recipe_info` |
