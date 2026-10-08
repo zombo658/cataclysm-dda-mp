@@ -14,9 +14,12 @@
 #include "messages.h"
 #include "mp/net.h"
 #include "mp/rc_npc.h"
+#include "mp/remote_inventory.h"
 #include "mp/view.h"
 #include "npc.h"
 #include "translations.h"
+#include "type_id.h"
+#include "worldfactory.h"
 
 namespace mp::protocol
 {
@@ -152,12 +155,19 @@ void handle_line( const std::string &line )
 {
     std::string cmd_name;
     std::string dir_name;
+    // For "item".
+    int revision = 0;
+    int index = -1;
+    std::string action;
     try {
         const JsonValue value = json_loader::from_string( line );
         const JsonObject obj = value.get_object();
         obj.allow_omitted_members();
         cmd_name = obj.get_string( "cmd" );
         dir_name = obj.get_string( "dir", "" );
+        revision = obj.get_int( "revision", 0 );
+        index = obj.get_int( "index", -1 );
+        action = obj.get_string( "action", "" );
     } catch( const JsonError &err ) {
         send_error( "bad message: " + std::string( err.what() ) );
         return;
@@ -170,6 +180,31 @@ void handle_line( const std::string &line )
     }
     if( cmd_name == "status" ) {
         send_status( *guy, "status" );
+        return;
+    }
+    if( cmd_name == "inventory" ) {
+        net::send_line( to_line( [&]( JsonOut & json ) {
+            json.member( "type", "inventory" );
+            inventory::write( json, *guy );
+        } ) );
+        return;
+    }
+    if( cmd_name == "item" ) {
+        if( !instant_mode() ) {
+            send_error( "items can be used only while the server runs" );
+            return;
+        }
+        const std::string why_not = inventory::act( *guy, revision, index, action );
+        if( why_not.empty() ) {
+            run_instantly( *guy );
+            net::send_line( to_line( [&]( JsonOut & json ) {
+                json.member( "type", "ok" );
+                json.member( "cmd", cmd_name );
+            } ) );
+        } else {
+            send_rejected( why_not );
+        }
+        send_state( *guy );
         return;
     }
 
@@ -209,6 +244,15 @@ void send_welcome()
         json.member( "type", "welcome" );
         json.member( "version", version );
         json.member( "instant", instant_mode() );
+        // The client loads the same data to draw tiles.
+        json.member( "mods" );
+        json.start_array();
+        if( world_generator->active_world != nullptr ) {
+            for( const mod_id &mod : world_generator->active_world->active_mod_order ) {
+                json.write( mod.str() );
+            }
+        }
+        json.end_array();
         const npc *guy = network_npc();
         if( guy != nullptr ) {
             json.member( "npc", guy->get_name() );
@@ -270,6 +314,10 @@ void poll()
         add_msg( m_info, _( "The second player has connected." ) );
         skip_old_messages();
         send_welcome();
+        // Something to look at right away, not after the first action.
+        if( const npc *guy = network_npc() ) {
+            send_state( *guy );
+        }
     };
     h.on_disconnect = []() {
         add_msg( m_warning, _( "The second player has disconnected." ) );

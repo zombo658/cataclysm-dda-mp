@@ -33,6 +33,7 @@
 #include "flexbuffer_json.h"
 #include "init.h"
 #include "messages.h"
+#include "mp/sound_relay.h"
 #include "music.h"
 #include "options.h"
 #include "path_info.h"
@@ -938,6 +939,8 @@ void sfx::play_variant_sound( const std::string &id, const std::string &variant,
     if( test_mode ) {
         return;
     }
+    mp::sound_relay::variant( id, variant, season, is_indoors, is_night, volume, std::nullopt, -1.0,
+                              -1.0 );
 
     add_msg_debug( debugmode::DF_SOUND, "sound id: %s, variant: %s, volume: %d ", id, variant, volume );
 
@@ -971,6 +974,8 @@ void sfx::play_variant_sound( const std::string &id, const std::string &variant,
     if( test_mode ) {
         return;
     }
+    mp::sound_relay::variant( id, variant, season, is_indoors, is_night, volume,
+                              units::to_degrees( angle ), pitch_min, pitch_max );
 
     add_msg_debug( debugmode::DF_SOUND, "sound id: %s, variant: %s, volume: %d ", id, variant, volume );
 
@@ -1016,6 +1021,8 @@ void sfx::play_ambient_variant_sound( const std::string &id, const std::string &
     if( is_channel_playing( channel ) ) {
         return;
     }
+    mp::sound_relay::ambient( id, variant, season, is_indoors, is_night, volume,
+                              static_cast<int>( channel ), fade_in_duration, pitch, loops );
     const sound_effect *eff = find_random_effect( id, variant, season, is_indoors, is_night );
     if( eff == nullptr ) {
         return;

@@ -22,8 +22,18 @@ void write( JsonOut &json, const npc &guy );
 
 // Client side: a decoded view.
 struct cell {
+    // For the text map.
     std::string symbol;
     std::string color;
+    // For the tiles: ids of what is on the tile, empty if nothing.
+    std::string ter;
+    std::string furn;
+    std::string field;
+    int field_intensity = 0;
+    std::string item;
+    std::string vpart;
+    std::string vpart_variant;
+    std::string critter;
 };
 struct grid {
     int radius = 0;

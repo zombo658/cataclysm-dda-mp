@@ -26,6 +26,7 @@
 #include "map_iterator.h"
 #include "messages.h"
 #include "monster.h"
+#include "mp/sound_relay.h"
 #include "music.h"
 #include "npc.h"
 #include "output.h"
@@ -840,6 +841,7 @@ void sfx::fade_audio_channel( channel channel, int duration )
     if( test_mode ) {
         return;
     }
+    mp::sound_relay::fade_channel( static_cast<int>( channel ), duration );
     Mix_FadeOutChannel( static_cast<int>( channel ), duration );
 }
 

@@ -39,6 +39,10 @@ class memorized_tile;
 class monster;
 class nc_color;
 class pixel_minimap;
+namespace mp::view
+{
+struct grid;
+} // namespace mp::view
 enum class direction : unsigned int;
 enum class lit_level : int;
 enum class visibility_type : int;
@@ -454,6 +458,8 @@ class cata_tiles
                    std::multimap<point, formatted_text> &overlay_strings,
                    color_block_overlay_container &color_blocks );
         void draw_om( const point &dest, const tripoint_abs_omt &center_abs_omt, bool blink );
+        /** Multiplayer client: draw the view received from the host (src/mp/remote_tiles.cpp). */
+        void draw_remote_view( const point &dest, int width, int height, const mp::view::grid &grid );
 
         /** Minimap functionality */
         void draw_minimap( const point &dest, const tripoint_bub_ms &center, int width, int height );

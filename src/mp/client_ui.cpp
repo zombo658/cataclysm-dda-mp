@@ -3,12 +3,19 @@
 #include <cstdlib>
 #include <deque>
 #include <map>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
 
 #include "color.h"
+#include "debug.h"
+#include "game.h"
+#include "init.h"
+#include "loading_ui.h"
+#include "mod_manager.h"
+#include "type_id.h"
 #include "cursesdef.h"
 #include "input.h"
 #include "input_context.h"
@@ -16,6 +23,8 @@
 #include "json_loader.h"
 #include "mp/net.h"
 #include "mp/protocol.h"
+#include "mp/remote_inventory.h"
+#include "mp/sound_relay.h"
 #include "mp/view.h"
 #include "output.h"
 #include "point.h"
@@ -23,7 +32,15 @@
 #include "string_formatter.h"
 #include "string_input_popup.h"
 #include "translations.h"
+#include "uilist.h"
 #include "ui_manager.h"
+#include "worldfactory.h"
+
+#if defined(TILES)
+#include "cached_options.h"
+#include "cata_tiles.h"
+#include "sdltiles.h"
+#endif
 
 namespace mp::client_ui
 {
@@ -43,6 +60,15 @@ struct client_state {
     bool instant = false;
     bool attack_pending = false;
     bool lost = false;
+    // Mods of the host's world; the client loads their data to draw tiles.
+    std::vector<std::string> mods;
+    bool data_requested = false;
+    bool data_loaded = false;
+    // The game's loading code expects an active world (mod list, options):
+    // a world in memory only, with the host's mods.
+    std::unique_ptr<WORLD> host_world;
+    // The inventory came; show it on the next round of the main loop.
+    std::optional<inventory::listing> inventory_to_show;
     std::deque<std::pair<std::string, nc_color>> log;
 
     void add_log( const std::string &text, const nc_color &color = c_light_gray ) {
@@ -86,6 +112,15 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "welcome" ) {
             state.character = msg.get_string( "npc", "" );
             state.instant = msg.get_bool( "instant", false );
+            if( msg.has_array( "mods" ) ) {
+                for( const std::string mod : msg.get_array( "mods" ) ) {
+                    state.mods.push_back( mod );
+                }
+#if defined(TILES)
+                // Only tiles need the data; the text map comes ready to draw.
+                state.data_requested = use_tiles;
+#endif
+            }
             if( msg.get_int( "version", 0 ) != protocol::version ) {
                 state.add_log( _( "Warning: the host runs a different version of the game." ), c_yellow );
             }
@@ -99,12 +134,80 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "rejected" ) {
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
+        } else if( type == "inventory" ) {
+            state.inventory_to_show = inventory::read( msg );
+        } else if( type == "sfx" ) {
+            sound_relay::play( msg );
         } else if( type == "error" ) {
             state.add_log( msg.get_string( "message", "" ), c_red );
         }
     } catch( const JsonError &err ) {
         state.add_log( string_format( _( "Bad message from the host: %s" ), err.what() ), c_red );
     }
+}
+
+void send_item_command( const int revision, const int index, const std::string &action )
+{
+    std::ostringstream os;
+    JsonOut json( os );
+    json.start_object();
+    json.member( "cmd", "item" );
+    json.member( "revision", revision );
+    json.member( "index", index );
+    json.member( "action", action );
+    json.end_object();
+    net::client_send_line( os.str() );
+}
+
+std::string action_name( const std::string &action )
+{
+    if( action == "wield" ) {
+        return _( "Wield" );
+    } else if( action == "unwield" ) {
+        return _( "Put away" );
+    } else if( action == "wear" ) {
+        return _( "Wear" );
+    } else if( action == "takeoff" ) {
+        return _( "Take off" );
+    } else if( action == "eat" ) {
+        return _( "Eat / drink" );
+    } else if( action == "drop" ) {
+        return _( "Drop" );
+    }
+    return action;
+}
+
+// Item list, then what to do with the chosen item.
+void show_inventory( const inventory::listing &inv )
+{
+    if( inv.entries.empty() ) {
+        popup( _( "You have nothing." ) );
+        return;
+    }
+    uilist items;
+    items.text = _( "Inventory" );
+    for( size_t i = 0; i < inv.entries.size(); i++ ) {
+        const inventory::entry &e = inv.entries[i];
+        const std::string indent( e.depth * 2, ' ' );
+        const std::string where = e.depth == 0 ? string_format( " <color_dark_gray>(%s)</color>",
+                                  e.where == "wielded" ? _( "in hands" ) : e.where == "worn" ? _( "worn" ) : _( "carried" ) ) : "";
+        items.addentry( static_cast<int>( i ), true, MENU_AUTOASSIGN, indent + e.name + where );
+    }
+    items.query();
+    if( items.ret < 0 || static_cast<size_t>( items.ret ) >= inv.entries.size() ) {
+        return;
+    }
+    const inventory::entry &chosen = inv.entries[items.ret];
+    uilist actions;
+    actions.text = chosen.name;
+    for( size_t i = 0; i < chosen.actions.size(); i++ ) {
+        actions.addentry( static_cast<int>( i ), true, MENU_AUTOASSIGN, action_name( chosen.actions[i] ) );
+    }
+    actions.query();
+    if( actions.ret < 0 || static_cast<size_t>( actions.ret ) >= chosen.actions.size() ) {
+        return;
+    }
+    send_item_command( inv.revision, chosen.index, chosen.actions[actions.ret] );
 }
 
 void send_command( client_state &state, const std::string &cmd, const std::string &dir = "" )
@@ -162,20 +265,74 @@ bool handle_key( client_state &state, const int ch )
         send_command( state, "pickup" );
     } else if( ch == 's' ) {
         send_command( state, "status" );
+    } else if( ch == 'i' ) {
+        send_command( state, "inventory" );
     } else if( ch == 'q' || ch == KEY_ESCAPE ) {
         return !query_yn( _( "Leave the game?" ) );
     }
     return true;
 }
 
-void draw( const catacurses::window &w, const client_state &state )
+constexpr int log_height = 8;
+constexpr int map_top = 2;
+
+int map_height( const int screen_height )
+{
+    return std::max( 1, screen_height - map_top - log_height - 1 );
+}
+
+// Bottom of the screen: the log and the keys.
+void draw_log_and_keys( const catacurses::window &w, const client_state &state )
+{
+    const int width = getmaxx( w );
+    const int height = getmaxy( w );
+    const int log_top = height - log_height - 1;
+    const int shown = std::min<int>( log_height, state.log.size() );
+    for( int i = 0; i < shown; i++ ) {
+        const auto &entry = state.log[state.log.size() - shown + i];
+        trim_and_print( w, point( 0, log_top + i ), width, entry.second, entry.first );
+    }
+    trim_and_print( w, point( 0, height - 1 ), width, c_dark_gray,
+                    _( "hjklyubn/arrows/numpad move  a+dir attack  . wait  g pick up  i inventory  s status  q leave" ) );
+}
+
+// Loads the data of the host's mods, so that tiles can be looked up the way
+// the host's game does it.
+void load_host_data( client_state &state )
+{
+    state.data_requested = false;
+    std::vector<mod_id> mods;
+    for( const std::string &name : state.mods ) {
+        const mod_id mod( name );
+        if( mod.is_valid() ) {
+            mods.push_back( mod );
+        } else {
+            state.add_log( string_format( _( "You don't have the mod %s; some things will look odd." ),
+                                          name ), c_yellow );
+        }
+    }
+    state.host_world = std::make_unique<WORLD>();
+    state.host_world->active_mod_order = mods;
+    world_generator->set_active_world( state.host_world.get() );
+    try {
+        g->load_core_data();
+        g->load_packs( _( "Loading the host's game data" ), mods );
+        DynamicDataLoader::get_instance().finalize_loaded_data();
+        state.data_loaded = true;
+        state.add_log( _( "Loaded the host's game data." ), c_light_gray );
+    } catch( const std::exception &err ) {
+        state.add_log( string_format( _( "Can't load the game data: %s" ), err.what() ), c_red );
+    }
+    loading_ui::done();
+}
+
+void draw( const catacurses::window &w, [[maybe_unused]] const catacurses::window &w_map,
+           const client_state &state )
 {
     werase( w );
     const int width = getmaxx( w );
     const int height = getmaxy( w );
-    constexpr int log_height = 8;
-    const int map_top = 2;
-    const int map_height = std::max( 1, height - map_top - log_height - 1 );
+    const int map_height = mp::client_ui::map_height( height );
 
     // Top: who we are and whose turn it is.
     const bool can_act = state.instant || state.my_turn;
@@ -187,6 +344,19 @@ void draw( const catacurses::window &w, const client_state &state )
 
     // Middle: the map, the character in the middle.
     const view::grid &grid = state.grid;
+#if defined(TILES)
+    if( use_tiles && tilecontext && state.data_loaded ) {
+        // The text window has to be on the screen first: tiles go over it.
+        draw_log_and_keys( w, state );
+        wnoutrefresh( w );
+        // A real window: get_window_dimensions() of a bare rectangle takes it
+        // for the game's (here absent) terrain window and returns no size.
+        const window_dimensions dim = get_window_dimensions( w_map );
+        tilecontext->draw_remote_view( dim.window_pos_pixel, dim.window_size_pixel.x,
+                                       dim.window_size_pixel.y, grid );
+        return;
+    }
+#endif
     const int size = static_cast<int>( grid.rows.size() );
     const point screen_center( width / 2, map_top + map_height / 2 );
     for( int sy = map_top; sy < map_top + map_height; sy++ ) {
@@ -209,15 +379,7 @@ void draw( const catacurses::window &w, const client_state &state )
         }
     }
 
-    // Bottom: the log and the keys.
-    const int log_top = height - log_height - 1;
-    const int shown = std::min<int>( log_height, state.log.size() );
-    for( int i = 0; i < shown; i++ ) {
-        const auto &entry = state.log[state.log.size() - shown + i];
-        trim_and_print( w, point( 0, log_top + i ), width, entry.second, entry.first );
-    }
-    trim_and_print( w, point( 0, height - 1 ), width, c_dark_gray,
-                    _( "hjklyubn/arrows/numpad move  a+dir attack  . wait  g pick up  s status  q leave" ) );
+    draw_log_and_keys( w, state );
     wnoutrefresh( w );
 }
 
@@ -257,14 +419,17 @@ void run_join_screen()
 
     client_state state;
     catacurses::window w;
+    // Where the tiles go: between the status line and the log.
+    catacurses::window w_map;
     ui_adaptor ui;
     ui.on_screen_resize( [&]( ui_adaptor & ui ) {
         w = catacurses::newwin( TERMY, TERMX, point::zero );
+        w_map = catacurses::newwin( map_height( TERMY ), TERMX, point( 0, map_top ) );
         ui.position_from_window( w );
     } );
     ui.mark_resize();
     ui.on_redraw( [&]( const ui_adaptor & ) {
-        draw( w, state );
+        draw( w, w_map, state );
     } );
 
     net::handlers h;
@@ -284,6 +449,16 @@ void run_join_screen()
     ctxt.set_timeout( 100 );
     while( true ) {
         net::client_poll( h );
+        if( state.data_requested ) {
+            load_host_data( state );
+            ui.invalidate_ui();
+        }
+        if( state.inventory_to_show ) {
+            const inventory::listing inv = *state.inventory_to_show;
+            state.inventory_to_show.reset();
+            show_inventory( inv );
+            ui.invalidate_ui();
+        }
         ui_manager::redraw();
         const std::string action = ctxt.handle_input();
         if( action == "TIMEOUT" ) {
@@ -302,6 +477,15 @@ void run_join_screen()
         ui.invalidate_ui();
     }
     net::disconnect();
+    if( state.host_world ) {
+        // Back to what the main menu expects: core data only, no world.
+        try {
+            g->load_core_data();
+        } catch( const std::exception &err ) {
+            debugmsg( "Can't reload the core data: %s", err.what() );
+        }
+        world_generator->set_active_world( nullptr );
+    }
 }
 
 } // namespace mp::client_ui

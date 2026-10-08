@@ -85,6 +85,14 @@ jobs:
         run: |
           msbuild -m -p:Configuration=Release -p:Platform=x64 "-target:Cataclysm-vcpkg-static;JsonFormatter-vcpkg-static;zzip" msvc-full-features\Cataclysm-vcpkg-static.sln
 
+      # The same soundpack as the upstream "with sounds" release; without it
+      # the game has only the menu sounds of the basic pack.
+      - name: Get soundpack
+        shell: bash
+        run: |
+          git clone --depth=1 --shallow-submodules --recurse-submodules https://github.com/Fris0uman/CDDA-Soundpacks "$RUNNER_TEMP/CDDA-Soundpacks"
+          mv "$RUNNER_TEMP/CDDA-Soundpacks/sound/CC-Sounds" data/sound/CC-Sounds
+
       - name: Package
         run: |
           .\build-scripts\windist.ps1
