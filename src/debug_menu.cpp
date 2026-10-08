@@ -91,6 +91,7 @@
 #include "mission.h"
 #include "mongroup.h"
 #include "monster.h"
+#include "mp/rc_npc.h"
 #include "mtype.h"
 #include "mutation.h"
 #include "npc.h"
@@ -212,6 +213,7 @@ std::string enum_to_string<debug_menu::debug_menu_index>( debug_menu::debug_menu
         case debug_menu::debug_menu_index::EDIT_PLAYER: return "EDIT_PLAYER";
         case debug_menu::debug_menu_index::EDIT_MONSTER: return "EDIT_MONSTER";
         case debug_menu::debug_menu_index::CONTROL_NPC: return "CONTROL_NPC";
+        case debug_menu::debug_menu_index::MP_REMOTE_NPC: return "MP_REMOTE_NPC";
         case debug_menu::debug_menu_index::SPAWN_ARTIFACT: return "SPAWN_ARTIFACT";
         case debug_menu::debug_menu_index::SPAWN_CLAIRVOYANCE: return "SPAWN_CLAIRVOYANCE";
         case debug_menu::debug_menu_index::SPAWN_HORDE: return "SPAWN_HORDE";
@@ -608,6 +610,7 @@ static int player_uilist()
         { uilist_entry( debug_menu_index::BLEED_SELF, true, 'b', _( "Bleed self" ) ) },
         { uilist_entry( debug_menu_index::SET_AUTOMOVE, true, 'a', _( "Set auto move route" ) ) },
         { uilist_entry( debug_menu_index::CONTROL_NPC, true, 'x', _( "Control NPC follower" ) ) },
+        { uilist_entry( debug_menu_index::MP_REMOTE_NPC, true, 'X', _( "Multiplayer: remote NPC" ) ) },
         { uilist_entry( debug_menu_index::IMPORT_FOLLOWER, true, 'i', _( "Import follower" ) ) },
         { uilist_entry( debug_menu_index::EXPORT_FOLLOWER, true, 'e', _( "Export follower" ) ) },
         { uilist_entry( debug_menu_index::EXPORT_SELF, true, 'E', _( "Export self" ) ) },
@@ -4189,6 +4192,10 @@ void debug()
 
         case debug_menu_index::CONTROL_NPC:
             control_npc_menu();
+            break;
+
+        case debug_menu_index::MP_REMOTE_NPC:
+            mp::debug_menu();
             break;
 
         case debug_menu_index::SPAWN_ARTIFACT:

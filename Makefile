@@ -966,9 +966,11 @@ ifeq ($(HEADERPOPULARITY), 1)
 else
   SOURCES := $(wildcard $(SRC_DIR)/*.cpp)
 endif
+# Multiplayer fork code lives in its own directory.
+SOURCES += $(wildcard $(SRC_DIR)/mp/*.cpp)
 THIRD_PARTY_SOURCES := $(wildcard $(SRC_DIR)/third-party/flatbuffers/*.cpp)
 THIRD_PARTY_C_SOURCES := $(wildcard $(SRC_DIR)/third-party/zstd/common/*.c $(SRC_DIR)/third-party/zstd/compress/*.c $(SRC_DIR)/third-party/zstd/decompress/*.c)
-HEADERS := $(wildcard $(SRC_DIR)/*.h)
+HEADERS := $(wildcard $(SRC_DIR)/*.h $(SRC_DIR)/mp/*.h)
 OBJECT_CREATOR_SOURCES := $(wildcard $object_creator/*.cpp)
 OBJECT_CREATOR_HEADERS := $(wildcard $object_creator/*.h)
 TESTSRC := $(wildcard tests/*.cpp)

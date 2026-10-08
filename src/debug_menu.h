@@ -42,6 +42,7 @@ enum class debug_menu_index : int {
     EDIT_PLAYER,
     EDIT_MONSTER,
     CONTROL_NPC,
+    MP_REMOTE_NPC,
     SPAWN_ARTIFACT,
     SPAWN_CLAIRVOYANCE,
     SPAWN_HORDE,

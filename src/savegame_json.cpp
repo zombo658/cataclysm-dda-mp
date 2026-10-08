@@ -92,6 +92,7 @@
 #include "memory_fast.h"
 #include "mission.h"
 #include "monster.h"
+#include "mp/rc_npc.h"
 #include "morale.h"
 #include "mtype.h"
 #include "mutation.h"
@@ -2273,6 +2274,7 @@ void npc::load( const JsonObject &data )
     generate_personality_traits();
     data.read( "may_activity_occupancy_after_end_items_loc",
                may_activity_occupancy_after_end_items_loc );
+    mp::load_npc( *this, data );
 }
 
 /*
@@ -2346,6 +2348,7 @@ void npc::store( JsonOut &json ) const
     json.member( "unique_id", unique_id );
     json.member( "may_activity_occupancy_after_end_items_loc",
                  may_activity_occupancy_after_end_items_loc );
+    mp::store_npc( *this, json );
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

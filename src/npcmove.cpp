@@ -73,6 +73,7 @@
 #include "messages.h"
 #include "mission.h"
 #include "monster.h"
+#include "mp/rc_npc.h"
 #include "mtype.h"
 #include "npc.h"
 #include "npc_attack.h"
@@ -1333,6 +1334,9 @@ void npc::regen_ai_cache()
 
 void npc::move()
 {
+    if( mp::remote_move( *this ) ) {
+        return;
+    }
     const map &here = get_map();
 
     // don't just return from this function without doing something

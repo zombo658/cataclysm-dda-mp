@@ -49,6 +49,7 @@
 #include "messages.h"
 #include "mission.h"
 #include "monster.h"
+#include "mp/rc_npc.h"
 #include "mtype.h"
 #include "music.h"
 #include "npc.h"
@@ -367,7 +368,7 @@ void monmove()
             guy.process_turn();
         }
         while( !guy.is_dead() && ( !guy.in_sleep_state() || guy.activity.id() == ACT_OPERATION ) &&
-               guy.get_moves() > 0 && turns < 10 ) {
+               guy.get_moves() > 0 && turns < 10 && !mp::waits_for_commands( guy ) ) {
             const int moves = guy.get_moves();
             const bool has_destination = guy.has_destination_activity();
             guy.move();
