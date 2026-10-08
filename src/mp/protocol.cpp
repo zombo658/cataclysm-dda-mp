@@ -4,13 +4,16 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "coordinates.h"
 #include "json.h"
 #include "json_loader.h"
 #include "messages.h"
-#include "mp/net_server.h"
+#include "mp/net.h"
 #include "mp/rc_npc.h"
+#include "mp/view.h"
 #include "npc.h"
 #include "translations.h"
 
@@ -29,6 +32,57 @@ std::string to_line( const Writer &write )
     write( json );
     json.end_object();
     return os.str();
+}
+
+// The newest message of the host's log already sent to the client.
+std::optional<std::pair<std::string, std::string>> last_sent_message;
+
+// Messages that only make sense on the host's screen.
+bool is_host_only( const std::string &text )
+{
+    static const std::string waiting = _( "Waiting for" );
+    return text.compare( 0, waiting.size(), waiting ) == 0;
+}
+
+// Forgets the log so far: a new client starts with an empty log.
+void skip_old_messages()
+{
+    const std::vector<std::pair<std::string, std::string>> recent = Messages::recent_messages( 1 );
+    if( recent.empty() ) {
+        last_sent_message.reset();
+    } else {
+        last_sent_message = recent.back();
+    }
+}
+
+void send_new_messages()
+{
+    const std::vector<std::pair<std::string, std::string>> recent = Messages::recent_messages( 30 );
+    size_t first_new = 0;
+    if( last_sent_message ) {
+        for( size_t i = recent.size(); i > 0; i-- ) {
+            if( recent[i - 1] == *last_sent_message ) {
+                first_new = i;
+                break;
+            }
+        }
+    }
+    std::vector<std::string> lines;
+    for( size_t i = first_new; i < recent.size(); i++ ) {
+        if( !is_host_only( recent[i].second ) ) {
+            lines.push_back( recent[i].second );
+        }
+    }
+    if( !recent.empty() ) {
+        last_sent_message = recent.back();
+    }
+    if( lines.empty() ) {
+        return;
+    }
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "log" );
+        json.member( "lines", lines );
+    } ) );
 }
 
 void send_error( const std::string &message )
@@ -153,8 +207,18 @@ void send_welcome()
     } ) );
 }
 
+void send_view( const npc &guy )
+{
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "view" );
+        view::write( json, guy );
+    } ) );
+}
+
 void send_your_turn( const npc &guy )
 {
+    send_new_messages();
+    send_view( guy );
     send_status( guy, "your_turn" );
 }
 
@@ -172,6 +236,7 @@ void poll()
     h.on_line = handle_line;
     h.on_connect = []() {
         add_msg( m_info, _( "The second player has connected." ) );
+        skip_old_messages();
         send_welcome();
     };
     h.on_disconnect = []() {

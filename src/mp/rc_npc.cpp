@@ -13,6 +13,9 @@
 #include "creature.h"
 #include "creature_tracker.h"
 #include "faction.h"
+#include "line.h"
+#include "memory_fast.h"
+#include "overmapbuffer.h"
 #include "game.h"
 #include "item.h"
 #include "item_location.h"
@@ -21,7 +24,7 @@
 #include "map_selector.h"
 #include "mapdata.h"
 #include "messages.h"
-#include "mp/net_server.h"
+#include "mp/net.h"
 #include "mp/protocol.h"
 #include "npc.h"
 #include "output.h"
@@ -40,6 +43,9 @@ namespace
 // IDs of NPCs controlled by the second player. Mirrors the "mp_remote" member
 // of the NPC save; npc::load() keeps it in sync for every loaded NPC.
 std::set<character_id> remote_ids;
+
+// Set by request_host(), handled on the first turn after loading.
+bool host_requested = false;
 
 // True while wait_for_remote_players() runs the host's input.
 bool host_blocked = false;
@@ -202,6 +208,8 @@ static npc *first_waiting_npc()
     return nullptr;
 }
 
+static void start_hosting();
+
 // No client is connected to the running server: nobody can give the order.
 static bool nobody_to_ask()
 {
@@ -210,6 +218,10 @@ static bool nobody_to_ask()
 
 void wait_for_remote_players( const std::function<bool()> &host_input )
 {
+    if( host_requested ) {
+        host_requested = false;
+        start_hosting();
+    }
     bool announced = false;
     // Tell the client once per state it has to act in.
     const npc *notified_npc = nullptr;
@@ -259,10 +271,11 @@ void wait_for_remote_players( const std::function<bool()> &host_input )
 
 bool host_input_should_yield()
 {
+    // Keep the connection alive while the host thinks, too.
+    protocol::poll();
     if( !host_blocked ) {
         return false;
     }
-    protocol::poll();
     const npc *guy = first_waiting_npc();
     return guy == nullptr || !waits_for_commands( *guy ) || nobody_to_ask();
 }
@@ -348,19 +361,107 @@ static npc *pick_npc( const std::string &title, const bool remote_only )
     return candidates[menu.ret];
 }
 
+static void make_partner( npc &guy )
+{
+    if( !guy.is_player_ally() ) {
+        // The second player is on the host's side.
+        guy.set_fac( faction_your_followers );
+        guy.set_attitude( NPCATT_FOLLOW );
+        g->add_npc_follower( guy.getID() );
+    }
+    set_remote( guy, true );
+}
+
+// A new random character next to the host, for the second player.
+static npc *spawn_partner()
+{
+    map &here = get_map();
+    const avatar &host = get_avatar();
+    std::optional<tripoint_bub_ms> spot;
+    for( const tripoint_bub_ms &p : closest_points_first( host.pos_bub( here ), 1, 5 ) ) {
+        if( here.passable( p ) && g->is_empty( p ) ) {
+            spot = p;
+            break;
+        }
+    }
+    if( !spot ) {
+        popup( _( "There is no free place for a new character next to you." ) );
+        return nullptr;
+    }
+    shared_ptr_fast<npc> guy = make_shared_fast<npc>();
+    guy->normalize();
+    guy->randomize();
+    guy->spawn_at_precise( here.get_abs( *spot ) );
+    overmap_buffer.insert_npc( guy );
+    guy->mission = NPC_MISSION_NULL;
+    guy->set_fac( faction_your_followers );
+    guy->set_attitude( NPCATT_FOLLOW );
+    g->load_npcs();
+    g->add_npc_follower( guy->getID() );
+    return guy.get();
+}
+
+static void choose_partner()
+{
+    std::vector<npc *> nearby;
+    uilist menu;
+    menu.text = _( "Who will the second player play?" );
+    for( npc &guy : g->all_npcs() ) {
+        menu.addentry( static_cast<int>( nearby.size() ), true, MENU_AUTOASSIGN, "%s%s",
+                       guy.get_name(), guy.is_player_ally() ? _( " (your follower)" ) : "" );
+        nearby.push_back( &guy );
+    }
+    const int new_character = static_cast<int>( nearby.size() );
+    menu.addentry( new_character, true, 'n', _( "A new character" ) );
+    menu.query();
+    npc *chosen = nullptr;
+    if( menu.ret == new_character ) {
+        chosen = spawn_partner();
+    } else if( menu.ret >= 0 && menu.ret < new_character ) {
+        chosen = nearby[menu.ret];
+    }
+    if( chosen != nullptr ) {
+        make_partner( *chosen );
+        add_msg( m_info, _( "The second player will play %s." ), chosen->get_name() );
+    }
+}
+
+void request_host()
+{
+    host_requested = true;
+}
+
+static void start_hosting()
+{
+    std::string error;
+    if( !net::start( net::default_port, error ) ) {
+        popup( _( "Can't start the multiplayer server on port %1$d: %2$s" ), net::default_port, error );
+        return;
+    }
+    if( network_npc() == nullptr ) {
+        choose_partner();
+    }
+    const npc *partner = network_npc();
+    popup( _( "The game is hosted on port %1$d.\n\n"
+              "The second player chooses Multiplayer > Join game in the main menu and enters "
+              "your IP address (ipconfig shows it; over the internet use a virtual network like "
+              "Radmin VPN or forward TCP port %1$d).\n\n%2$s" ),
+           net::default_port,
+           partner != nullptr ? string_format( _( "They will play %s." ), partner->get_name() ) :
+           _( "No character is chosen for them yet." ) );
+}
+
 static void toggle_remote_menu()
 {
     npc *guy = pick_npc( _( "Toggle remote control for which NPC?" ), false );
     if( guy == nullptr ) {
         return;
     }
-    if( !is_remote( *guy ) && !guy->is_player_ally() ) {
-        // The second player is on the host's side.
-        guy->set_fac( faction_your_followers );
-        guy->set_attitude( NPCATT_FOLLOW );
-        g->add_npc_follower( guy->getID() );
+    if( is_remote( *guy ) ) {
+        set_remote( *guy, false );
+    } else {
+        make_partner( *guy );
     }
-    set_remote( *guy, !is_remote( *guy ) );
     add_msg( m_info, is_remote( *guy ) ? _( "%s is now controlled remotely." ) :
              _( "%s is now controlled by the AI." ), guy->get_name() );
 }

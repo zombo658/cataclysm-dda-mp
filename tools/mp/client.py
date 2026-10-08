@@ -78,6 +78,8 @@ def describe(message):
     if kind == 'welcome':
         return 'connected, protocol v{}, character: {}'.format(
             message.get('version'), message.get('npc', '(none yet)'))
+    if kind == 'log':
+        return '\n'.join(message.get('lines', []))
     if kind == 'ok':
         return 'ok: ' + message.get('cmd', '')
     if kind == 'rejected':
@@ -95,6 +97,9 @@ def run_script(conn, commands, wait):
             if left <= 0:
                 return
             for message in conn.receive(left):
+                if message.get('type') == 'view':
+                    # The map is for the in-game client; just show its size.
+                    message = {'type': 'view', 'radius': message.get('radius')}
                 print(json.dumps(message), flush=True)
 
     drain(wait)
@@ -144,7 +149,8 @@ def run_console_windows(conn):
     print(HELP, flush=True)
     while True:
         for message in conn.receive(0.05):
-            print(describe(message), flush=True)
+            if message.get('type') != 'view':
+                print(describe(message), flush=True)
         if not msvcrt.kbhit():
             continue
         key = msvcrt.getwch()
@@ -179,7 +185,8 @@ def run_curses(conn):
 
         while True:
             for message in conn.receive(0):
-                show(describe(message))
+                if message.get('type') != 'view':
+                    show(describe(message))
             screen.erase()
             height, width = screen.getmaxyx()
             screen.addnstr(0, 0, HELP, width - 1)

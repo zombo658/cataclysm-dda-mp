@@ -56,13 +56,19 @@ void wait_for_remote_players( const std::function<bool()> &host_input );
 // remote NPC (hot-seat control for testing), other actions that take time
 // are refused.
 bool intercept_host_action( action_id act );
-// Hook in game::get_player_input(): true if the host's input should stop
-// waiting for a key, because something arrived from the network.
+// Hook in game::get_player_input(), called every 125 ms while the host's
+// input waits for a key: serves the network, and returns true if the input
+// should stop waiting, because the world waits for the second player and
+// something arrived from the network.
 bool host_input_should_yield();
 
 // Hooks for npc::store() / npc::load() in savegame_json.cpp.
 void store_npc( const npc &guy, JsonOut &json );
 void load_npc( npc &guy, const JsonObject &data );
+
+// Called by "Host game" in the main menu before the save is loaded: once the
+// world is running, start the server and ask who the second player plays.
+void request_host();
 
 // Entry of the debug menu: toggle the flag, queue commands by hand.
 void debug_menu();

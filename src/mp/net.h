@@ -1,0 +1,52 @@
+#pragma once
+#ifndef CATA_SRC_MP_NET_H
+#define CATA_SRC_MP_NET_H
+
+#include <functional>
+#include <string>
+
+// Non-blocking TCP for the multiplayer: a server for one client on the host
+// and a client on the second player's side. Messages are lines of text
+// (NDJSON: one JSON object per line). Nothing here knows about the game.
+namespace mp::net
+{
+
+constexpr int default_port = 7777;
+
+struct handlers {
+    std::function<void( const std::string & )> on_line;
+    std::function<void()> on_connect;
+    std::function<void()> on_disconnect;
+};
+
+// ---- Server (host) ----
+
+// Returns false and fills error if the port can't be opened.
+bool start( int port, std::string &error );
+void stop();
+bool running();
+bool has_client();
+
+// Accepts a pending connection, sends queued output and reads input without
+// blocking. Calls on_line for every complete line received, on_connect when
+// a client connects and on_disconnect when it goes away.
+void poll( const handlers &h );
+
+// Queues one line for the client (a newline is appended). Dropped if no
+// client is connected.
+void send_line( const std::string &line );
+
+// ---- Client (second player) ----
+
+// Connects to host (name or IP), waiting at most timeout_ms. Returns false
+// and fills error on failure.
+bool connect_to( const std::string &host, int port, int timeout_ms, std::string &error );
+void disconnect();
+bool connected();
+// Like poll() above, for the client connection. on_connect is not used.
+void client_poll( const handlers &h );
+void client_send_line( const std::string &line );
+
+} // namespace mp::net
+
+#endif // CATA_SRC_MP_NET_H

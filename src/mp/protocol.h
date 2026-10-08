@@ -11,14 +11,16 @@ class npc;
 namespace mp::protocol
 {
 
-constexpr int version = 1;
+constexpr int version = 2;
 
 // Accepts a connection, reads commands into the remote NPC's queue and sends
 // answers. Call often; it never blocks.
 void poll();
 
 void send_welcome();
-// The world waits for guy's command.
+// What guy sees around itself.
+void send_view( const npc &guy );
+// The world waits for guy's command. Sends the view first.
 void send_your_turn( const npc &guy );
 // A queued command could not be carried out.
 void send_rejected( const std::string &reason );

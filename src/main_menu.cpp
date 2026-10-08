@@ -41,6 +41,9 @@
 #include "mapbuffer.h"
 #include "mapsharing.h"
 #include "messages.h"
+#include "mp/client_ui.h"
+#include "mp/main_menu.h"
+#include "mp/rc_npc.h"
 #include "music.h"
 #include "options.h"
 #include "output.h"
@@ -71,6 +74,7 @@ enum class main_menu_opts : int {
     LOADCHAR,
     WORLD,
     TUTORIAL,
+    MULTIPLAYER,
     SETTINGS,
     HELP,
     CREDITS,
@@ -205,6 +209,13 @@ void main_menu::display_sub_menu( int sel, const point &bottom_left, int sel_lin
                 if( len > xlen ) {
                     xlen = len;
                 }
+            }
+            break;
+        case main_menu_opts::MULTIPLAYER:
+            for( int i = 0; static_cast<size_t>( i ) < mp::main_menu_items().size(); i++ ) {
+                nc_color clr = i == sel2 ? hilite( c_yellow ) : c_yellow;
+                sub_opts.push_back( colorize( mp::main_menu_items()[i], clr ) );
+                xlen = std::max( xlen, utf8_width( sub_opts.back(), true ) );
             }
             break;
         case main_menu_opts::LOADCHAR:
@@ -462,6 +473,7 @@ void main_menu::init_strings()
     vMenuItems.emplace_back( pgettext( "Main Menu", "Lo<a|A>d" ) );
     vMenuItems.emplace_back( pgettext( "Main Menu", "<W|w>orld" ) );
     vMenuItems.emplace_back( pgettext( "Main Menu", "T<u|U>torial Game" ) );
+    vMenuItems.emplace_back( pgettext( "Main Menu", "Mult<i|I>player" ) );
     vMenuItems.emplace_back( pgettext( "Main Menu", "Se<t|T>tings" ) );
     vMenuItems.emplace_back( pgettext( "Main Menu", "H<e|E|?>lp" ) );
     vMenuItems.emplace_back( pgettext( "Main Menu", "<C|c>redits" ) );
@@ -790,6 +802,9 @@ bool main_menu::opening_screen()
                 case main_menu_opts::SETTINGS:
                     max_item_count = vSettingsSubItems.size();
                     break;
+                case main_menu_opts::MULTIPLAYER:
+                    max_item_count = mp::main_menu_items().size();
+                    break;
                 case main_menu_opts::TUTORIAL:
                 case main_menu_opts::HELP:
                 case main_menu_opts::QUIT:
@@ -891,6 +906,21 @@ bool main_menu::opening_screen()
                     break;
                 case main_menu_opts::NEWCHAR:
                     start = new_character_tab();
+                    break;
+                case main_menu_opts::MULTIPLAYER:
+                    if( sel2 == 0 ) {
+                        // Host: load a save, the rest happens once the world runs.
+                        const std::optional<std::string> world = mp::pick_world_to_host();
+                        if( world ) {
+                            start = load_character_tab( *world );
+                            if( start ) {
+                                load_game = true;
+                                mp::request_host();
+                            }
+                        }
+                    } else {
+                        mp::client_ui::run_join_screen();
+                    }
                     break;
                 case main_menu_opts::MOTD:
                 case main_menu_opts::CREDITS:
