@@ -16,9 +16,11 @@ on:
       - 'tools/mp/**'
   workflow_dispatch:
 
+# A running build is not cancelled by a newer push (frequent pushes would
+# otherwise cancel every build); the newest waiting push is built next.
 concurrency:
   group: mp-windows-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:

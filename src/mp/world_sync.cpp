@@ -104,7 +104,7 @@ bool write_creatures( JsonOut &json, const npc &guy )
     }
     // The host: an NPC on the client.
     if( guy.sees( get_map(), get_avatar() ) ) {
-        list.emplace_back( "npc", to_text( get_avatar() ) );
+        list.emplace_back( "host", to_text( get_avatar() ) );
     }
     size_t hash = list.size();
     for( const auto &e : list ) {
@@ -282,9 +282,13 @@ void read_creatures( const JsonObject &message )
             auto mon = make_shared_fast<monster>();
             mon->deserialize( e.get_object( "data" ) );
             tracker.add( mon );
-        } else if( kind == "npc" ) {
+        } else if( kind == "npc" || kind == "host" ) {
             auto guy = make_shared_fast<npc>();
             guy->deserialize( e.get_object( "data" ) );
+            if( kind == "host" ) {
+                // The other player: an ally, not a stranger.
+                guy->set_attitude( NPCATT_FOLLOW );
+            }
             tracker.add_npc( guy );
         }
     }
