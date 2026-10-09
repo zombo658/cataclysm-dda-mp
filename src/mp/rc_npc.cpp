@@ -1,6 +1,8 @@
 #include "mp/rc_npc.h"
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
 #include <deque>
 #include <functional>
 #include <iterator>
@@ -35,12 +37,14 @@
 #include "mp/npc_grab.h"
 #include "mp/npc_step.h"
 #include "mp/protocol.h"
+#include "mp/remote_log.h"
 #include "mp/remote_prompt.h"
 #include "npc.h"
 #include "vpart_position.h"
 #include "vehicle.h"
 #include "player_activity.h"
 #include "output.h"
+#include "string_formatter.h"
 #include "translations.h"
 #include "ui_manager.h"
 #include "uilist.h"
@@ -326,18 +330,27 @@ int host_input_timeout()
     return shared_time() && net::has_client() ? 30 : 125;
 }
 
-// Shared time: the host's avatar waits for a long thing the second player
-// does (an activity, sleep), the way a waiting avatar lets time run fast. The
-// host can stop it like any wait.
-static const activity_id ACT_WAIT_NPC( "ACT_WAIT_NPC" );
-static const std::string waits_for_partner = "mp_partner";
+// Shared time, when one player is busy with something long (an activity,
+// sleep) and the other is not: the free one's actions move time on, and
+// while they do nothing it still moves, at this pace. When both are busy,
+// time runs as fast as the game can go.
+static constexpr std::chrono::milliseconds idle_turn( 1000 );
 
-static bool host_waits_for_partner()
+static bool host_busy()
 {
     const avatar &u = get_avatar();
-    return u.activity.id() == ACT_WAIT_NPC && u.activity.str_values.size() > 1 &&
-           u.activity.str_values[1] == waits_for_partner;
+    return static_cast<bool>( u.activity ) || u.in_sleep_state();
 }
+
+// The second player's character is busy with something long.
+static bool partner_busy( const npc &guy )
+{
+    return static_cast<bool>( guy.activity ) || guy.in_sleep_state();
+}
+
+// Said once per stretch of the other player's long action.
+static bool told_partner_host_busy = false;
+static bool told_host_partner_busy = false;
 
 // At the start of a turn in shared time.
 static void shared_turn_start()
@@ -353,10 +366,44 @@ static void shared_turn_start()
     if( guy->get_moves() > turn_worth ) {
         guy->set_moves( turn_worth );
     }
-    // The long thing is over: the host plays again.
-    if( host_waits_for_partner() && ( !net::has_client() || ( !guy->activity &&
-                                      !guy->in_sleep_state() ) ) ) {
-        get_avatar().cancel_activity();
+    if( !host_busy() ) {
+        told_partner_host_busy = false;
+    }
+    if( !partner_busy( *guy ) ) {
+        told_host_partner_busy = false;
+    }
+}
+
+// The host is busy with something long and the second player is not: the
+// turn waits for the second player to act, at most idle_turn.
+static void let_partner_act( npc &guy, const std::function<void()> &host_keys )
+{
+    if( !told_partner_host_busy ) {
+        told_partner_host_busy = true;
+        remote_log::to_second_player( guy, string_format(
+                                          _( "%s is busy.  Time goes on as you act (at least a turn a second); "
+                                             "skip turns with wait (.) or wait longer (|)." ), get_avatar().get_name() ), m_info );
+    }
+    protocol::send_state( guy );
+    // The host sees time going at this pace, not a frozen screen.
+    g->invalidate_main_ui_adaptor();
+    ui_manager::redraw();
+    refresh_display();
+    const auto start = std::chrono::steady_clock::now();
+    auto keys_checked = start;
+    while( std::chrono::steady_clock::now() - start < idle_turn ) {
+        protocol::poll();
+        if( busy( guy ) || protocol::has_deferred() || !host_busy() || !net::has_client() ) {
+            // The second player acted (or the host stopped): the turn goes on.
+            return;
+        }
+        // The host can still stop their activity, as while it runs alone
+        // (do_turn() looks at the keys ten times a second too).
+        if( std::chrono::steady_clock::now() - keys_checked > std::chrono::milliseconds( 100 ) ) {
+            keys_checked = std::chrono::steady_clock::now();
+            host_keys();
+        }
+        std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
     }
 }
 
@@ -424,7 +471,8 @@ static bool nobody_to_ask()
     return net::running() && !net::has_client();
 }
 
-void wait_for_remote_players( const std::function<bool()> &host_input )
+void wait_for_remote_players( const std::function<bool()> &host_input,
+                              const std::function<void()> &host_keys )
 {
     if( host_requested ) {
         host_requested = false;
@@ -434,6 +482,11 @@ void wait_for_remote_players( const std::function<bool()> &host_input )
     if( shared_time() ) {
         protocol::poll();
         shared_turn_start();
+        npc *partner = network_npc();
+        if( partner != nullptr && net::has_client() && host_busy() && !partner->is_dead() &&
+            !busy( *partner ) ) {
+            let_partner_act( *partner, host_keys );
+        }
         // The world doesn't wait: what the character has to do happens in
         // monmove(), its new commands as soon as it has moves again.
         return;
@@ -499,15 +552,24 @@ bool host_input_should_yield()
     protocol::poll();
     protocol::send_pending_state();
     if( remote_needs_time() ) {
-        // The host stands still: their avatar waits, and the turn passes.
         avatar &u = get_avatar();
         const npc *guy = network_npc();
-        if( guy != nullptr && ( guy->activity || guy->in_sleep_state() ) && !u.activity ) {
-            player_activity wait( ACT_WAIT_NPC, to_moves<int>( 1_hours ) );
-            wait.str_values.push_back( guy->get_name() );
-            wait.str_values.push_back( waits_for_partner );
-            u.assign_activity( wait );
+        if( guy != nullptr && partner_busy( *guy ) ) {
+            // Something long of the second player's: the host plays on and
+            // their actions move time; standing still, a turn a second.
+            if( !told_host_partner_busy ) {
+                told_host_partner_busy = true;
+                add_msg( m_info, _( "%s is busy.  Time goes on as you act (at least a turn a second); "
+                                    "wait (.) or wait longer (|) to skip time." ), guy->get_name() );
+            }
+            static std::chrono::steady_clock::time_point last_idle_turn;
+            const auto now = std::chrono::steady_clock::now();
+            if( now - last_idle_turn < idle_turn ) {
+                return false;
+            }
+            last_idle_turn = now;
         }
+        // The host stands still: their avatar waits, and the turn passes.
         u.pause();
         return true;
     }

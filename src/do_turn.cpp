@@ -463,6 +463,8 @@ bool do_turn()
     mp::wait_for_remote_players( []() {
         g->handle_action();
         return g->is_game_over() || g->uquit == QUIT_WATCH;
+    }, []() {
+        handle_key_blocking_activity();
     } );
     if( g->is_game_over() ) {
         return turn_handler::cleanup_at_end();

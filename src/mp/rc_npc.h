@@ -82,7 +82,10 @@ void run_instantly( npc &guy );
 // commands, game time stands still: this loop keeps the screen alive and lets
 // the host use only actions that take no game time.
 // host_input handles one host action and returns true if the game is over.
-void wait_for_remote_players( const std::function<bool()> &host_input );
+// host_keys lets the host stop their own activity meanwhile (shared time:
+// the turn waits a little for the second player while the host is busy).
+void wait_for_remote_players( const std::function<bool()> &host_input,
+                              const std::function<void()> &host_keys );
 // Hook in game::handle_action(). Returns true if the action was taken over:
 // while the world waits, movement, wait and pickup keys go to the waiting
 // remote NPC (hot-seat control for testing), other actions that take time
