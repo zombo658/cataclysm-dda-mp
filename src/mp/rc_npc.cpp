@@ -35,6 +35,7 @@
 #include "mp/npc_grab.h"
 #include "mp/npc_step.h"
 #include "mp/protocol.h"
+#include "mp/remote_prompt.h"
 #include "npc.h"
 #include "vpart_position.h"
 #include "vehicle.h"
@@ -273,6 +274,9 @@ bool remote_move( npc &guy )
         return false;
     }
     if( guy.activity ) {
+        // Whatever the activity asks (the shape of an installed part, ...)
+        // asks the second player.
+        remote_prompt::asking_client asking;
         guy.do_player_activity();
         return true;
     }

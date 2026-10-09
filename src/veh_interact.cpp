@@ -47,6 +47,7 @@
 #include "mapdata.h"
 #include "memory_fast.h"
 #include "messages.h"
+#include "mp/remote_vehicle.h"
 #include "monster.h"
 #include "npc.h"
 #include "output.h"
@@ -197,6 +198,13 @@ player_activity veh_interact::serialize_activity( map &here )
 void orient_part( map &here, vehicle *veh, const vpart_info &vpinfo, int partnum,
                   const std::optional<point_rel_ms> &part_placement )
 {
+    // Installed by the second player: they choose the facing.
+    if( const auto remote = mp::remote_vehicle::ask_facing( vpinfo.name() ) ) {
+        if( *remote && **remote != point_rel_ms::zero ) {
+            veh->part( partnum ).direction = normalize( atan2( ( *remote )->raw() ) - veh->face.dir() );
+        }
+        return;
+    }
     avatar &player_character = get_avatar();
     // Stash offset and set it to the location of the part so look_around will
     // start there.
@@ -2028,9 +2036,11 @@ void veh_interact::do_assign_crew( map &here )
         menu.query();
         if( menu.ret == 0 ) {
             pt.unset_crew();
+            mp::remote_vehicle::crew_changed( *veh, veh->index_of_part( &pt ), 0 );
         } else if( menu.ret > 0 ) {
             const npc &who = *g->critter_by_id<npc>( character_id( menu.ret ) );
             veh->assign_seat( pt, who );
+            mp::remote_vehicle::crew_changed( *veh, veh->index_of_part( &pt ), menu.ret );
         }
     };
 
@@ -2050,6 +2060,7 @@ void veh_interact::do_rename()
             // Add the vehicle again, this time with the new name
             overmap_buffer.add_vehicle( veh );
         }
+        mp::remote_vehicle::renamed( *veh );
     }
 }
 
@@ -2069,6 +2080,7 @@ void veh_interact::do_relabel( const map &here )
                        .query_string();
     if( pop.confirmed() ) {
         vp.set_label( text );
+        mp::remote_vehicle::relabeled( *veh, vp.mount_pos(), text );
     }
 }
 
@@ -2987,6 +2999,10 @@ void act_vehicle_siphon( map &here, vehicle *veh )
 
 void act_vehicle_unload_fuel( map &here, vehicle *veh )
 {
+    // The second player's screen: the host unloads it into their hands.
+    if( mp::remote_vehicle::fuel_unloaded( *veh ) ) {
+        return;
+    }
     std::vector<itype_id> fuels;
     for( auto &e : veh->fuels_left( ) ) {
         const itype *type = item::find_type( e.first );

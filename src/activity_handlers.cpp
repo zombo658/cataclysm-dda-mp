@@ -54,6 +54,7 @@
 #include "iuse.h"
 #include "iuse_actor.h"
 #include "magic.h"
+#include "mp/remote_vehicle.h"
 #include "make_static.h"
 #include "map.h"
 #include "map_iterator.h"
@@ -906,6 +907,11 @@ void activity_handlers::vehicle_finish( player_activity *act, Character *you )
         return;
     }
     act->set_to_null();
+    // The second player's vehicle screen opens again too (mp/remote_vehicle.h).
+    if( you->is_npc() && vp && act->values.size() >= 7 ) {
+        mp::remote_vehicle::work_done( *you, vp->vehicle(), point_rel_ms( act->values[2],
+                                       act->values[3] ) );
+    }
     if( !you->is_npc() ) {
         if( act->values.size() < 7 ) {
             dbg( D_ERROR ) << "game:process_activity: invalid ACT_VEHICLE values: "

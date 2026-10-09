@@ -2,6 +2,7 @@
 #ifndef CATA_SRC_MP_REMOTE_PROMPT_H
 #define CATA_SRC_MP_REMOTE_PROMPT_H
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -10,6 +11,7 @@
 #include "coordinates.h"
 
 class JsonObject;
+class JsonOut;
 class uilist;
 struct talk_data;
 
@@ -34,6 +36,22 @@ class asking_client
         asking_client &operator=( const asking_client & ) = delete;
 };
 bool active();
+// While alive, questions are the host's own again (to ask the host about
+// something the second player does).
+class host_question
+{
+    public:
+        host_question();
+        ~host_question();
+        host_question( const host_question & ) = delete;
+        host_question &operator=( const host_question & ) = delete;
+    private:
+        int saved_depth;
+};
+// A question of another module: sends it, waits and returns the answer's
+// line (std::nullopt: no answer). Asked only while active().
+std::optional<std::string> ask_json( const std::string &kind,
+                                     const std::function<void( JsonOut & )> &write );
 // Lines from the client that came while waiting for an answer.
 std::vector<std::string> take_deferred();
 
@@ -64,6 +82,8 @@ bool peek( const tripoint_bub_ms &p );
 
 // Shows the question and sends the answer.
 void answer( const JsonObject &question );
+// The answer to a question of id.
+void send_answer( int id, const std::function<void( JsonOut & )> &write );
 
 } // namespace mp::remote_prompt
 

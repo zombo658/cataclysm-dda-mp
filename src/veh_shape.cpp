@@ -15,6 +15,7 @@
 #include "map.h"
 #include "map_scale_constants.h"
 #include "memory_fast.h"
+#include "mp/remote_vehicle.h"
 #include "options.h"
 #include "output.h"
 #include "player_activity.h"
@@ -191,6 +192,7 @@ void veh_shape::change_part_shape( vpart_reference vpr ) const
     } while( menu.query() );
 
     part.variant = chosen_variant;
+    mp::remote_vehicle::shape_changed( veh, veh.index_of_part( &part ), part.variant );
 }
 
 tripoint_bub_ms veh_shape::get_cursor_pos() const

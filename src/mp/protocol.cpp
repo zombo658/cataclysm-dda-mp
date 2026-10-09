@@ -22,6 +22,7 @@
 #include "mp/remote_prompt.h"
 #include "mp/remote_inventory.h"
 #include "mp/remote_sidebar.h"
+#include "mp/remote_vehicle.h"
 #include "mp/view.h"
 #include "mp/world_actions.h"
 #include "mp/world_sync.h"
@@ -334,7 +335,7 @@ void handle_line_from( const std::string &line, const bool from_queue )
     }
     if( cmd_name == "combat" || cmd_name == "activity" || cmd_name == "construct" ||
         cmd_name == "move_mode" || cmd_name == "setting" || cmd_name == "power" ||
-        cmd_name == "talk" ) {
+        cmd_name == "talk" || cmd_name == "vehicle_edit" ) {
         std::string why_not;
         try {
             const JsonValue value = json_loader::from_string( line );
@@ -346,6 +347,7 @@ void handle_line_from( const std::string &line, const bool from_queue )
                       cmd_name == "setting" ? remote_actions::setting( *guy, obj ) :
                       cmd_name == "power" ? remote_actions::power( *guy, obj ) :
                       cmd_name == "talk" ? remote_actions::talk( *guy, obj ) :
+                      cmd_name == "vehicle_edit" ? remote_vehicle::edit( *guy, obj ) :
                       remote_actions::move_mode( *guy, obj );
         } catch( const JsonError &err ) {
             why_not = "bad message: " + std::string( err.what() );

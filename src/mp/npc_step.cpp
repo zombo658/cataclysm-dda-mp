@@ -19,6 +19,7 @@
 #include "messages.h"
 #include "monster.h"
 #include "mp/remote_actions.h"
+#include "mp/remote_trade.h"
 #include "mtype.h"
 #include "npc.h"
 #include "options.h"
@@ -207,7 +208,7 @@ void arrive( npc &guy, const tripoint_bub_ms &old_pos, const tripoint_bub_ms &p 
 // game::npc_menu(), what of it the second player can do.
 void npc_menu( npc &guy, npc &who )
 {
-    enum choices : int { talk = 0, swap_pos, push, attack };
+    enum choices : int { talk = 0, swap_pos, push, attack, trade };
     const bool obeys = who.is_player_ally() && !who.in_sleep_state();
     uilist amenu;
     amenu.text = string_format( _( "What to do with %s?" ), who.disp_name() );
@@ -217,6 +218,9 @@ void npc_menu( npc &guy, npc &who )
     amenu.addentry( push, !who.is_enemy() && !who.in_sleep_state() && !who.is_mounted(), 'p',
                     _( "Push away" ) );
     amenu.addentry( attack, true, 'a', _( "Attack" ) );
+    if( who.is_player_ally() ) {
+        amenu.addentry( trade, true, 'b', _( "Trade" ) );
+    }
     amenu.query();
     switch( amenu.ret ) {
         case talk: {
@@ -245,6 +249,9 @@ void npc_menu( npc &guy, npc &who )
             }
             break;
         }
+        case trade:
+            remote_trade::trade_with_npc( guy, who, 0, _( "Trade" ) );
+            break;
         case attack:
             if( query_yn( _( "You may be attacked!  Proceed?" ) ) ) {
                 guy.melee_attack( who, true );
@@ -311,12 +318,18 @@ bool step( npc &guy, const tripoint_rel_ms &d )
         return true;
     }
     if( creatures.creature_at( dest ) == &get_avatar() ) {
-        // The host: the only thing to do with them without asking is trade places.
-        if( query_yn( _( "Swap places with %s?" ), get_avatar().get_name() ) &&
-            confirm_dangerous( dangerous_tile( guy, dest ) ) ) {
+        // The host: trade places or things.
+        uilist amenu;
+        amenu.text = string_format( _( "What to do with %s?" ), get_avatar().get_name() );
+        amenu.addentry( 0, !guy.is_mounted() && !get_avatar().is_mounted(), 's', _( "Swap positions" ) );
+        amenu.addentry( 1, true, 'b', _( "Trade" ) );
+        amenu.query();
+        if( amenu.ret == 0 && confirm_dangerous( dangerous_tile( guy, dest ) ) ) {
             guy.add_msg_if_player( _( "You swap places with %s." ), get_avatar().get_name() );
             g->swap_critters( get_avatar(), guy );
             guy.mod_moves( -200 );
+        } else if( amenu.ret == 1 ) {
+            remote_trade::trade_with_host( guy );
         }
         return true;
     }

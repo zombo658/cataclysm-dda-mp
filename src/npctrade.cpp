@@ -23,7 +23,9 @@
 #include "item_contents.h"
 #include "item_location.h"
 #include "item_pocket.h"
+#include "mp/rc_npc.h"
 #include "mp/remote_prompt.h"
+#include "mp/remote_trade.h"
 #include "output.h"
 #include "npc.h"
 #include "npc_opinion.h"
@@ -288,11 +290,10 @@ void npc_trading::update_npc_owed( npc &np, int your_balance, int your_sale_valu
 // cost is positive when the player owes the NPC money for a service to be performed
 bool npc_trading::trade( npc &np, int cost, const std::string &deal )
 {
-    // The trade screen works with the host's avatar: not for the second
-    // player yet (mp/remote_prompt.h).
+    // The second player trades on their own screen (mp/remote_trade.h).
     if( mp::remote_prompt::active() ) {
-        popup( _( "Trading is not available to the second player yet." ) );
-        return false;
+        npc *guy = mp::network_npc();
+        return guy != nullptr && mp::remote_trade::trade_with_npc( *guy, np, cost, deal );
     }
     np.shop_restock();
     //np.drop_items( np.weight_carried() - np.weight_capacity(),

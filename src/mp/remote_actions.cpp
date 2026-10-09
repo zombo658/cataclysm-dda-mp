@@ -349,8 +349,9 @@ std::string combat( npc &guy, const JsonObject &request )
         if( !mode.empty() ) {
             weapon->gun_set_mode( gun_mode_id( mode ) );
         }
-        // Aiming took no time of the host's: the client's aim counts.
+        // The aim was taken on the client: its time is spent here.
         guy.recoil = request.get_float( "recoil", guy.recoil );
+        guy.mod_moves( -std::max( 0, request.get_int( "aim_moves", 0 ) ) );
         gun_mode gun = weapon->gun_current_mode();
         if( !gun ) {
             return _( "that gun can't fire now" );
@@ -964,9 +965,12 @@ void run( const action_id act )
             // Aiming ("aim and fire", '.') spends moves over several turns: the
             // host's activity reopens the screen each turn. Time doesn't count
             // for the second player, so it goes on at once.
+            // What aiming spent goes to the host, where it takes game time.
+            int aim_moves = 0;
             for( int turns = 0; turns < 100 && trajectory.empty() && !aim.aborted; turns++ ) {
                 you.set_moves( you.get_speed() );
                 trajectory = target_handler::mode_fire( you, aim );
+                aim_moves += std::max( 0, you.get_speed() - you.get_moves() );
                 if( aim.action.empty() ) {
                     break;
                 }
@@ -978,6 +982,7 @@ void run( const action_id act )
                 json.member( "action", "fire" );
                 json.member( "target", get_map().get_abs( trajectory.back() ) );
                 json.member( "recoil", you.recoil );
+                json.member( "aim_moves", aim_moves );
                 json.member( "mode", weapon->gun_get_mode_id().str() );
             } );
             break;

@@ -26,6 +26,8 @@
 #include "weather.h"
 #include "submap.h"
 
+static const faction_id faction_your_followers( "your_followers" );
+
 namespace mp::world_sync
 {
 
@@ -284,6 +286,13 @@ void read( const JsonObject &message )
 {
     message.allow_omitted_members();
     calendar::turn = calendar::turn_zero + time_duration::from_turns( message.get_int( "turn", 0 ) );
+    // A submap replaced below takes its vehicles with it: the map must not
+    // keep pointers to them (map::load() lists the new ones).
+    map &here = get_map();
+    for( int z = -OVERMAP_DEPTH; z <= OVERMAP_HEIGHT; z++ ) {
+        here.clear_vehicle_list( z );
+    }
+    here.clear_vehicle_level_caches();
     for( JsonObject submap_json : message.get_array( "list" ) ) {
         submap_json.allow_omitted_members();
         auto sm = std::make_unique<submap>();
@@ -342,8 +351,10 @@ void read_creatures( const JsonObject &message )
             auto guy = make_shared_fast<npc>();
             guy->deserialize( e.get_object( "data" ) );
             if( kind == "host" ) {
-                // The other player: an ally, not a stranger.
+                // The other player: an ally, not a stranger (free exchange of
+                // things, as with followers).
                 guy->set_attitude( NPCATT_FOLLOW );
+                guy->set_fac( faction_your_followers );
             }
             guy->facing = facing;
             tracker.add_npc( guy );

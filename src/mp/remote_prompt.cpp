@@ -16,6 +16,8 @@
 #include "map.h"
 #include "mp/net.h"
 #include "mp/rc_npc.h"
+#include "mp/remote_trade.h"
+#include "mp/remote_vehicle.h"
 #include "npc.h"
 #include "output.h"
 #include "string_formatter.h"
@@ -107,6 +109,8 @@ void read_answer( const std::optional<std::string> &line, const Reader &read )
     }
 }
 
+} // namespace
+
 void send_answer( const int id, const std::function<void( JsonOut & )> &write )
 {
     net::client_send_line( to_line( [&]( JsonOut & json ) {
@@ -116,7 +120,24 @@ void send_answer( const int id, const std::function<void( JsonOut & )> &write )
     } ) );
 }
 
-} // namespace
+host_question::host_question() : saved_depth( depth )
+{
+    depth = 0;
+}
+
+host_question::~host_question()
+{
+    depth = saved_depth;
+}
+
+std::optional<std::string> ask_json( const std::string &kind,
+                                     const std::function<void( JsonOut & )> &write )
+{
+    if( !active() ) {
+        return std::nullopt;
+    }
+    return ask( kind, write );
+}
 
 asking_client::asking_client()
 {
@@ -402,6 +423,10 @@ void answer( const JsonObject &question )
     const std::string kind = question.get_string( "kind", "" );
     if( kind == "message" ) {
         popup( question.get_string( "text", "" ) );
+    } else if( kind == "vehicle" ) {
+        remote_vehicle::reopen( question );
+    } else if( kind == "trade" ) {
+        remote_trade::answer( question );
     } else if( kind == "peek" ) {
         // The game's own peek, on the copy of the map around the character.
         JsonArray at = question.get_array( "at" );
