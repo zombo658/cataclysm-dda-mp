@@ -148,6 +148,35 @@ std::string act( npc &guy, const std::string &action, const tripoint_rel_ms &dir
         }
         guy.move_to( to, true );
         return std::string();
+    } else if( action == "drive" ) {
+        // game::control_vehicle(), for the controls under the character.
+        map &here = get_map();
+        const optional_vpart_position vp = here.veh_at( guy.pos_bub() );
+        if( !vp ) {
+            return _( "No vehicle controls found." );
+        }
+        vehicle &veh = vp->vehicle();
+        if( guy.controlling_vehicle ) {
+            guy.controlling_vehicle = false;
+            add_msg( _( "%1$s lets go of the controls of the %2$s." ), guy.get_name(), veh.name );
+            return std::string();
+        }
+        if( veh.avail_part_with_feature( vp->mount_pos(), "CONTROLS" ) < 0 ) {
+            return _( "You can't drive the vehicle from here.  You need controls!" );
+        }
+        if( !guy.in_vehicle ) {
+            return _( "get in the vehicle first" );
+        }
+        if( veh.is_locked ) {
+            return _( "the vehicle is locked" );
+        }
+        if( veh.engine_on ) {
+            guy.controlling_vehicle = true;
+            add_msg( _( "%1$s takes control of the %2$s." ), guy.get_name(), veh.name );
+        } else {
+            veh.start_engines( here, &guy, true );
+        }
+        return std::string();
     } else if( action == "autoattack" ) {
         // avatar_action::autoattack(): the nearest hostile within reach.
         map &here = get_map();
@@ -188,6 +217,9 @@ bool run( const action_id act )
             return true;
         case ACTION_AUTOATTACK:
             send_command( "autoattack", tripoint_rel_ms::zero );
+            return true;
+        case ACTION_CONTROL_VEHICLE:
+            send_command( "drive", tripoint_rel_ms::zero );
             return true;
         case ACTION_OPEN:
             action = "open";

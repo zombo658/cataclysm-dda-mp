@@ -27,6 +27,8 @@
 #include "mp/net.h"
 #include "mp/protocol.h"
 #include "npc.h"
+#include "vpart_position.h"
+#include "vehicle.h"
 #include "player_activity.h"
 #include "output.h"
 #include "translations.h"
@@ -59,6 +61,16 @@ std::map<character_id, std::deque<command>> queues;
 bool is_remote( const npc &guy )
 {
     return remote_ids.count( guy.getID() ) > 0;
+}
+
+bool remote_drives( const map &here, const vehicle &veh )
+{
+    for( const npc &guy : g->all_npcs() ) {
+        if( is_remote( guy ) && guy.controlling_vehicle && veh.player_in_control( here, guy ) ) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool is_remote_character( const Character &who )
@@ -109,6 +121,19 @@ static void reject( const npc &guy, const std::string &why )
 static void do_move( npc &guy, const point_rel_ms &dir )
 {
     map &here = get_map();
+    if( guy.controlling_vehicle ) {
+        // Steering, as the host's pldrive() does for the avatar.
+        if( const optional_vpart_position vp = here.veh_at( guy.pos_bub( here ) ) ) {
+            vehicle &veh = vp->vehicle();
+            if( !veh.is_flying_in_air() && !veh.can_control_on_land( guy ) ) {
+                reject( guy, _( "You have no idea how to make the vehicle move." ) );
+                return;
+            }
+            veh.pldrive( here, guy, dir.x(), dir.y() );
+            return;
+        }
+        guy.controlling_vehicle = false;
+    }
     const tripoint_bub_ms dest = guy.pos_bub( here ) + dir;
     if( !here.inbounds( dest ) ) {
         // TODO: decide what happens at the edge of the reality bubble.

@@ -10,7 +10,9 @@
 class Character;
 class JsonObject;
 class JsonOut;
+class map;
 class npc;
+class vehicle;
 
 // Remote-controlled NPC (RC-NPC): an NPC driven by a queue of commands from
 // the second player instead of the AI. See docs/mp/architecture-notes.md.
@@ -20,6 +22,9 @@ namespace mp
 bool is_remote( const npc &guy );
 // The same for any character: false for the avatar and AI-driven NPCs.
 bool is_remote_character( const Character &who );
+// Whether a second player drives this vehicle (hook in
+// vehicle::player_is_driving_this_veh(): vehicles move only for their driver).
+bool remote_drives( const map &here, const vehicle &veh );
 void set_remote( npc &guy, bool remote );
 
 enum class command_type : int {

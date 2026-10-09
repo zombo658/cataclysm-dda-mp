@@ -65,6 +65,7 @@
 #include "mod_manager.h"
 #include "monster.h"
 #include "move_mode.h"
+#include "mp/rc_npc.h"
 #include "npc.h"
 #include "options.h"
 #include "output.h"
@@ -308,7 +309,8 @@ bool vehicle::player_is_driving_this_veh( map *here ) const
 
     Character &player_character = get_player_character();
     // Check if the player is controlling *this* vehicle
-    return player_in_control( *here,  player_character );
+    // (or the second player, mp/rc_npc.h)
+    return player_in_control( *here,  player_character ) || mp::remote_drives( *here, *this );
 }
 
 bool vehicle::remote_controlled( const Character &p ) const
