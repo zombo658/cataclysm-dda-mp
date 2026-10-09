@@ -9,6 +9,18 @@
 #include "character.h"
 #include "creature_tracker.h"
 #include "game.h"
+#include "veh_type.h"
+#include "vpart_range.h"
+#include "sounds.h"
+#include "rng.h"
+#include "output.h"
+#include "item_group.h"
+#include "field_type.h"
+#include "field.h"
+#include "event_bus.h"
+#include "event.h"
+#include "calendar.h"
+#include "bodypart.h"
 #include "gates.h"
 #include "line.h"
 #include "item.h"
@@ -25,6 +37,8 @@
 #include "vehicle.h"
 #include "vpart_position.h"
 
+static const skill_id skill_melee( "melee" );
+
 namespace mp::world_actions
 {
 
@@ -35,45 +49,149 @@ namespace
 std::string open( npc &guy, const tripoint_bub_ms &p )
 {
     map &here = get_map();
+    guy.mod_moves( -to_moves<int>( 1_seconds ) );
     if( const optional_vpart_position vp = here.veh_at( p ) ) {
-        vehicle &veh = vp->vehicle();
-        const int openable = veh.next_part_to_open( vp->part_index(), true );
-        if( openable < 0 ) {
-            return _( "there is nothing to open there" );
+        vehicle *const veh = &vp->vehicle();
+        if( !veh->handle_potential_theft( guy ) ) {
+            guy.mod_moves( to_moves<int>( 1_seconds ) );
+            return std::string();
         }
-        veh.open_all_at( here, openable );
-        add_msg( _( "%1$s opens the %2$s's %3$s." ), guy.get_name(), veh.name,
-                 veh.part( openable ).name() );
-        return std::string();
+        const int openable = veh->next_part_to_open( vp->part_index() );
+        if( openable >= 0 ) {
+            // From inside the vehicle anything opens (curtains too), from
+            // outside only what opens from outside.
+            const vehicle *own_veh = veh_pointer_or_null( here.veh_at( guy.pos_bub() ) );
+            const std::string part_name = veh->part( openable ).name();
+            if( own_veh == veh ) {
+                veh->open( here, openable );
+                guy.add_msg_if_player( _( "You open the %1$s's %2$s." ), veh->name, part_name );
+            } else if( veh->next_part_to_open( vp->part_index(), true ) == -1 ) {
+                guy.mod_moves( to_moves<int>( 1_seconds ) );
+                return string_format( _( "That %s can only be opened from the inside." ), part_name );
+            } else {
+                veh->open_all_at( here, openable );
+                guy.add_msg_if_player( _( "You open the %1$s's %2$s." ), veh->name, part_name );
+            }
+            return std::string();
+        }
+        guy.mod_moves( to_moves<int>( 1_seconds ) );
+        if( const std::optional<vpart_reference> openable_part = vp.part_with_feature( "OPENABLE",
+                true ); openable_part.has_value() ) {
+            const std::string name = openable_part->info().name();
+            return string_format( vp->vehicle().part( openable_part->part_index() ).locked ?
+                                  _( "That %s is locked." ) : _( "That %s is already open." ), name );
+        }
+        return _( "There is nothing that can be opened nearby." );
     }
     if( here.open_door( guy, p, !here.is_outside( guy.pos_bub() ) ) ) {
-        add_msg( _( "%1$s opens the %2$s." ), guy.get_name(), here.name( p ) );
+        guy.add_msg_if_player( _( "You open the %s." ), here.name( p ) );
         return std::string();
     }
     if( here.has_flag( ter_furn_flag::TFLAG_LOCKED, p ) ) {
-        return _( "the door is locked" );
+        return _( "The door is locked!" );
     }
+    guy.mod_moves( to_moves<int>( 1_seconds ) );
     if( here.ter( p ).obj().close ) {
-        return _( "that door is already open" );
+        return _( "That door is already open." );
     }
-    return _( "no door there" );
+    return _( "No door there." );
 }
 
-// avatar::smash(), shortened: corpses are pulped, anything else bashed.
-std::string smash( npc &guy, const tripoint_bub_ms &p )
+// avatar::smash() and handle_action.cpp smash() for the second player.
+std::string smash( npc &guy, tripoint_bub_ms smashp )
 {
     map &here = get_map();
-    for( const item &maybe_corpse : here.i_at( p ) ) {
+    const int move_cost = !guy.is_armed() ? 80 : guy.get_wielded_item()->attack_time( guy ) * 0.8;
+    const int smashskill = guy.smash_ability();
+    bool smash_floor = false;
+    if( smashp.z() != guy.posz() ) {
+        if( smashp.z() > guy.posz() ) {
+            return std::string();
+        }
+        smashp.z() = guy.posz();
+        smash_floor = true;
+    }
+    get_event_bus().send<event_type::character_smashes_tile>(
+        guy.getID(), here.ter( smashp ).id(), here.furn( smashp ).id() );
+    for( std::pair<const field_type_id, field_entry> &fd_to_smsh : here.field_at( smashp ) ) {
+        const std::optional<map_fd_bash_info> &bash_info = fd_to_smsh.first->bash_info;
+        if( !bash_info ) {
+            continue;
+        }
+        if( ( smashskill < bash_info->str_min && one_in( 10 ) ) || fd_to_smsh.first->indestructible ) {
+            guy.add_msg_if_player( m_neutral, _( "You don't seem to be damaging the %s." ),
+                                   fd_to_smsh.first->get_name() );
+        } else if( smashskill >= rng( bash_info->str_min, bash_info->str_max ) ) {
+            sounds::sound( smashp, bash_info->sound_vol, sounds::sound_t::combat, bash_info->sound, true,
+                           "smash", "field" );
+            here.remove_field( smashp, fd_to_smsh.first );
+            here.spawn_items( smashp, item_group::items_from( bash_info->drop_group, calendar::turn ) );
+            if( !bash_info->destroyed_field.first.is_null() ) {
+                here.add_field( smashp, bash_info->destroyed_field.first, bash_info->destroyed_field.second );
+            }
+            guy.mod_moves( - bash_info->fd_bash_move_cost );
+            guy.add_msg_if_player( m_info, bash_info->field_bash_msg_success.translated() );
+        } else {
+            sounds::sound( smashp, bash_info->sound_fail_vol, sounds::sound_t::combat, bash_info->sound_fail,
+                           true, "smash", "field" );
+        }
+        return std::string();
+    }
+    for( const item &maybe_corpse : here.i_at( smashp ) ) {
         if( maybe_corpse.can_revive() ) {
-            guy.assign_activity( pulp_activity_actor( here.get_abs( p ) ) );
+            guy.assign_activity( pulp_activity_actor( here.get_abs( smashp ) ) );
             return std::string();
         }
     }
-    const bash_params res = here.bash( p, guy.smash_ability() );
-    if( !res.did_bash ) {
-        return _( "there is nothing to smash there" );
+    if( vehicle *veh = veh_pointer_or_null( here.veh_at( smashp ) ) ) {
+        if( !veh->handle_potential_theft( guy ) ) {
+            return std::string();
+        }
     }
-    add_msg( res.success ? _( "%s smashes it." ) : _( "%s whacks it." ), guy.get_name() );
+    if( !guy.has_weapon() ) {
+        const std::pair<bodypart_id, int> best_part_to_smash = guy.best_part_to_smash();
+        if( best_part_to_smash.first != bodypart_str_id::NULL_ID() && here.is_bashable( smashp ) ) {
+            std::string name_to_bash = _( "thing" );
+            if( here.is_bashable_furn( smashp ) ) {
+                name_to_bash = here.furnname( smashp );
+            } else if( here.is_bashable_ter( smashp ) ) {
+                name_to_bash = here.tername( smashp );
+            }
+            if( !best_part_to_smash.first->smash_message.empty() ) {
+                guy.add_msg_if_player( best_part_to_smash.first->smash_message, name_to_bash );
+            } else {
+                guy.add_msg_if_player( _( "You use your %s to smash the %s." ),
+                                       body_part_name_accusative( best_part_to_smash.first ), name_to_bash );
+            }
+        }
+    }
+    const bash_params bash_result = here.bash( smashp, smashskill, false, false, smash_floor );
+    if( !bash_result.did_bash ) {
+        return _( "There's nothing there to smash!" );
+    }
+    guy.set_activity_level( MODERATE_EXERCISE );
+    guy.handle_melee_wear( guy.used_weapon() );
+    const float weary_mult = 1.0f / guy.exertion_adjusted_move_multiplier( MODERATE_EXERCISE );
+    guy.burn_energy_arms( 2 * guy.get_standard_stamina_cost() );
+    if( static_cast<int>( guy.get_skill_level( skill_melee ) ) == 0 ) {
+        guy.practice( skill_melee, rng( 0, 1 ) * rng( 0, 1 ) );
+    }
+    guy.mod_moves( -move_cost * weary_mult );
+    guy.recoil = MAX_RECOIL;
+    if( bash_result.success ) {
+        return std::string();
+    }
+    const int resistance = here.bash_resistance( smashp );
+    if( smashskill >= resistance ) {
+        // handle_action.cpp smash(): keep at it.
+        if( resistance > 0 && query_yn( _( "Keep smashing until destroyed?" ) ) ) {
+            guy.assign_activity( bash_activity_actor( smashp ) );
+        }
+    } else if( one_in( 10 ) ) {
+        guy.add_msg_if_player( m_neutral, _( "You don't seem to be damaging the %s." ),
+                               here.has_furn( smashp ) && here.furn( smashp ).obj().bash ?
+                               here.furnname( smashp ) : here.tername( smashp ) );
+    }
     return std::string();
 }
 

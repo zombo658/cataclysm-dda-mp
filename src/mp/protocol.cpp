@@ -1,8 +1,10 @@
 #include "mp/protocol.h"
 
 #include <chrono>
+#include <deque>
 #include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -162,7 +164,38 @@ std::optional<point_rel_ms> parse_dir( const std::string &dir )
     return it->second;
 }
 
+// Shared time: commands that came while the character was busy, in order.
+std::deque<std::string> deferred;
+
+// What takes the character's time; other commands are answered at once.
+bool takes_time( const std::string &cmd_name )
+{
+    static const std::set<std::string> commands = {
+        "move", "attack", "wait", "pickup", "craft", "tile_action", "combat", "activity",
+        "construct", "power", "talk", "item_action", "item"
+    };
+    return commands.count( cmd_name ) > 0;
+}
+
+// After a command was taken: in instant time everything it started is done
+// now, in shared time the queued step runs with the moves there are.
+void after_command( npc &guy )
+{
+    if( instant_mode() ) {
+        run_instantly( guy );
+    } else if( shared_time() && has_commands( guy ) && guy.get_moves() > 0 ) {
+        remote_move( guy );
+    }
+}
+
+void handle_line_from( const std::string &line, bool from_queue );
+
 void handle_line( const std::string &line )
+{
+    handle_line_from( line, false );
+}
+
+void handle_line_from( const std::string &line, const bool from_queue )
 {
     std::string cmd_name;
     std::string dir_name;
@@ -207,6 +240,12 @@ void handle_line( const std::string &line )
     npc *guy = network_npc();
     if( guy == nullptr ) {
         send_error( "the host has no remote-controlled NPC nearby" );
+        return;
+    }
+    if( shared_time() && takes_time( cmd_name ) &&
+        ( busy( *guy ) || ( !from_queue && !deferred.empty() ) ) ) {
+        // Done when the character has time for it (poll()).
+        deferred.push_back( line );
         return;
     }
     // Whatever the game asks while doing this, it asks the second player.
@@ -261,13 +300,13 @@ void handle_line( const std::string &line )
         return;
     }
     if( cmd_name == "craft" ) {
-        if( !instant_mode() ) {
+        if( !net::running() ) {
             send_error( "crafting works only while the server runs" );
             return;
         }
         const std::string why_not = remote_crafting::start( *guy, recipe, batch );
         if( why_not.empty() ) {
-            run_instantly( *guy );
+            after_command( *guy );
             net::send_line( to_line( [&]( JsonOut & json ) {
                 json.member( "type", "ok" );
                 json.member( "cmd", cmd_name );
@@ -282,7 +321,7 @@ void handle_line( const std::string &line )
         const std::string why_not = tile_dir ? world_actions::act( *guy, action, *tile_dir ) :
                                     std::string( "no dir" );
         if( why_not.empty() ) {
-            run_instantly( *guy );
+            after_command( *guy );
             net::send_line( to_line( [&]( JsonOut & json ) {
                 json.member( "type", "ok" );
                 json.member( "cmd", cmd_name );
@@ -312,7 +351,7 @@ void handle_line( const std::string &line )
             why_not = "bad message: " + std::string( err.what() );
         }
         if( why_not.empty() ) {
-            run_instantly( *guy );
+            after_command( *guy );
             net::send_line( to_line( [&]( JsonOut & json ) {
                 json.member( "type", "ok" );
                 json.member( "cmd", cmd_name );
@@ -334,7 +373,7 @@ void handle_line( const std::string &line )
             why_not = "bad message: " + std::string( err.what() );
         }
         if( why_not.empty() ) {
-            run_instantly( *guy );
+            after_command( *guy );
             net::send_line( to_line( [&]( JsonOut & json ) {
                 json.member( "type", "ok" );
                 json.member( "cmd", cmd_name );
@@ -346,13 +385,13 @@ void handle_line( const std::string &line )
         return;
     }
     if( cmd_name == "item" ) {
-        if( !instant_mode() ) {
+        if( !net::running() ) {
             send_error( "items can be used only while the server runs" );
             return;
         }
         const std::string why_not = inventory::act( *guy, revision, index, action );
         if( why_not.empty() ) {
-            run_instantly( *guy );
+            after_command( *guy );
             net::send_line( to_line( [&]( JsonOut & json ) {
                 json.member( "type", "ok" );
                 json.member( "cmd", cmd_name );
@@ -386,8 +425,8 @@ void handle_line( const std::string &line )
         json.member( "type", "ok" );
         json.member( "cmd", cmd_name );
     } ) );
-    if( instant_mode() ) {
-        run_instantly( *guy );
+    if( instant_mode() || shared_time() ) {
+        after_command( *guy );
         send_state( *guy );
     }
 }
@@ -400,6 +439,7 @@ void send_welcome()
         json.member( "type", "welcome" );
         json.member( "version", version );
         json.member( "instant", instant_mode() );
+        json.member( "shared_time", shared_time() );
         // The client loads the same data to draw tiles.
         json.member( "mods" );
         json.start_array();
@@ -519,8 +559,23 @@ void send_rejected( const std::string &reason )
     } ) );
 }
 
+bool has_deferred()
+{
+    return !deferred.empty();
+}
+
 void poll()
 {
+    // Shared time: what waited for the character's time.
+    while( shared_time() && !deferred.empty() ) {
+        const npc *guy = network_npc();
+        if( guy == nullptr || busy( *guy ) ) {
+            break;
+        }
+        const std::string line = deferred.front();
+        deferred.pop_front();
+        handle_line_from( line, true );
+    }
     // Commands that came while the host waited for an answer to a question.
     for( const std::string &line : remote_prompt::take_deferred() ) {
         handle_line( line );
@@ -531,6 +586,7 @@ void poll()
         add_msg( m_info, _( "The second player has connected." ) );
         skip_old_messages();
         world_sync::reset();
+        deferred.clear();
         client_native_screen = false;
         send_welcome();
         // Something to look at right away, not after the first action.
@@ -539,6 +595,7 @@ void poll()
         }
     };
     h.on_disconnect = []() {
+        deferred.clear();
         add_msg( m_warning, _( "The second player has disconnected." ) );
     };
     net::poll( h );

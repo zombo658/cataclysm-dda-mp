@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "activity_actor_definitions.h"
+#include "activity_type.h"
+#include "calendar.h"
 #include "avatar.h"
 #include "character_id.h"
 #include "creature.h"
@@ -31,6 +33,7 @@
 #include "messages.h"
 #include "mp/net.h"
 #include "mp/npc_grab.h"
+#include "mp/npc_step.h"
 #include "mp/protocol.h"
 #include "npc.h"
 #include "vpart_position.h"
@@ -58,6 +61,8 @@ bool host_requested = false;
 
 // True while wait_for_remote_players() runs the host's input.
 bool host_blocked = false;
+
+time_mode mode = time_mode::shared;
 
 // Commands are not saved: a save in the middle of a queue drops the queue.
 std::map<character_id, std::deque<command>> queues;
@@ -181,20 +186,12 @@ static void do_move( npc &guy, const point_rel_ms &dir )
         reject( guy, _( "too far from the host" ) );
         return;
     }
-    Creature *critter = get_creature_tracker().creature_at( dest );
-    if( critter != nullptr && critter != &guy &&
-        guy.attitude_to( *critter ) == Creature::Attitude::HOSTILE ) {
-        guy.melee_attack( *critter, true );
-        return;
-    }
     // Pushing a grabbed thing goes into its tile, game::walk_move() order.
     const tripoint_rel_ms dp( dir, 0 );
     bool may_enter = false;
     npc_grab::prepare_step( guy, dp, may_enter );
-    // npc::move_to() would spend the whole turn bumping into a wall.
-    if( !may_enter && here.impassable( dest ) && !here.has_flag( ter_furn_flag::TFLAG_DOOR, dest ) &&
-        !here.has_flag_ter_or_furn( ter_furn_flag::TFLAG_CLIMBABLE, dest ) ) {
-        reject( guy, _( "the way is blocked" ) );
+    if( npc_grab::type( guy ) != object_type::NONE && !may_enter && here.impassable( dest ) &&
+        get_creature_tracker().creature_at( dest ) == nullptr ) {
         return;
     }
     if( npc_grab::drag( guy, dp ) ) {
@@ -202,16 +199,19 @@ static void do_move( npc &guy, const point_rel_ms &dir )
     }
     const tripoint_bub_ms old_pos = guy.pos_bub( here );
     const FacingDirection facing = guy.facing;
-    // The follower's rules would close and lock doors behind the player.
-    const npc_follower_rules rules = guy.rules;
-    for( const ally_rule rule : { ally_rule::close_doors, ally_rule::lock_doors } ) {
-        guy.rules.clear_flag( rule );
-        guy.rules.disable_override( rule );
+    // The host's way of stepping; the AI's npc::move_to() only for what it
+    // doesn't cover (ramps, being stunned).
+    if( !npc_step::step( guy, dp ) ) {
+        // The follower's rules would close and lock doors behind the player.
+        const npc_follower_rules rules = guy.rules;
+        for( const ally_rule rule : { ally_rule::close_doors, ally_rule::lock_doors } ) {
+            guy.rules.clear_flag( rule );
+            guy.rules.disable_override( rule );
+        }
+        guy.move_to( dest, true );
+        guy.rules = rules;
     }
-    guy.move_to( dest, true );
-    guy.rules = rules;
-    // As avatar_action::move(): a step up or down keeps the facing,
-    // npc::move_to() would turn the sprite left.
+    // As avatar_action::move(): a step up or down keeps the facing.
     if( dir.x() == 0 ) {
         guy.facing = facing;
     } else {
@@ -294,7 +294,65 @@ bool remote_move( npc &guy )
 
 bool instant_mode()
 {
-    return net::running();
+    return net::running() && mode == time_mode::instant;
+}
+
+bool shared_time()
+{
+    return net::running() && mode == time_mode::shared;
+}
+
+bool busy( const npc &guy )
+{
+    return guy.get_moves() <= 0 || guy.activity || has_commands( guy ) || guy.in_sleep_state();
+}
+
+bool remote_needs_time()
+{
+    if( !shared_time() || !net::has_client() ) {
+        return false;
+    }
+    const npc *guy = network_npc();
+    return guy != nullptr && !guy->is_dead() && ( busy( *guy ) || protocol::has_deferred() );
+}
+
+int host_input_timeout()
+{
+    return shared_time() && net::has_client() ? 30 : 125;
+}
+
+// Shared time: the host's avatar waits for a long thing the second player
+// does (an activity, sleep), the way a waiting avatar lets time run fast. The
+// host can stop it like any wait.
+static const activity_id ACT_WAIT_NPC( "ACT_WAIT_NPC" );
+static const std::string waits_for_partner = "mp_partner";
+
+static bool host_waits_for_partner()
+{
+    const avatar &u = get_avatar();
+    return u.activity.id() == ACT_WAIT_NPC && u.activity.str_values.size() > 1 &&
+           u.activity.str_values[1] == waits_for_partner;
+}
+
+// At the start of a turn in shared time.
+static void shared_turn_start()
+{
+    npc *guy = network_npc();
+    if( guy == nullptr ) {
+        return;
+    }
+    // Moves don't pile up while the second player stands still, as the
+    // avatar's don't: at most a turn's worth to spend before monmove() gives
+    // the next one.
+    const int turn_worth = std::max( guy->get_speed(), 100 );
+    if( guy->get_moves() > turn_worth ) {
+        guy->set_moves( turn_worth );
+    }
+    // The long thing is over: the host plays again.
+    if( host_waits_for_partner() && ( !net::has_client() || ( !guy->activity &&
+                                      !guy->in_sleep_state() ) ) ) {
+        get_avatar().cancel_activity();
+    }
 }
 
 // Activities that are about time passing (sleeping, waiting): they take the
@@ -368,6 +426,13 @@ void wait_for_remote_players( const std::function<bool()> &host_input )
         start_hosting();
     }
     protocol::send_state_if_due();
+    if( shared_time() ) {
+        protocol::poll();
+        shared_turn_start();
+        // The world doesn't wait: what the character has to do happens in
+        // monmove(), its new commands as soon as it has moves again.
+        return;
+    }
     bool announced = false;
     // Tell the client once per state it has to act in.
     const npc *notified_npc = nullptr;
@@ -425,6 +490,19 @@ bool host_input_should_yield()
 {
     // Keep the connection alive while the host thinks, too.
     protocol::poll();
+    if( remote_needs_time() ) {
+        // The host stands still: their avatar waits, and the turn passes.
+        avatar &u = get_avatar();
+        const npc *guy = network_npc();
+        if( guy != nullptr && ( guy->activity || guy->in_sleep_state() ) && !u.activity ) {
+            player_activity wait( ACT_WAIT_NPC, to_moves<int>( 1_hours ) );
+            wait.str_values.push_back( guy->get_name() );
+            wait.str_values.push_back( waits_for_partner );
+            u.assign_activity( wait );
+        }
+        u.pause();
+        return true;
+    }
     if( !host_blocked ) {
         return false;
     }
@@ -583,8 +661,31 @@ void request_host()
     host_requested = true;
 }
 
+// How the second player's time counts, asked when hosting.
+static void choose_time_mode()
+{
+    uilist menu;
+    menu.text = _( "How does time pass for the second player?" );
+    menu.addentry_desc( static_cast<int>( time_mode::shared ), true, 's', _( "Shared time" ),
+                        _( "Each player's actions take game time, as in the single player game.  "
+                           "Whoever acts moves time on; the one who stands still waits.  While you "
+                           "don't press anything, your character waits for the second player." ) );
+    menu.addentry_desc( static_cast<int>( time_mode::instant ), true, 'i', _( "Instant" ),
+                        _( "The second player's actions take no game time at all; the game never "
+                           "waits for them.  Fast, but they can outrun anything." ) );
+    menu.desc_enabled = true;
+    menu.selected = static_cast<int>( mode );
+    menu.query();
+    if( menu.ret == static_cast<int>( time_mode::instant ) ) {
+        mode = time_mode::instant;
+    } else if( menu.ret == static_cast<int>( time_mode::shared ) ) {
+        mode = time_mode::shared;
+    }
+}
+
 static void start_hosting()
 {
+    choose_time_mode();
     std::string error;
     if( !net::start( net::default_port, error ) ) {
         popup( _( "Can't start the multiplayer server on port %1$d: %2$s" ), net::default_port, error );

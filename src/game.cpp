@@ -158,6 +158,7 @@
 #include "monstergenerator.h"
 #include "move_mode.h"
 #include "mp/remote_actions.h"
+#include "mp/remote_prompt.h"
 #include "mtype.h"
 #include "npc.h"
 #include "npctrade.h"
@@ -6571,6 +6572,10 @@ void game::peek()
 
 void game::peek( const tripoint_bub_ms &p )
 {
+    // The second player peeks on their own screen (mp/remote_prompt.h).
+    if( mp::remote_prompt::peek( p ) ) {
+        return;
+    }
     map &here = get_map();
 
     u.mod_moves( -u.get_speed() * 2 );

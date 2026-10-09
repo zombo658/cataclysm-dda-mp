@@ -54,9 +54,27 @@ bool remote_move( npc &guy );
 // leaves them their remaining moves.
 bool waits_for_commands( const npc &guy );
 
-// While the server runs, the second player's actions take no game time: the
-// world never waits for them and each command runs as soon as it arrives.
+// How the second player's time counts while the server runs, chosen when
+// hosting.
+enum class time_mode : int {
+    // Their actions take game time; whoever acts moves time on, and the one
+    // standing still just waits (the host's avatar is made to wait while it
+    // idles at the input).
+    shared,
+    // Their actions take no game time: the world never waits for them and
+    // each command runs as soon as it arrives.
+    instant,
+};
+// The server runs in time_mode::instant.
 bool instant_mode();
+// The server runs in time_mode::shared.
+bool shared_time();
+// Shared time: the character has spent its moves or has something going on
+// (commands, an activity, sleep), so its new commands wait.
+bool busy( const npc &guy );
+// Shared time: the second player is owed game time, so a host idling at the
+// input lets a turn pass.
+bool remote_needs_time();
 // Runs guy's queued commands and the activities they start right away.
 void run_instantly( npc &guy );
 
@@ -75,6 +93,10 @@ bool intercept_host_action( action_id act );
 // should stop waiting, because the world waits for the second player and
 // something arrived from the network.
 bool host_input_should_yield();
+// The timeout of the host's input loop, in milliseconds (hook in
+// game::get_player_input()): short in shared time, so that the second
+// player's steps don't wait long for an idle host.
+int host_input_timeout();
 
 // Hooks for npc::store() / npc::load() in savegame_json.cpp.
 void store_npc( const npc &guy, JsonOut &json );

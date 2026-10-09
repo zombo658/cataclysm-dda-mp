@@ -441,7 +441,7 @@ input_context game::get_player_input( std::string &action )
                                                 mp::host_input_should_yield() ) ) );
         ctxt.reset_timeout();
     } else {
-        ctxt.set_timeout( 125 );
+        ctxt.set_timeout( mp::host_input_timeout() );
         while( handle_mouseview( ctxt, action ) ) {
             if( action == "TIMEOUT" && ( current_turn.has_timeout_elapsed() ||
                                          mp::host_input_should_yield() ) ) {

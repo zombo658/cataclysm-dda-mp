@@ -56,6 +56,9 @@ std::optional<int> ask_dialogue( const std::string &npc_name, const std::string 
                                  const std::vector<talk_data> &responses, const std::vector<bool> &selectable );
 // A new conversation starts: the client opens a fresh dialogue window.
 void new_conversation();
+// game::peek( p ) (peeking through curtains, ...): the second player peeks
+// on their own screen. False when it's the host's peek.
+bool peek( const tripoint_bub_ms &p );
 
 // ---- Client ----
 

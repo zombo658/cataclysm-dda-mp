@@ -16,6 +16,8 @@ constexpr int version = 3;
 // Accepts a connection, reads commands into the remote NPC's queue and sends
 // answers. Call often; it never blocks.
 void poll();
+// Shared time: commands wait for the second player's character to have time.
+bool has_deferred();
 
 void send_welcome();
 // What guy sees around itself.

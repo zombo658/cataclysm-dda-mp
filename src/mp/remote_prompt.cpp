@@ -12,7 +12,11 @@
 #include "input_context.h"
 #include "json.h"
 #include "json_loader.h"
+#include "game.h"
+#include "map.h"
 #include "mp/net.h"
+#include "mp/rc_npc.h"
+#include "npc.h"
 #include "output.h"
 #include "string_formatter.h"
 #include "popup.h"
@@ -367,6 +371,30 @@ int answer_dialogue( const JsonObject &question )
 
 } // namespace
 
+bool peek( const tripoint_bub_ms &p )
+{
+    if( !active() ) {
+        return false;
+    }
+    const tripoint_abs_ms at = get_map().get_abs( p );
+    net::send_line( to_line( [&]( JsonOut & json ) {
+        json.member( "type", "prompt" );
+        json.member( "id", 0 );
+        json.member( "kind", "peek" );
+        json.member( "at" );
+        json.start_array();
+        json.write( at.x() );
+        json.write( at.y() );
+        json.write( at.z() );
+        json.end_array();
+    } ) );
+    // What game::peek() costs.
+    if( npc *guy = network_npc() ) {
+        guy->mod_moves( -guy->get_speed() * 2 );
+    }
+    return true;
+}
+
 void answer( const JsonObject &question )
 {
     question.allow_omitted_members();
@@ -374,6 +402,16 @@ void answer( const JsonObject &question )
     const std::string kind = question.get_string( "kind", "" );
     if( kind == "message" ) {
         popup( question.get_string( "text", "" ) );
+    } else if( kind == "peek" ) {
+        // The game's own peek, on the copy of the map around the character.
+        JsonArray at = question.get_array( "at" );
+        const int x = at.next_int();
+        const int y = at.next_int();
+        const int z = at.next_int();
+        const tripoint_bub_ms p = get_map().get_bub( tripoint_abs_ms( x, y, z ) );
+        if( get_map().inbounds( p ) ) {
+            g->peek( p );
+        }
     } else if( kind == "dialogue" ) {
         const int ret = answer_dialogue( question );
         send_answer( id, [&]( JsonOut & json ) {
