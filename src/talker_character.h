@@ -51,6 +51,8 @@ class talker_character_const: virtual public const_talker
         units::temperature get_cur_part_temp( const bodypart_id &bp ) const override;
 
         // stats, skills, traits, bionics, and magic
+        int get_trauma() const override;
+        int get_artifact_resonance() const override;
         int str_cur() const override;
         int dex_cur() const override;
         int int_cur() const override;
@@ -106,6 +108,8 @@ class talker_character_const: virtual public const_talker
         // effects and values
         bool has_effect( const efftype_id &effect_id, const bodypart_id &bp ) const override;
         effect get_effect( const efftype_id &effect_id, const bodypart_id &bp ) const override;
+        float get_limb_score( const limb_score_id &score,
+                              const bp_type &bp = bp_type::num_types ) const override;
         bool is_deaf() const override;
         bool is_mute() const override;
         diag_value const *maybe_get_value( const std::string &var_name ) const override;
@@ -142,6 +146,8 @@ class talker_character_const: virtual public const_talker
         bool unarmed_attack() const override;
         bool can_stash_weapon() const override;
         bool has_stolen_item( const_talker const &guy ) const override;
+        bool has_software( const itype_id &software_id, int min_charges = 0,
+                           const itype_id &device_id = itype_id::NULL_ID() ) const override;
 
         // factions and alliances
         faction *get_faction() const override;
@@ -155,6 +161,8 @@ class talker_character_const: virtual public const_talker
         int get_hunger() const override;
         int get_thirst() const override;
         int get_instant_thirst() const override;
+        int get_oxygen() const override;
+        int get_oxygen_max() const override;
         int get_stored_kcal() const override;
         int get_healthy_kcal() const override;
         int get_size() const override;
@@ -176,7 +184,7 @@ class talker_character_const: virtual public const_talker
 
         bool can_see() const override;
         bool can_see_location( const tripoint_bub_ms &pos ) const override;
-        int morale_cur() const override;
+        int morale_cur( bool raw ) const override;
         int focus_cur() const override;
         int focus_effective_cur() const override;
         int get_rad() const override;
@@ -185,6 +193,7 @@ class talker_character_const: virtual public const_talker
         int get_addiction_turns( const addiction_id &add_id ) const override;
         int get_pkill() const override;
         int get_stamina() const override;
+        int get_stamina_max() const override;
         int get_sleep_deprivation() const override;
         int get_kill_xp() const override;
         int get_age() const override;
@@ -196,6 +205,7 @@ class talker_character_const: virtual public const_talker
         const move_mode_id &get_move_mode() const override;
         int get_fine_detail_vision_mod() const override;
         int get_health() const override;
+        int get_daily_health() const override;
         units::temperature get_body_temp() const override;
         units::temperature_delta get_body_temp_delta() const override;
         bool knows_martial_art( const matype_id &id ) const override;
@@ -205,6 +215,7 @@ class talker_character_const: virtual public const_talker
         matec_id get_random_technique( Creature const &t, bool crit, bool dodge_counter,
                                        bool block_counter,
                                        const std::vector<matec_id> &blacklist = {} ) const override;
+        bool is_in_vehicle() const override;
 
     private:
         const Character *me_chr_const{};
@@ -237,6 +248,7 @@ class talker_character: virtual public talker
         void set_pos( tripoint_abs_ms new_pos ) override;
 
         // stats, skills, traits, bionics, and magic
+        void set_trauma( int value ) override;
         void set_str_max( int value ) override;
         void set_dex_max( int value ) override;
         void set_int_max( int value ) override;
@@ -246,6 +258,7 @@ class talker_character: virtual public talker
         void set_int_bonus( int value ) override;
         void set_per_bonus( int value ) override;
         void set_cash( int value ) override;
+        void set_oxygen( int value ) override;
         void set_power_cur( units::energy value ) override;
         void set_mana_cur( int value ) override;
         void set_spell_level( const spell_id &, int ) override;
@@ -292,6 +305,7 @@ class talker_character: virtual public talker
         void mod_pain( int amount ) override;
         void set_pain( int amount ) override;
         void mod_daily_health( int, int ) override;
+        void set_hunger( int ) override;
         void mod_livestyle( int ) override;
         void set_fac_relation( const Character *guy, npc_factions::relationship rule,
                                bool should_set_value ) override;
@@ -318,6 +332,7 @@ class talker_character: virtual public talker
         void learn_martial_art( const matype_id &id ) override;
         void forget_martial_art( const matype_id &id ) override;
         std::vector<item *> items_with( const std::function<bool( const item & )> &filter ) override;
+        void ensure_portrait_valid() override;
 
     private:
         Character *me_chr{};

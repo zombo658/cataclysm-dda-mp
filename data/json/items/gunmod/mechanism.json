@@ -31,7 +31,7 @@
     "integral_volume": "0 ml",
     "integral_weight": "0 g",
     "price": "650 USD",
-    "price_postapoc": "5 USD",
+    "price_postapoc": "3 USD",
     "material": [ "steel" ],
     "symbol": ":",
     "color": "red",
@@ -54,7 +54,7 @@
     "volume": "250 ml",
     "integral_volume": "0 ml",
     "price": "240 USD",
-    "price_postapoc": "5 USD",
+    "price_postapoc": "3 USD",
     "material": [ "steel" ],
     "symbol": ":",
     "color": "red",
@@ -68,7 +68,7 @@
     "//durability_modifier": -3,
     "mode_modifier": [ [ "DEFAULT", "auto", 14 ] ],
     "min_skills": [ [ "mechanics", 2 ], [ "rifle", 3 ] ],
-    "flags": [ "INSTALL_DIFFICULT", "CONSUMABLE" ]
+    "flags": [ "CONSUMABLE" ]
   },
   {
     "id": "glocksear",
@@ -79,7 +79,7 @@
     "weight": "55 g",
     "volume": "20 ml",
     "price": "95 USD",
-    "price_postapoc": "3 USD",
+    "price_postapoc": "2 USD",
     "material": [ "steel" ],
     "symbol": ":",
     "color": "red",
@@ -89,27 +89,6 @@
     "install_time": "5 m",
     "//durability_modifier": -1,
     "mode_modifier": [ [ "AUTO", "auto", 5 ] ],
-    "min_skills": [ [ "pistol", 2 ] ]
-  },
-  {
-    "id": "tec9_auto_parts",
-    "type": "ITEM",
-    "subtypes": [ "GUNMOD" ],
-    "name": { "str": "TEC-9 full auto sear" },
-    "description": "A relatively simple modification of some of a TEC-9's internal fire-control components, converting it to a fully-automatic-only machine pistol.  Calling this hilariously illegal would be an understatement, but anyone who'd care is probably long gone by now.",
-    "weight": "55 g",
-    "volume": "20 ml",
-    "price": "95 USD",
-    "price_postapoc": "3 USD",
-    "material": [ "steel" ],
-    "symbol": ":",
-    "color": "red",
-    "location": "mechanism",
-    "mod_targets": [ "tec9" ],
-    "//": "This is just my best guess at how converting a Tec-9 to full auto would work after staring at it in World of Guns.",
-    "install_time": "5 m",
-    "//durability_modifier": -1,
-    "mode_modifier": [ [ "DEFAULT", "auto", 4 ] ],
     "min_skills": [ [ "pistol", 2 ] ]
   },
   {
@@ -156,7 +135,7 @@
     "//durability_modifier": -3,
     "mode_modifier": [ [ "DEFAULT", "semi-auto", 1 ], [ "AUTO", "burst", 4 ] ],
     "min_skills": [ [ "mechanics", 4 ], [ "rifle", 5 ] ],
-    "flags": [ "INSTALL_DIFFICULT", "CONSUMABLE" ]
+    "flags": [ "CONSUMABLE" ]
   },
   {
     "id": "condenser_pristine",
@@ -203,6 +182,6 @@
     "//durability_modifier": -3,
     "mode_modifier": [ [ "DEFAULT", "semi-auto", 1 ], [ "AUTO", "burst", 4 ] ],
     "min_skills": [ [ "mechanics", 4 ], [ "rifle", 5 ] ],
-    "flags": [ "INSTALL_DIFFICULT", "CONSUMABLE" ]
+    "flags": [ "CONSUMABLE" ]
   }
 ]

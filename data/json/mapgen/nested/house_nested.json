@@ -18,6 +18,38 @@
   {
     "type": "mapgen",
     "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_1_N",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "¤@@¤",
+        " @@ ",
+        "E   ",
+        "I   "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_1_N",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "¤@@¤",
+        " @@ ",
+        "E   ",
+        "ɱ   "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
     "nested_mapgen_id": "bedroom_4x4_adult_1_W",
     "object": {
       "mapgensize": [ 4, 4 ],
@@ -26,6 +58,22 @@
         "@@  ",
         "¤  I",
         "  hI",
+        "DT  "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_1_W",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "@@  ",
+        "¤  I",
+        "  hɱ",
         "DT  "
       ],
       "palettes": [ "standard_domestic_palette" ]
@@ -50,12 +98,44 @@
   {
     "type": "mapgen",
     "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_1_E",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "ɱI  ",
+        "h  ¤",
+        "y @@",
+        "D   "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
     "nested_mapgen_id": "bedroom_4x4_adult_1_S",
     "object": {
       "mapgensize": [ 4, 4 ],
       "rotation": [ 0, 3 ],
       "rows": [
         "IIy ",
+        "h  D",
+        " @  ",
+        "¤@  "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_1_S",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "ɱIy ",
         "h  D",
         " @  ",
         "¤@  "
@@ -88,12 +168,63 @@
       "mapgensize": [ 4, 4 ],
       "rotation": [ 0, 3 ],
       "rows": [
+        "¤@@¤",
+        " @@ ",
+        "E   ",
+        "I   "
+      ],
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ERASE_FURNITURE_BEFORE_PLACING_TERRAIN", "ERASE_TRAP_BEFORE_PLACING_TERRAIN", "ALLOW_TERRAIN_UNDER_ITEMS" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_2_N",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "¤@@¤",
+        " @@ ",
+        "E   ",
+        "ɱ   "
+      ],
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ERASE_FURNITURE_BEFORE_PLACING_TERRAIN", "ERASE_TRAP_BEFORE_PLACING_TERRAIN", "ALLOW_TERRAIN_UNDER_ITEMS" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_2_N",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
         "D@@D",
         " @@ ",
         " == ",
         " == "
       ],
       "palettes": [ "standard_domestic_palette", "parametrized_carpets_nest_palette" ],
+      "flags": [ "ERASE_FURNITURE_BEFORE_PLACING_TERRAIN", "ERASE_TRAP_BEFORE_PLACING_TERRAIN", "ALLOW_TERRAIN_UNDER_ITEMS" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_2_N",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "D@@D",
+        " @@ ",
+        "    ",
+        " ɱa "
+      ],
+      "palettes": [ "standard_domestic_palette" ],
       "flags": [ "ERASE_FURNITURE_BEFORE_PLACING_TERRAIN", "ERASE_TRAP_BEFORE_PLACING_TERRAIN", "ALLOW_TERRAIN_UNDER_ITEMS" ]
     }
   },
@@ -160,7 +291,8 @@
         "==@@",
         "   D"
       ],
-      "palettes": [ "standard_domestic_palette", "parametrized_carpets_nest_palette" ]
+      "palettes": [ "standard_domestic_palette", "parametrized_carpets_nest_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE" ]
     }
   },
   {
@@ -176,7 +308,25 @@
         "a @@",
         "   D"
       ],
-      "palettes": [ "standard_domestic_palette" ]
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_2_E",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "   D",
+        "ɱ @@",
+        "a @@",
+        "   D"
+      ],
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE" ]
     }
   },
   {
@@ -208,7 +358,42 @@
         "@@ y",
         "¤   "
       ],
-      "palettes": [ "standard_domestic_palette" ]
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE", "ALLOW_TERRAIN_UNDER_ITEMS" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "bedroom_4x4_adult_2_W",
+    "//": "compass direction indicates head of bed",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "¤   ",
+        "@@ E",
+        "@@ I",
+        "¤   "
+      ],
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE", "ALLOW_TERRAIN_UNDER_ITEMS" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "bedroom_4x4_adult_2_W",
+    "//": "compass direction indicates head of bed",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "¤   ",
+        "@@ E",
+        "@@ ɱ",
+        "¤   "
+      ],
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE", "ALLOW_TERRAIN_UNDER_ITEMS" ]
     }
   },
   {
@@ -224,7 +409,8 @@
         "@@==",
         "D   "
       ],
-      "palettes": [ "standard_domestic_palette", "parametrized_carpets_nest_palette" ]
+      "palettes": [ "standard_domestic_palette", "parametrized_carpets_nest_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE", "ALLOW_TERRAIN_UNDER_ITEMS" ]
     }
   },
   {
@@ -240,7 +426,25 @@
         "@@ I",
         "D   "
       ],
-      "palettes": [ "standard_domestic_palette" ]
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE", "ALLOW_TERRAIN_UNDER_ITEMS" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_4x4_adult_2_W",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "D   ",
+        "@@ a",
+        "@@ ɱ",
+        "D   "
+      ],
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE", "ALLOW_TERRAIN_UNDER_ITEMS" ]
     }
   },
   {
@@ -256,7 +460,8 @@
         "@@ b",
         "D   "
       ],
-      "palettes": [ "standard_domestic_palette" ]
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE", "ALLOW_TERRAIN_UNDER_ITEMS" ]
     }
   },
   {
@@ -272,7 +477,8 @@
         " @@ ",
         "¤@@¤"
       ],
-      "palettes": [ "standard_domestic_palette" ]
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE" ]
     }
   },
   {
@@ -288,7 +494,8 @@
         " @@ ",
         "D@@D"
       ],
-      "palettes": [ "standard_domestic_palette", "parametrized_carpets_nest_palette" ]
+      "palettes": [ "standard_domestic_palette", "parametrized_carpets_nest_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE" ]
     }
   },
   {
@@ -304,7 +511,8 @@
         " @@ ",
         "D@@D"
       ],
-      "palettes": [ "standard_domestic_palette" ]
+      "palettes": [ "standard_domestic_palette" ],
+      "flags": [ "ALLOW_TERRAIN_UNDER_FURNITURE" ]
     }
   },
   {
@@ -342,6 +550,22 @@
   {
     "type": "mapgen",
     "//": "compass direction indicates head of bed, works for rooms with corner doors.",
+    "nested_mapgen_id": "bedroom_4x4_adult_3_S",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        " Eɱ ",
+        "D   ",
+        " @@ ",
+        " @@ "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed, works for rooms with corner doors.",
     "nested_mapgen_id": "bedroom_4x4_adult_3_N",
     "object": {
       "mapgensize": [ 4, 4 ],
@@ -358,6 +582,22 @@
   {
     "type": "mapgen",
     "//": "compass direction indicates head of bed, works for rooms with corner doors.",
+    "nested_mapgen_id": "bedroom_4x4_adult_3_N",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        " @@ ",
+        " @@ ",
+        "D   ",
+        " ɱE "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed, works for rooms with corner doors.",
     "nested_mapgen_id": "bedroom_4x4_adult_3_E",
     "object": {
       "mapgensize": [ 4, 4 ],
@@ -365,6 +605,22 @@
       "rows": [
         "    ",
         "R @@",
+        "E @@",
+        " D  "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed, works for rooms with corner doors.",
+    "nested_mapgen_id": "bedroom_4x4_adult_3_E",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "    ",
+        "ɱ @@",
         "E @@",
         " D  "
       ],
@@ -389,6 +645,22 @@
   },
   {
     "type": "mapgen",
+    "//": "compass direction indicates head of bed, works for rooms with corner doors.",
+    "nested_mapgen_id": "bedroom_4x4_adult_3_W",
+    "object": {
+      "mapgensize": [ 4, 4 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "    ",
+        "@@ E",
+        "@@ ɱ",
+        "  D "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
     "//": "compass direction indicates head of bed",
     "nested_mapgen_id": "bedroom_5x5_adult_N_1",
     "object": {
@@ -399,6 +671,23 @@
         "  @@ ",
         "y    ",
         "Ih   ",
+        "I  DD"
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_5x5_adult_N_1",
+    "object": {
+      "mapgensize": [ 5, 5 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        " ¤@@¤",
+        "  @@ ",
+        "y    ",
+        "ɱh   ",
         "I  DD"
       ],
       "palettes": [ "standard_domestic_palette" ]
@@ -432,6 +721,23 @@
         "¤    ",
         "@@  I",
         "@@ hI",
+        "¤    ",
+        "DDy  "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "compass direction indicates head of bed",
+    "nested_mapgen_id": "bedroom_5x5_adult_W_1",
+    "object": {
+      "mapgensize": [ 5, 5 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "¤    ",
+        "@@  I",
+        "@@ hɱ",
         "¤    ",
         "DDy  "
       ],
@@ -1251,6 +1557,20 @@
   {
     "type": "mapgen",
     "//": "bookcase and chair for studies, workrooms, hobby rooms, etc",
+    "nested_mapgen_id": "bonus_room_2x2_2",
+    "object": {
+      "mapgensize": [ 2, 2 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "E ",
+        "ɱ "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "bookcase and chair for studies, workrooms, hobby rooms, etc",
     "nested_mapgen_id": "bonus_room_2x2_3",
     "object": {
       "mapgensize": [ 2, 2 ],
@@ -1335,6 +1655,21 @@
   },
   {
     "type": "mapgen",
+    "//": "bookcases, computer, and chair for studies, workrooms, hobby rooms, etc",
+    "nested_mapgen_id": "bonus_room_3x3_1",
+    "object": {
+      "mapgensize": [ 3, 3 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "R T",
+        "ɱE ",
+        "R  "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
     "//": "bookcases and chair for studies, workrooms, hobby rooms, etc",
     "nested_mapgen_id": "bonus_room_3x3_1A",
     "object": {
@@ -1350,6 +1685,21 @@
   },
   {
     "type": "mapgen",
+    "//": "computer and chair for studies, workrooms, hobby rooms, etc",
+    "nested_mapgen_id": "bonus_room_3x3_1A",
+    "object": {
+      "mapgensize": [ 3, 3 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "T I",
+        " Eɱ",
+        "  I"
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
     "//": "small furniture groupings for studies, workrooms, hobby rooms, etc",
     "nested_mapgen_id": "bonus_room_3x3_2",
     "object": {
@@ -1357,6 +1707,21 @@
       "rotation": [ 0, 3 ],
       "rows": [
         "III",
+        " h ",
+        "y  "
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "small furniture groupings for studies, workrooms, hobby rooms, etc",
+    "nested_mapgen_id": "bonus_room_3x3_2",
+    "object": {
+      "mapgensize": [ 3, 3 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "IɱI",
         " h ",
         "y  "
       ],
@@ -1381,12 +1746,42 @@
   {
     "type": "mapgen",
     "//": "small furniture groupings for studies, workrooms, hobby rooms, etc",
+    "nested_mapgen_id": "bonus_room_3x3_3",
+    "object": {
+      "mapgensize": [ 3, 3 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "I  ",
+        "ɱh ",
+        "I y"
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "small furniture groupings for studies, workrooms, hobby rooms, etc",
     "nested_mapgen_id": "bonus_room_3x3_4",
     "object": {
       "mapgensize": [ 3, 3 ],
       "rotation": [ 0, 3 ],
       "rows": [
         "III",
+        "h  ",
+        "  y"
+      ],
+      "palettes": [ "standard_domestic_palette" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "//": "small furniture groupings for studies, workrooms, hobby rooms, etc",
+    "nested_mapgen_id": "bonus_room_3x3_4",
+    "object": {
+      "mapgensize": [ 3, 3 ],
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "ɱII",
         "h  ",
         "  y"
       ],
@@ -1672,6 +2067,7 @@
         "-....-",
         "------"
       ],
+      "flags": [ "ERASE_ITEMS_BEFORE_PLACING_TERRAIN" ],
       "palettes": [ "roof_palette" ]
     }
   },
@@ -2014,7 +2410,10 @@
       "furniture": { "P": "f_filing_cabinet" },
       "items": {
         "H": { "item": "bed", "chance": 15 },
-        "R": [ { "item": "magazines", "chance": 75, "repeat": [ 1, 5 ] }, { "item": "homebooks", "chance": 75, "repeat": [ 1, 3 ] } ]
+        "R": [
+          { "item": "magazines", "chance": 75, "repeat": [ 1, 5 ] },
+          { "item": "SUS_domestic_bookshelf", "chance": 75, "repeat": [ 1, 3 ] }
+        ]
       }
     }
   },
@@ -2034,7 +2433,10 @@
       "palettes": [ "standard_domestic_palette" ],
       "furniture": { "P": "f_filing_cabinet", "!": "f_shredder" },
       "items": {
-        "R": [ { "item": "magazines", "chance": 75, "repeat": [ 1, 5 ] }, { "item": "homebooks", "chance": 75, "repeat": [ 1, 3 ] } ]
+        "R": [
+          { "item": "magazines", "chance": 75, "repeat": [ 1, 5 ] },
+          { "item": "SUS_domestic_bookshelf", "chance": 75, "repeat": [ 1, 2 ] }
+        ]
       }
     }
   },
@@ -2055,7 +2457,10 @@
       "furniture": { "P": "f_filing_cabinet" },
       "items": {
         "H": { "item": "bed", "chance": 15 },
-        "R": [ { "item": "magazines", "chance": 75, "repeat": [ 1, 5 ] }, { "item": "homebooks", "chance": 75, "repeat": [ 1, 3 ] } ]
+        "R": [
+          { "item": "magazines", "chance": 75, "repeat": [ 1, 5 ] },
+          { "item": "SUS_domestic_bookshelf", "chance": 75, "repeat": [ 1, 2 ] }
+        ]
       }
     }
   },
@@ -2075,7 +2480,10 @@
       "palettes": [ "standard_domestic_palette" ],
       "furniture": { "P": "f_filing_cabinet", "!": "f_shredder" },
       "items": {
-        "R": [ { "item": "magazines", "chance": 75, "repeat": [ 1, 5 ] }, { "item": "homebooks", "chance": 75, "repeat": [ 1, 3 ] } ]
+        "R": [
+          { "item": "magazines", "chance": 75, "repeat": [ 1, 5 ] },
+          { "item": "SUS_domestic_bookshelf", "chance": 45, "repeat": [ 1, 2 ] }
+        ]
       }
     }
   },
@@ -2088,6 +2496,290 @@
       "rotation": [ 0, 3 ],
       "furniture": { " ": "f_freezer" },
       "items": { " ": [ { "item": "SUS_freezer" } ] },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_plant",
+    "//": "Replace bookshelf with plant instead",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_indoor_plant" },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_table_book",
+    "//": "Replace bookshelf with table and book instead",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_table" },
+      "items": { "R": [ { "item": "novels", "chance": 100 } ] },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_table_book",
+    "//": "Replace bookshelf with armchair and book instead",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_armchair" },
+      "items": { "R": [ { "item": "novels", "chance": 100 } ] },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_fiction",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": { "R": [ { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 3 ] } ] },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_fiction_and_nonfiction",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 3 ] },
+          { "item": "SUS_book_nonf_no_zines", "chance": 80, "repeat": [ 4, 10 ] }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_literature_enthusiast",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "literature", "chance": 80, "repeat": [ 4, 10 ] },
+          { "item": "SUS_book_nonf_no_zines", "chance": 80, "repeat": [ 4, 10 ] }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_board_games",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100 },
+          { "item": "games", "chance": 80, "repeat": [ 2, 6 ] },
+          { "item": "SUS_book_nonf_no_zines", "chance": 80, "repeat": [ 2, 4 ] }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_cookbooks",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "cookbooks", "chance": 80, "repeat": [ 2, 4 ] }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_tailoring",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "SUS_tailoring_bookcase", "chance": 100 }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_electronics",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "SUS_book_nonf_no_zines", "chance": 80, "repeat": [ 2, 6 ] },
+          { "item": "SUS_electronics_bookcase", "chance": 100 }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_computers",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "SUS_book_nonf_no_zines", "chance": 80, "repeat": [ 2, 6 ] },
+          { "item": "SUS_computers_bookcase", "chance": 100 }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_eclectic",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [ { "item": "SUS_domestic_bookshelf", "chance": 100 }, { "item": "homebooks", "chance": 80, "repeat": [ 4, 12 ] } ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_judaica",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "literature", "chance": 80, "repeat": [ 2, 4 ] },
+          { "item": "book_judaica", "chance": 80, "repeat": [ 3, 6 ] }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_manga",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "book_manga", "chance": 80, "repeat": [ 4, 12 ] }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_medical",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "doctors_books", "chance": 80, "repeat": [ 2, 6 ] }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_esoterica",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [
+          { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] },
+          { "item": "esoteric_books", "chance": 80, "repeat": [ 2, 5 ] }
+        ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_martial_arts",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [ { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] }, { "item": "book_martial", "chance": 80 } ]
+      },
+      "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
+    }
+  },
+  {
+    "type": "mapgen",
+    "nested_mapgen_id": "domestic_bookcase_nest_european_comics",
+    "object": {
+      "mapgensize": [ 1, 1 ],
+      "rotation": [ 0, 3 ],
+      "rows": [ "R" ],
+      "furniture": { "R": "f_bookcase" },
+      "items": {
+        "R": [ { "item": "SUS_domestic_bookshelf", "chance": 100, "repeat": [ 1, 2 ] }, { "item": "european_comics_collection" } ]
+      },
       "flags": [ "ALLOW_TERRAIN_UNDER_OTHER_DATA" ]
     }
   }

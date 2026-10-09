@@ -1,33 +1,6 @@
 [
   {
     "type": "option_slider",
-    "id": "world_cities",
-    "context": "WORLDGEN",
-    "name": "Cities",
-    "default": 0,
-    "levels": [
-      {
-        "level": 0,
-        "name": "Suburbia",
-        "description": "Cities use default size and distances, with small to large cities separated by large rural areas.",
-        "options": [ { "option": "CITY_SIZE", "type": "int", "val": 8 }, { "option": "CITY_SPACING", "type": "int", "val": 4 } ]
-      },
-      {
-        "level": 1,
-        "name": "Cityscape",
-        "description": "Cities are 50% larger and 25% closer to each other.",
-        "options": [ { "option": "CITY_SIZE", "type": "int", "val": 12 }, { "option": "CITY_SPACING", "type": "int", "val": 3 } ]
-      },
-      {
-        "level": 2,
-        "name": "Megacity",
-        "description": "Cities are nearly continuous, with minimal distance between them.",
-        "options": [ { "option": "CITY_SIZE", "type": "int", "val": 16 }, { "option": "CITY_SPACING", "type": "int", "val": 1 } ]
-      }
-    ]
-  },
-  {
-    "type": "option_slider",
     "id": "world_difficulty",
     "context": "WORLDGEN",
     "name": "Difficulty",
@@ -104,39 +77,6 @@
           { "option": "EVOLUTION_INVERSE_MULTIPLIER", "type": "float", "val": 0.75 },
           { "option": "ITEM_SPAWNRATE", "type": "float", "val": 0.5 }
         ]
-      }
-    ]
-  },
-  {
-    "type": "option_slider",
-    "id": "world_random_npcs",
-    "context": "WORLDGEN",
-    "name": "Random NPCs",
-    "default": 1,
-    "levels": [
-      {
-        "level": 0,
-        "name": "Where is everyone?",
-        "description": "You are very unlikely to encounter random NPCs.",
-        "options": [ { "option": "NPC_SPAWNTIME", "type": "float", "val": 10 } ]
-      },
-      {
-        "level": 1,
-        "name": "Lonely",
-        "description": "The default: NPCs are rare, but as expected in this ruined world.",
-        "options": [ { "option": "NPC_SPAWNTIME", "type": "float", "val": 4 } ]
-      },
-      {
-        "level": 2,
-        "name": "Party time",
-        "description": "You are twice as likely to encounter random NPCs.",
-        "options": [ { "option": "NPC_SPAWNTIME", "type": "float", "val": 2 } ]
-      },
-      {
-        "level": 3,
-        "name": "Crowded",
-        "description": "Random NPCs are fairly common.  Go meet some friends!",
-        "options": [ { "option": "NPC_SPAWNTIME", "type": "float", "val": 1 } ]
       }
     ]
   }

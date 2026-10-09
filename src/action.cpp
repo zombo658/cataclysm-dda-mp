@@ -22,7 +22,6 @@
 #include "game_constants.h"
 #include "input_context.h"
 #include "input_enums.h"
-#include "inventory.h"
 #include "item.h"
 #include "item_location.h"
 #include "map.h"
@@ -38,7 +37,6 @@
 #include "point.h"
 #include "popup.h"
 #include "ret_val.h"
-#include "string_formatter.h"
 #include "translations.h"
 #include "type_id.h"
 #include "uilist.h"
@@ -50,6 +48,8 @@ static const itype_id itype_swim_fins( "swim_fins" );
 
 static const quality_id qual_BUTCHER( "BUTCHER" );
 static const quality_id qual_CUT_FINE( "CUT_FINE" );
+
+class temp_crafting_inventory;
 
 static void parse_keymap( std::istream &keymap_txt, std::map<char, action_id> &kmap,
                           std::set<action_id> &unbound_keymap );
@@ -144,8 +144,6 @@ std::string action_ident( action_id act )
             return "LEVEL_DOWN";
         case ACTION_MOVE_UP:
             return "LEVEL_UP";
-        case ACTION_TOGGLE_MAP_MEMORY:
-            return "toggle_map_memory";
         case ACTION_CENTER:
             return "center";
         case ACTION_SHIFT_N:
@@ -374,6 +372,8 @@ std::string action_ident( action_id act )
             return "toggle_prevent_occlusion";
         case ACTION_ACTIONMENU:
             return "action_menu";
+        case ACTION_INTERACT:
+            return "interact";
         case ACTION_ITEMACTION:
             return "item_action_menu";
         case ACTION_SELECT:
@@ -415,7 +415,6 @@ bool can_action_change_worldstate( const action_id act )
 {
     switch( act ) {
         // Shift view
-        case ACTION_TOGGLE_MAP_MEMORY:
         case ACTION_CENTER:
         case ACTION_SHIFT_N:
         case ACTION_SHIFT_NE:
@@ -454,6 +453,7 @@ bool can_action_change_worldstate( const action_id act )
         case ACTION_COLOR:
         case ACTION_WORLD_MODS:
         case ACTION_DISTRACTION_MANAGER:
+        case ACTION_EXPORT_BUG_REPORT_ARCHIVE:
         // Debug Functions
         case ACTION_TOGGLE_FULLSCREEN:
         case ACTION_DEBUG:
@@ -624,7 +624,7 @@ bool can_butcher_at( map &here, const tripoint_bub_ms &p )
     bool has_item = false;
     bool has_corpse = false;
 
-    const inventory &crafting_inv = player_character.crafting_inventory();
+    const temp_crafting_inventory &crafting_inv = player_character.crafting_inventory();
     for( item &items_it : items ) {
         if( items_it.is_corpse() ) {
             if( factor != INT_MIN  || factorD != INT_MIN ) {
@@ -733,11 +733,60 @@ bool can_interact_at( action_id action, map &here, const tripoint_bub_ms &p )
             return can_examine_at( here, p, true );
         case ACTION_PICKUP:
             return can_pickup_at( here, p );
+        case ACTION_SMASH:
+            return here.is_bashable( p );
+        case ACTION_CHAT: {
+            Creature *c = get_creature_tracker().creature_at( p );
+            return c != nullptr && !c->is_avatar() && get_avatar().sees( here, p );
+        }
         default:
             return false;
     }
+}
 
-    return can_interact_at( action, here, p );
+action_id handle_interact( map &here, const tripoint_bub_ms &pos )
+{
+    const input_context ctxt = get_default_mode_input_context();
+
+    std::vector<action_id> valid_actions;
+    static const std::vector<action_id> check_actions = {
+        ACTION_EXAMINE,
+        ACTION_PICKUP,
+        ACTION_OPEN,
+        ACTION_CLOSE,
+        ACTION_BUTCHER,
+        ACTION_CHAT,
+        ACTION_MOVE_UP,
+        ACTION_MOVE_DOWN
+    };
+
+    for( action_id act : check_actions ) {
+        if( can_interact_at( act, here, pos ) ) {
+            valid_actions.push_back( act );
+        }
+    }
+
+    if( valid_actions.empty() ) {
+        return ACTION_NULL;
+    }
+
+    if( valid_actions.size() == 1 ) {
+        return valid_actions.front();
+    }
+
+    uilist tmenu;
+    tmenu.settext( _( "Actions for this tile" ) );
+    for( action_id act : valid_actions ) {
+        tmenu.addentry( act, true, hotkey_for_action( act, 1 ),
+                        ctxt.get_action_name( action_ident( act ) ) );
+    }
+
+    tmenu.query();
+    if( tmenu.ret < 0 ) {
+        return ACTION_NULL;
+    }
+
+    return static_cast<action_id>( tmenu.ret );
 }
 
 action_id handle_action_menu( map &here )
@@ -817,6 +866,10 @@ action_id handle_action_menu( map &here )
                 action_weightings[ACTION_MOVE_DOWN] = 200;
             }
         }
+    }
+
+    if( player_character.hauling ) {
+        action_weightings[ACTION_HAUL_TOGGLE] = 300;
     }
 
     // sort the map by its weightings
@@ -918,6 +971,7 @@ action_id handle_action_menu( map &here )
             REGISTER_ACTION( ACTION_DISPLAY_SCENT );
             REGISTER_ACTION( ACTION_DISPLAY_SCENT_TYPE );
             REGISTER_ACTION( ACTION_DISPLAY_TEMPERATURE );
+            REGISTER_ACTION( ACTION_DISPLAY_SNOW_DEPTH );
             REGISTER_ACTION( ACTION_DISPLAY_VEHICLE_AI );
             REGISTER_ACTION( ACTION_DISPLAY_VISIBILITY );
             REGISTER_ACTION( ACTION_DISPLAY_LIGHTING );
@@ -1069,7 +1123,13 @@ action_id handle_main_menu()
     REGISTER_ACTION( ACTION_ACTIONMENU );
     REGISTER_ACTION( ACTION_QUICKSAVE );
     REGISTER_ACTION( ACTION_SAVE );
-    REGISTER_ACTION( ACTION_DEBUG, 'd' );
+    if( hotkey_for_action( ACTION_DEBUG, /*maximum_modifier_count=*/1, false ).has_value() ) {
+        REGISTER_ACTION( ACTION_DEBUG, 'D' );
+    }
+
+    // Special handling: This one is not a keybind, so we emplace it manually with a descriptive name.
+    entries.emplace_back( ACTION_EXPORT_BUG_REPORT_ARCHIVE, true, 'd',
+                          _( "Export save archive for github bug report" ) );
 
     uilist smenu;
     smenu.settext( _( "MAIN MENU" ) );

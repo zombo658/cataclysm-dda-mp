@@ -1,18 +1,24 @@
 [
   {
     "type": "recipe",
-    "activity_level": "NO_EXERCISE",
     "result": "salt",
     "id_suffix": "from_salt_water",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_OTHER",
     "skill_used": "chemistry",
-    "time": "40 m",
     "autolearn": true,
-    "batch_time_factors": [ 80, 4 ],
+    "steps": [
+      {
+        "name": "Boiling",
+        "time": "40 m",
+        "activity_level": "NO_EXERCISE",
+        "qualities": [ { "id": "BOIL", "level": 1 } ],
+        "tools": [ [ [ "water_boiling_heat", 7, "LIST" ] ] ],
+        "batch_time_factors": [ 80, 4 ],
+        "attention": "unattended"
+      }
+    ],
     "charges": 10,
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 7, "LIST" ] ] ],
     "components": [ [ [ "salt_water", 1 ], [ "saline", 5 ] ] ]
   },
   {
@@ -156,7 +162,7 @@
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
     "byproducts": [ [ "juice_pulp", 3 ] ],
-    "result": "crystallizing_sugar",
+    "result": "crystallizing_sugar_active",
     "id_suffix": "from_sweets",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_OTHER",
@@ -177,7 +183,43 @@
     "tools": [ [ [ "water_boiling_heat", 8, "LIST" ] ], [ [ "screw_press", -1 ] ] ],
     "components": [
       [
-        [ "sweet_fruit_like", 2, "LIST" ],
+        [ "sweet_fruit_like_no_pulp", 2, "LIST" ],
+        [ "coconut_flesh", 2 ],
+        [ "corn_kernels", 3 ],
+        [ "rehydrated_corn_kernels", 3 ],
+        [ "honeydew", 3 ],
+        [ "honeycomb", 1 ],
+        [ "can_corn", 3 ],
+        [ "juice", 3 ]
+      ],
+      [ [ "water_clean", 2 ], [ "water", 2 ] ]
+    ]
+  },
+  {
+    "type": "recipe",
+    "activity_level": "LIGHT_EXERCISE",
+    "result": "crystallizing_sugar_active",
+    "id_suffix": "from_sweets_no_pulp",
+    "category": "CC_FOOD",
+    "subcategory": "CSC_FOOD_OTHER",
+    "skill_used": "cooking",
+    "difficulty": 5,
+    "time": "1 h 45 m",
+    "charges": 10,
+    "//": [ "Full processing variant without pulp byproduct to avoid recycling loops." ],
+    "proficiencies": [ { "proficiency": "prof_knife_skills" } ],
+    "batch_time_factors": [ 20, 1 ],
+    "book_learn": { "cookbook_foodfashions": { "skill_level": 5, "recipe_name": "Improvised Fruit Sugar" } },
+    "qualities": [
+      { "id": "CONTAIN", "level": 1 },
+      { "id": "CUT", "level": 2 },
+      { "id": "BOIL", "level": 2 },
+      { "id": "STRAIN", "level": 2 }
+    ],
+    "tools": [ [ [ "water_boiling_heat", 8, "LIST" ] ], [ [ "screw_press", -1 ] ] ],
+    "components": [
+      [
+        [ "sweet_fruit_like_no_pulp", 2, "LIST" ],
         [ "coconut_flesh", 2 ],
         [ "corn_kernels", 3 ],
         [ "rehydrated_corn_kernels", 3 ],
@@ -270,16 +312,16 @@
   {
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
-    "byproducts": [ [ "molasses", 2 ] ],
-    "result": "crystallizing_sugar",
+    "result": "crystallizing_sugar_active",
     "id_suffix": "from_beets",
+    "charges": 30,
+    "byproducts": [ [ "molasses", 1 ] ],
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_OTHER",
     "//": "process sugar beets into sugar",
     "skill_used": "cooking",
     "difficulty": 5,
     "time": "1 h 30 m",
-    "charges": 10,
     "batch_time_factors": [ 20, 1 ],
     "book_learn": { "cookbook_foodfashions": { "skill_level": 5, "recipe_name": "Natural Beet Sugar" } },
     "proficiencies": [ { "proficiency": "prof_knife_skills" } ],
@@ -291,21 +333,29 @@
     ],
     "tools": [ [ [ "water_boiling_heat", 8, "LIST" ] ], [ [ "screw_press", -1 ] ] ],
     "//1": "1u base + 1u ingredient + 6u evaporation",
-    "components": [ [ [ "sugar_beet", 3 ] ], [ [ "water_clean", 1 ], [ "water", 1 ] ] ]
+    "components": [ [ [ "sugar_beet", 1 ] ], [ [ "water_clean", 4 ], [ "water", 4 ] ] ]
   },
   {
     "type": "recipe",
-    "activity_level": "NO_EXERCISE",
     "result": "sugar",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_OTHER",
     "skill_used": "cooking",
-    "time": "9 m",
     "autolearn": true,
-    "batch_time_factors": [ 20, 1 ],
+    "steps": [
+      {
+        "name": "Boiling",
+        "time": "9 m",
+        "//": "When overcooked, sugar caramelises before it's burnt",
+        "max_time": "14 m",
+        "activity_level": "NO_EXERCISE",
+        "qualities": [ { "id": "BOIL", "level": 1 } ],
+        "tools": [ [ [ "water_boiling_heat", 7, "LIST" ] ] ],
+        "batch_time_factors": [ 20, 1 ],
+        "attention": "unattended"
+      }
+    ],
     "charges": 10,
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 7, "LIST" ] ] ],
     "components": [ [ [ "sweet_water", 1 ] ] ]
   },
   {

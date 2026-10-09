@@ -221,6 +221,86 @@
   },
   {
     "type": "furniture",
+    "id": "f_glassedbody_12",
+    "name": "black glass figure",
+    "description": "A black glass figure of someone crouched over as though trying to move steathily.  Both hands are braced against a surface that isn't there.",
+    "symbol": "@",
+    "color": "dark_gray",
+    "looks_like": "f_statue",
+    "move_cost_mod": -3,
+    "coverage": 50,
+    "required_str": 20,
+    "flags": [ "PLACE_ITEM", "BLOCKSDOOR", "MINEABLE" ],
+    "bash": {
+      "str_min": 16,
+      "str_max": 40,
+      "sound": "crunch!",
+      "sound_fail": "tink.",
+      "items": [ { "item": "black_glass_shard", "count": [ 40, 80 ] } ]
+    }
+  },
+  {
+    "type": "furniture",
+    "id": "f_glassedbody_13",
+    "name": "black glass figure",
+    "description": "A black glass figure of someone falling forward.  When you look more closely, it's just the upper body that's falling forward, separated from the legs.",
+    "symbol": "@",
+    "color": "dark_gray",
+    "looks_like": "f_statue",
+    "move_cost_mod": -3,
+    "coverage": 50,
+    "required_str": 20,
+    "flags": [ "PLACE_ITEM", "BLOCKSDOOR", "MINEABLE" ],
+    "bash": {
+      "str_min": 16,
+      "str_max": 40,
+      "sound": "crunch!",
+      "sound_fail": "tink.",
+      "items": [ { "item": "black_glass_shard", "count": [ 40, 80 ] } ]
+    }
+  },
+  {
+    "type": "furniture",
+    "id": "f_glassedbody_14",
+    "name": "black glass figure",
+    "description": "A black glass figure of a person, their face frozen in an eternal scream.",
+    "symbol": "@",
+    "color": "dark_gray",
+    "looks_like": "f_statue",
+    "move_cost_mod": -3,
+    "coverage": 50,
+    "required_str": 20,
+    "flags": [ "PLACE_ITEM", "BLOCKSDOOR", "MINEABLE" ],
+    "bash": {
+      "str_min": 16,
+      "str_max": 40,
+      "sound": "crunch!",
+      "sound_fail": "tink.",
+      "items": [ { "item": "black_glass_shard", "count": [ 40, 80 ] } ]
+    }
+  },
+  {
+    "type": "furniture",
+    "id": "f_glassedbody_15",
+    "name": "black glass figure",
+    "description": "A black glass figure of a…person?  One arm is visibly longer than the other and the eyes are offset from a horizontal line.  They are frozen hunched over, with their longer arm trailing on the ground.",
+    "symbol": "@",
+    "color": "dark_gray",
+    "looks_like": "f_statue",
+    "move_cost_mod": -3,
+    "coverage": 50,
+    "required_str": 20,
+    "flags": [ "PLACE_ITEM", "BLOCKSDOOR", "MINEABLE" ],
+    "bash": {
+      "str_min": 16,
+      "str_max": 40,
+      "sound": "crunch!",
+      "sound_fail": "tink.",
+      "items": [ { "item": "black_glass_shard", "count": [ 40, 80 ] } ]
+    }
+  },
+  {
+    "type": "furniture",
     "id": "f_vitrified_bed",
     "name": "black glass bed",
     "symbol": "#",
@@ -370,7 +450,7 @@
       "items": [ { "item": "black_glass_shard", "count": [ 40, 80 ] } ]
     },
     "examine_action": "workbench",
-    "workbench": { "multiplier": 0.7, "mass": 2000, "volume": "75 L" }
+    "workbench": { "multiplier": 0.7, "mass": "2 kg", "volume": "75 L" }
   },
   {
     "type": "furniture",
@@ -461,7 +541,7 @@
     "id": "f_vitrified_sink",
     "name": "black glass sink",
     "symbol": "&",
-    "description": "A glass basin and tap.  The inside stops halfway down in sheet of concentric ripples, with the tiny spire of a splashing droplet at the center ",
+    "description": "A glass basin and tap.  The inside stops halfway down in sheet of concentric ripples, with the tiny spire of a splashing droplet at the center.",
     "color": "dark_gray",
     "move_cost_mod": 2,
     "coverage": 60,
@@ -520,7 +600,7 @@
       "items": [ { "item": "black_glass_shard", "count": [ 40, 80 ] } ]
     },
     "examine_action": "workbench",
-    "workbench": { "multiplier": 1.1, "mass": 2000, "volume": "75 L" }
+    "workbench": { "multiplier": 1.1, "mass": "2 kg", "volume": "75 L" }
   },
   {
     "type": "furniture",
@@ -658,7 +738,7 @@
       "items": [ { "item": "black_glass_shard", "count": [ 40, 80 ] } ]
     },
     "examine_action": "workbench",
-    "workbench": { "multiplier": 1.1, "mass": 200000, "volume": "75 L" }
+    "workbench": { "multiplier": 1.1, "mass": "200 kg", "volume": "75 L" }
   },
   {
     "type": "furniture",
@@ -680,7 +760,7 @@
       "items": [ { "item": "black_glass_shard", "count": [ 40, 80 ] } ]
     },
     "examine_action": "workbench",
-    "workbench": { "multiplier": 1.1, "mass": 200000, "volume": "75 L" }
+    "workbench": { "multiplier": 1.1, "mass": "200 kg", "volume": "75 L" }
   },
   {
     "type": "furniture",

@@ -37,6 +37,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -45,14 +47,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -112,6 +124,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -120,14 +134,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -138,6 +162,7 @@
     "skills": [ { "level": 4, "name": "speech" }, { "level": 5, "name": "metaphysics" }, { "level": 3, "name": "survival" } ],
     "traits": [ "CLAIRSENTIENT", "CLAIR_SENSES", "SCHIZOPHRENIC" ],
     "spells": [
+      { "id": "clair_better_senses", "level": 6 },
       { "id": "clair_night_vision", "level": 4 },
       { "id": "clair_danger_sense", "level": 10 },
       { "id": "clair_speed_reading", "level": 9 },
@@ -146,6 +171,7 @@
       { "id": "clair_voyance", "level": 6 }
     ],
     "recipes": [
+      "practice_clair_better_senses",
       "practice_clair_night_vision",
       "practice_clair_danger_sense",
       "practice_clair_speed_reading",
@@ -160,7 +186,7 @@
           { "item": "socks" },
           { "item": "robe" },
           { "item": "lowtops" },
-          { "item": "matrix_crystal_clairsentience" },
+          { "group": "clairsentient_matrix_crystals_group" },
           { "item": "newest_newspaper" },
           { "item": "weeks_old_newspaper" },
           { "item": "months_old_newspaper" },
@@ -184,6 +210,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -192,14 +220,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -264,6 +302,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -272,14 +312,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -333,6 +383,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -341,14 +393,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -359,7 +421,8 @@
     "skills": [ { "level": 2, "name": "cooking" }, { "level": 1, "name": "driving" }, { "level": 2, "name": "metaphysics" } ],
     "traits": [ "PYROMANIA", "PYROKINETIC", "PYROKIN_ADAPTATION" ],
     "spells": [
-      { "id": "pyrokinetic_eruption", "level": 8 },
+      { "id": "pyrokinetic_intensify_flames", "level": 8 },
+      { "id": "pyrokinetic_eruption", "level": 5 },
       { "id": "pyrokinetic_call_flames", "level": 4 },
       { "id": "pyrokinetic_flamethrower", "level": 3 },
       { "id": "pyrokinetic_cloak", "level": 7 },
@@ -394,6 +457,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -402,14 +467,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -490,6 +565,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -498,14 +575,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -561,6 +648,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -569,14 +658,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -626,7 +725,7 @@
             "variant": "itzcuauhtli_wrist_computer_standard",
             "charges": [ 7000, 10000 ]
           },
-          { "item": "matrix_crystal_teleportation" },
+          { "group": "teleportation_matrix_crystals_group", "prob": 1 },
           {
             "item": "mom_fusion_mag",
             "ammo-item": "mom_fusion_ammo",
@@ -640,7 +739,6 @@
     },
     "whitelist_hobbies": false,
     "hobbies": [
-      "gateway_teleporter",
       "knack_flexibility",
       "knack_adrenaline",
       "knack_clair_better_senses",
@@ -652,6 +750,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -660,15 +760,25 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
     ],
-    "flags": [ "SCEN_ONLY" ]
+    "flags": [ "SCEN_ONLY" ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -719,6 +829,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -727,14 +839,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "profession",
@@ -768,7 +890,7 @@
       "bio_physical_buffs_fifth_sun",
       "bio_cameleoflage_fifth_sun"
     ],
-    "traits": [ "FIFTH_SUN_PEOPLE" ],
+    "traits": [ "FIFTH_SUN_PEOPLE", "FIFTH_SUN_CBM_INTERFACE" ],
     "items": {
       "both": {
         "entries": [
@@ -845,6 +967,8 @@
       "knack_photokinetic_hide_ugly",
       "knack_photokinetic_radio",
       "knack_pyrokinetic_flash",
+      "knack_pyrokinetic_intensify_flames",
+      "knack_pyrokinetic_eruption",
       "knack_pyrokinetic_call_flames",
       "knack_pyrokinetic_cloak",
       "knack_telekinetic_push",
@@ -853,14 +977,24 @@
       "knack_telepathic_shield",
       "knack_telepathic_mind_sense",
       "knack_telepathic_morale",
+      "knack_telepathic_blast",
       "knack_telepathic_mesmerize",
       "knack_telepathic_animal_mind_control",
       "knack_telepathic_invisibility",
+      "knack_telepathic_blast_radius",
       "knack_vita_health_power",
       "knack_vita_concentrated_healing",
       "knack_vita_remove_poison",
-      "knack_vita_cure_disease"
-    ]
+      "knack_vita_cure_disease",
+      "knack_vita_banish_illness",
+      "knack_random_01",
+      "knack_random_02",
+      "knack_random_03",
+      "knack_random_04",
+      "knack_random_05",
+      "knack_random_06"
+    ],
+    "chargen_allow_npc": false
   },
   {
     "type": "item_group",

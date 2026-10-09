@@ -20,8 +20,8 @@
 #include "input_context.h"
 #include "item.h"
 #include "localized_comparator.h"
-#include "make_static.h"
 #include "morale_types.h"
+#include "options.h"
 #include "output.h"
 #include "point.h"
 #include "string_formatter.h"
@@ -32,6 +32,11 @@ static const efftype_id effect_cold( "cold" );
 static const efftype_id effect_hot( "hot" );
 static const efftype_id effect_took_prozac( "took_prozac" );
 static const efftype_id effect_took_prozac_bad( "took_prozac_bad" );
+
+static const flag_id json_flag_FILTHY( "FILTHY" );
+static const flag_id json_flag_INTEGRATED( "INTEGRATED" );
+
+static const json_character_flag json_flag_HEAT_IMMUNE( "HEAT_IMMUNE" );
 
 static const morale_type morale_cold( "morale_cold" );
 static const morale_type morale_hot( "morale_hot" );
@@ -394,6 +399,15 @@ void player_morale::remove_expired()
     } );
 }
 
+std::string player_morale::to_string_writable()
+{
+    std::string str;
+    for( const morale_point mp : points ) {
+        str += string_format( "point: %s, net_bonus: %s\n", mp.get_name(), mp.get_net_bonus() );
+    }
+    return str;
+}
+
 morale_mult player_morale::get_temper_mult() const
 {
     morale_mult mult;
@@ -513,7 +527,8 @@ void player_morale::decay( const time_duration &ticks )
     invalidate();
 }
 
-void player_morale::display( int focus_eq, int pain_penalty, int sleepiness_penalty )
+void player_morale::display( int focus_eq, int pain_penalty, int sleepiness_penalty,
+                             Character &who )
 {
     /*calculates the percent contributions of the morale points,
      * must be done before anything else in this method
@@ -692,12 +707,23 @@ void player_morale::display( int focus_eq, int pain_penalty, int sleepiness_pena
     }
 
     std::vector<morale_line> bottom_lines;
-    bottom_lines.reserve( 3 ); // We need at least 3 lines.
+    bottom_lines.reserve( 6 ); // We need 6 lines for everything.
     bottom_lines.emplace_back( morale_line::separation_line {} );
     bottom_lines.emplace_back(
-        _( "Total morale:" ), get_level(),
+        // NOTE: We can't use morale_level() directly here, but must access it through the getter. Otherwise, we aren't accounting for possible modifiers.
+        _( "Total morale:" ), who.get_morale_level(),
         morale_line::number_format::signed_or_dash,
         morale_line::line_color::green_gray_red
+    );
+    std::string deaden_display_msg = _( "Deadened.  All morale modified to:" );
+    if( get_option<bool>( "CRAZY" ) ) {
+        //~This is for the crazy cataclysm mod, it is an off-beat display message for how "deadened" a Character's psyche is. It tracks whether the character "gives a shit".
+        deaden_display_msg = _( "Shits given:" );
+    }
+    bottom_lines.emplace_back(
+        deaden_display_msg, static_cast<int>( who.get_modifier_for_ALL_morale() * 100.0 ),
+        morale_line::number_format::percent,
+        morale_line::line_color::normal
     );
     if( pain_penalty != 0 ) {
         bottom_lines.emplace_back(
@@ -1006,8 +1032,8 @@ void player_morale::on_effect_int_change( const efftype_id &eid, int intensity,
 
 void player_morale::set_worn( const item &it, bool worn )
 {
-    const bool filthy_gear = it.has_flag( STATIC( flag_id( "FILTHY" ) ) );
-    const bool integrated = it.has_flag( STATIC( flag_id( "INTEGRATED" ) ) );
+    const bool filthy_gear = it.has_flag( json_flag_FILTHY );
+    const bool integrated = it.has_flag( json_flag_INTEGRATED );
     const int sign = worn ? 1 : -1;
 
     const auto update_body_part = [&]( body_part_data & bp_data ) {
@@ -1101,7 +1127,7 @@ void player_morale::update_bodytemp_penalty( const time_duration &ticks )
         add( morale_cold, -2 * to_turns<int>( ticks ), -std::abs( max_cold_penalty ), 1_minutes, 30_seconds,
              true );
     }
-    if( max_hot_penalty != 0 && !has_flag( STATIC( json_character_flag( "HEAT_IMMUNE" ) ) ) ) {
+    if( max_hot_penalty != 0 && !has_flag( json_flag_HEAT_IMMUNE ) ) {
         add( morale_hot, -2 * to_turns<int>( ticks ), -std::abs( max_hot_penalty ), 1_minutes, 30_seconds,
              true );
     }

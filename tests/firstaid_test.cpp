@@ -1,4 +1,3 @@
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -13,6 +12,7 @@
 #include "item_location.h"
 #include "itype.h"
 #include "map_helpers.h"
+#include "map_helpers_tests.h"
 #include "npc.h"
 #include "player_activity.h"
 #include "player_helpers.h"
@@ -51,7 +51,7 @@ TEST_CASE( "avatar_does_healing", "[activity][firstaid][avatar]" )
 {
     avatar &dummy = get_avatar();
     clear_avatar();
-    clear_map();
+    clear_map_without_vision();
     const bodypart_id right_arm( "arm_r" );
     npc &dunsel = spawn_npc( point_bub_ms( point::east ), "test_talker" );
     set_time( calendar::turn_zero + 12_hours );
@@ -106,7 +106,7 @@ TEST_CASE( "npc_does_healing", "[activity][firstaid][npc]" )
 {
     avatar &dummy = get_avatar();
     clear_avatar();
-    clear_map();
+    clear_map_without_vision();
     const bodypart_id right_arm( "arm_r" );
     npc &dunsel = spawn_npc( point_bub_ms( point::east ), "test_talker" );
     set_time( calendar::turn_zero + 12_hours );

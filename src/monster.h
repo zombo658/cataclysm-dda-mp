@@ -33,6 +33,7 @@ class JsonObject;
 class JsonOut;
 class effect_source;
 class item;
+class item_location;
 class map;
 enum class mon_trigger : int;
 enum class phase_id : int;
@@ -79,7 +80,7 @@ enum monster_horde_attraction {
 
 class monster : public Creature
 {
-        friend class editmap;
+        friend class editmap_ui;
     public:
         monster();
         explicit monster( const mtype_id &id );
@@ -207,7 +208,6 @@ class monster : public Creature
 
         void serialize( JsonOut &json ) const;
         void deserialize( const JsonObject &data );
-        void deserialize( const JsonObject &data, const tripoint_abs_sm &submap_loc );
 
         // Performs any necessary coordinate updates due to map shift.
         void shift( const point_rel_sm &sm_shift );
@@ -337,13 +337,15 @@ class monster : public Creature
         bool push_to( const tripoint_bub_ms &p, int boost, size_t depth );
 
         /** Returns innate monster bash skill, without calculating additional from helpers */
-        int bash_skill() const;
-        int bash_estimate() const;
+        std::map<damage_type_id, int> bash_skill() const;
+        std::map<damage_type_id, int> bash_estimate() const;
         /** Returns ability of monster and any cooperative helpers to
          * bash the designated target.  **/
-        int group_bash_skill( const tripoint_bub_ms &target );
+        std::map<damage_type_id, int> group_bash_skill( const tripoint_bub_ms &target );
 
-        void stumble();
+        void stumble_base( bool is_voluntary );
+        void stumble_voluntary();
+        void stumble_involuntary();
         void knock_back_to( const tripoint_bub_ms &to ) override;
 
         // Combat
@@ -422,6 +424,7 @@ class monster : public Creature
         float get_dodge_base() const override;
 
         float  get_dodge() const override;       // Natural dodge, or 0 if we're occupied
+        int blocks_left = 0; // Remaining blocks
         float  get_melee() const override; // For determining attack skill when awarding dodge practice.
         float  hit_roll() const override;  // For the purposes of comparing to player::dodge_roll()
         float  dodge_roll() const override;  // For the purposes of comparing to player::hit_roll()
@@ -472,7 +475,7 @@ class monster : public Creature
         void reset_stats() override;
 
         void die( map *here, Creature *killer ) override; //this is the die from Creature, it calls kill_mo
-        void drop_items_on_death( map *here, item *corpse );
+        void drop_items_on_death( map *here, item *corpse ) const;
         void spawn_dissectables_on_death( item *corpse ) const; //spawn dissectable CBMs into CORPSE pocket
         //spawn monster's inventory without killing it
         void generate_inventory( bool disableDrops = true );
@@ -509,6 +512,8 @@ class monster : public Creature
         void hear_sound( const tripoint_bub_ms &source, int vol, int distance, bool provocative );
 
         bool is_hallucination() const override;    // true if the monster isn't actually real
+        // light the monster gives off by itself, with enchantments
+        float luminance() const;
 
         bool is_electrical() const override;    // true if the monster produces electric radiation
 
@@ -553,9 +558,10 @@ class monster : public Creature
         // DEFINING VALUES
         int friendly = 0;
         int anger = 0;
-        int morale = 0;
+        int morale = 2;
     private:
         int amount_eaten = 0;
+        void recheck_fed_status();
     public:
         // Our faction (species, for most monsters)
         mfaction_id faction;
@@ -606,7 +612,7 @@ class monster : public Creature
          * This applies to robotic monsters that are spawned by invoking an item (e.g. turret),
          * and to reviving monsters that spawn from a corpse.
          */
-        void init_from_item( item &itm );
+        void init_from_item( item_location loc );
         /**
          * Do some cleanup and caching as monster is being unloaded from map.
          */
@@ -626,14 +632,14 @@ class monster : public Creature
         void process_trigger( mon_trigger trig, int amount );
         void process_trigger( mon_trigger trig, const std::function<int()> &amount_func );
 
-        int hp = 0;
+        int hp = 60;
         std::map<std::string, mon_special_attack, std::less<>> special_attacks;
         std::optional<tripoint_abs_ms> goal;
         bool dead = false;
         /** Normal upgrades **/
         int next_upgrade_time();
         bool upgrades = false;
-        int upgrade_time = 0;
+        int upgrade_time = -1;
         bool reproduces = false;
         std::optional<time_point> baby_timer;
         bool biosignatures = false;
@@ -672,9 +678,10 @@ class monster : public Creature
     protected:
         void store( JsonOut &json ) const;
         void load( const JsonObject &data );
-        void load( const JsonObject &data, const tripoint_abs_sm &submap_loc );
 
         void on_move( const tripoint_abs_ms &old_pos ) override;
+        void on_effect_int_change( const efftype_id &eid, int intensity,
+                                   const bodypart_id &bp ) override;
         /** Processes monster-specific effects of an effect. */
         void process_one_effect( effect &it, bool is_new ) override;
 };

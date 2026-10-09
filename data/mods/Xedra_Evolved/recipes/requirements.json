@@ -17,5 +17,17 @@
     "//": "Copy of tailoring_cotton_patchwork with gossamer subbed in for cotton",
     "qualities": [ { "id": "SEW", "level": 1 }, { "id": "FABRIC_CUT", "level": 1 } ],
     "components": [ [ [ "sheet_gossamer", 1 ], [ "sheet_gossamer_patchwork", 1 ] ], [ [ "filament", 5, "LIST" ] ] ]
+  },
+  {
+    "id": "data_core_install",
+    "type": "requirement",
+    "tools": [ [ "data_core_slots" ] ]
+  },
+  {
+    "id": "fey_smithing_tools",
+    "type": "requirement",
+    "//": "Copy of bronzesmithing_tools but requires non-iron hammering instead of hammering",
+    "qualities": [ { "id": "FEY_HAMMER", "level": 2 }, { "id": "ANVIL", "level": 2 } ],
+    "tools": [ [ [ "crucible", -1 ], [ "crucible_clay", -1 ] ] ]
   }
 ]

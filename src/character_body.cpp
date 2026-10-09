@@ -28,16 +28,15 @@
 #include "magic.h"
 #include "magic_enchantment.h"
 #include "math_parser_diag_value.h"
-#include "make_static.h"
 #include "map.h"
 #include "mapdata.h"
-#include "messages.h"
 #include "output.h"
 #include "overmapbuffer.h"
 #include "pimpl.h"
 #include "rng.h"
 #include "stomach.h"
 #include "string_formatter.h"
+#include "subbodypart.h"
 #include "translation.h"
 #include "translations.h"
 #include "type_id.h"
@@ -50,12 +49,14 @@
 #include "weather.h"
 #include "weather_gen.h"
 
-class item;
+static const addiction_id addiction_nicotine( "nicotine" );
 
 static const bionic_id bio_sleep_shutdown( "bio_sleep_shutdown" );
 
 static const character_modifier_id
 character_modifier_stamina_recovery_breathing_mod( "stamina_recovery_breathing_mod" );
+
+static const damage_type_id damage_heat( "heat" );
 
 static const efftype_id effect_adrenaline( "adrenaline" );
 static const efftype_id effect_bandaged( "bandaged" );
@@ -88,8 +89,6 @@ static const efftype_id effect_narcosis( "narcosis" );
 static const efftype_id effect_sleep( "sleep" );
 static const efftype_id effect_wet( "wet" );
 
-static const itype_id itype_rm13_armor_on( "rm13_armor_on" );
-
 static const json_character_flag json_flag_BARKY( "BARKY" );
 static const json_character_flag json_flag_CANNOT_CHANGE_TEMPERATURE( "CANNOT_CHANGE_TEMPERATURE" );
 static const json_character_flag json_flag_COLDBLOOD( "COLDBLOOD" );
@@ -98,6 +97,7 @@ static const json_character_flag json_flag_COLDBLOOD3( "COLDBLOOD3" );
 static const json_character_flag json_flag_ECTOTHERM( "ECTOTHERM" );
 static const json_character_flag json_flag_HEATSINK( "HEATSINK" );
 static const json_character_flag json_flag_HEAT_IMMUNE( "HEAT_IMMUNE" );
+static const json_character_flag json_flag_HUNGER_DISRUPTION( "HUNGER_DISRUPTION" );
 static const json_character_flag json_flag_IGNORE_TEMP( "IGNORE_TEMP" );
 static const json_character_flag json_flag_LIMB_LOWER( "LIMB_LOWER" );
 static const json_character_flag json_flag_NO_THIRST( "NO_THIRST" );
@@ -437,15 +437,14 @@ void Character::update_bodytemp()
     }
     const oter_id &cur_om_ter = overmap_buffer.ter( pos_abs_omt() );
     bool sheltered = g->is_sheltered( pos_bub() );
-    int bp_windpower = get_local_windpower( weather_man.windspeed + vehwindspeed, cur_om_ter,
-                                            pos_abs(), weather_man.winddirection, sheltered );
+    const int windpower = get_local_windpower( weather_man.windspeed + vehwindspeed, cur_om_ter,
+                          pos_abs(), weather_man.winddirection, sheltered );
     // Let's cache this not to check it for every bodyparts
     const bool has_bark = has_flag( json_flag_BARKY );
     const bool has_sleep = has_effect( effect_sleep );
     const bool has_sleep_state = has_sleep || in_sleep_state();
     const bool heat_immune = has_flag( json_flag_HEAT_IMMUNE );
-    const bool has_heatsink = has_flag( json_flag_HEATSINK ) || is_wearing( itype_rm13_armor_on ) ||
-                              heat_immune;
+    const bool has_heatsink = has_flag( json_flag_HEATSINK ) || heat_immune;
     const bool has_common_cold = has_effect( effect_common_cold );
     const std::pair<int, int> climate_control = climate_control_strength();
     const int climate_control_heat = climate_control.first;
@@ -502,10 +501,6 @@ void Character::update_bodytemp()
     const int radiation_blister_count = h_radiation > 44_C_delta ? static_cast<int>( std::sqrt(
                                             units::to_fahrenheit_delta( h_radiation - 44_C_delta ) ) ) : 0;
 
-    std::map<bodypart_id, std::vector<const item *>> clothing_map;
-    for( const bodypart_id &bp : get_all_body_parts() ) {
-        clothing_map.emplace( bp, std::vector<const item *>() );
-    }
     // fat insulates and increases total heat production of body, but it should have a diminishing effect.
     // at 5 over healthy bmi (obese), it is ~5 warmth, at 20 over healthy bmi (morbid obesity) it is ~12 warmth
     // effects start to kick in halfway through overweightness
@@ -513,7 +508,7 @@ void Character::update_bodytemp()
             ( get_bmi_fat() - 8.0f ) ) );
     std::map<bodypart_id, int> warmth_per_bp = worn.warmth( *this );
     std::map<bodypart_id, int> bonus_warmth_per_bp = bonus_item_warmth();
-    std::map<bodypart_id, int> wind_res_per_bp = get_wind_resistance( clothing_map );
+    std::map<bodypart_id, int> wind_res_per_bp = get_wind_resistance();
     // We might not use this at all, so leave it empty
     // If we do need to use it, we'll initialize it (once) there
     std::map<bodypart_id, int> fire_armor_per_bp;
@@ -537,8 +532,8 @@ void Character::update_bodytemp()
                 bonus_warmth_per_bp[bp];
         // WINDCHILL
 
-        bp_windpower = static_cast<int>( static_cast<float>( bp_windpower ) *
-                                         ( 1 - wind_res_per_bp[bp] / 100.0 ) );
+        const int bp_windpower = static_cast<int>( static_cast<float>( windpower ) *
+                                 ( 1 - wind_res_per_bp[bp] / 100.0 ) );
         // Calculate windchill
         units::temperature_delta windchill = get_local_windchill( player_local_temp,
                                              get_local_humidity( weather.humidity, get_weather().weather_id, sheltered ),
@@ -602,7 +597,7 @@ void Character::update_bodytemp()
             blister_count -= 20;
         }
         if( fire_armor_per_bp.empty() && blister_count > 0 ) {
-            fire_armor_per_bp = get_all_armor_type( STATIC( damage_type_id( "heat" ) ), clothing_map );
+            fire_armor_per_bp = get_all_armor_type( damage_heat );
         }
         if( blister_count - fire_armor_per_bp[bp] > 0 ) {
             add_effect( effect_blisters, 1_turns, bp );
@@ -753,28 +748,28 @@ void Character::update_bodytemp()
         // Warn the player if condition worsens
         if( temp_before > BODYTEMP_FREEZING && temp_after < BODYTEMP_FREEZING ) {
             //~ %s is bodypart
-            add_msg( m_warning, _( "You feel your %s beginning to go numb from the cold!" ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_warning, _( "You feel your %s beginning to go numb from the cold!" ),
+                               body_part_name( bp ) );
         } else if( temp_before > BODYTEMP_VERY_COLD && temp_after < BODYTEMP_VERY_COLD ) {
             //~ %s is bodypart
-            add_msg( m_warning, _( "You feel your %s getting very cold." ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_warning, _( "You feel your %s getting very cold." ),
+                               body_part_name( bp ) );
         } else if( temp_before > BODYTEMP_COLD && temp_after < BODYTEMP_COLD ) {
             //~ %s is bodypart
-            add_msg( m_warning, _( "You feel your %s getting chilly." ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_warning, _( "You feel your %s getting chilly." ),
+                               body_part_name( bp ) );
         } else if( temp_before < BODYTEMP_SCORCHING && temp_after > BODYTEMP_SCORCHING ) {
             //~ %s is bodypart
-            add_msg( m_bad, _( "You feel your %s getting red hot from the heat!" ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_bad, _( "You feel your %s getting red hot from the heat!" ),
+                               body_part_name( bp ) );
         } else if( temp_before < BODYTEMP_VERY_HOT && temp_after > BODYTEMP_VERY_HOT ) {
             //~ %s is bodypart
-            add_msg( m_warning, _( "You feel your %s getting very hot." ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_warning, _( "You feel your %s getting very hot." ),
+                               body_part_name( bp ) );
         } else if( temp_before < BODYTEMP_HOT && temp_after > BODYTEMP_HOT ) {
             //~ %s is bodypart
-            add_msg( m_warning, _( "You feel your %s getting warm." ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_warning, _( "You feel your %s getting warm." ),
+                               body_part_name( bp ) );
         }
 
         // Note: Numbers are based off of BODYTEMP at the top of weather.h
@@ -786,15 +781,16 @@ void Character::update_bodytemp()
         // AND you have frostbite, then that also prevents you from sleeping
         if( in_sleep_state() && !has_effect( effect_narcosis ) ) {
             if( bp == body_part_torso && temp_after <= BODYTEMP_COLD && calendar::once_every( 1_hours ) ) {
-                add_msg( m_warning, _( "You feel cold and shiver." ) );
+                add_msg_if_player( m_warning, _( "You feel cold and shiver." ) );
             }
             if( temp_after <= BODYTEMP_VERY_COLD &&
                 get_sleepiness() <= sleepiness_levels::DEAD_TIRED && !has_bionic( bio_sleep_shutdown ) ) {
                 if( bp == body_part_torso ) {
-                    add_msg( m_warning, _( "Your shivering prevents you from sleeping." ) );
+                    add_msg_if_player( m_warning, _( "Your shivering prevents you from sleeping." ) );
                     wake_up();
                 } else if( has_effect( effect_frostbite ) ) {
-                    add_msg( m_warning, _( "You are too cold.  Your frostbite prevents you from sleeping." ) );
+                    add_msg_if_player( m_warning,
+                                       _( "You are too cold.  Your frostbite prevents you from sleeping." ) );
                     wake_up();
                 }
             }
@@ -805,17 +801,18 @@ void Character::update_bodytemp()
         // But only if it can be a problem, no need to spam player with "wind chills your scorching body"
         if( conv_temp <= BODYTEMP_COLD && windchill < units::from_fahrenheit_delta( -10 ) &&
             one_in( 200 ) ) {
-            add_msg( m_bad, _( "The wind is making your %s feel quite cold." ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_bad, _( "The wind is making your %s feel quite cold." ),
+                               body_part_name( bp ) );
         } else if( conv_temp <= BODYTEMP_COLD && windchill < units::from_fahrenheit_delta( -20 ) &&
                    one_in( 100 ) ) {
-            add_msg( m_bad,
-                     _( "The wind is very strong; you should find some more wind-resistant clothing for your %s." ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_bad,
+                               _( "The wind is very strong; you should find some more wind-resistant clothing for your %s." ),
+                               body_part_name( bp ) );
         } else if( conv_temp <= BODYTEMP_COLD && windchill < units::from_fahrenheit_delta( -30 ) &&
                    one_in( 50 ) ) {
-            add_msg( m_bad, _( "Your clothing is not providing enough protection from the wind for your %s!" ),
-                     body_part_name( bp ) );
+            add_msg_if_player( m_bad,
+                               _( "Your clothing is not providing enough protection from the wind for your %s!" ),
+                               body_part_name( bp ) );
         }
     }
 }
@@ -874,8 +871,8 @@ void Character::update_frostbite( const bodypart_id &bp, const int FBwindPower,
                 mod_part_frostbite_timer( bp, 3 );
             }
             if( one_in( 100 ) && !has_effect( effect_frostbite, bp.id() ) ) {
-                add_msg( m_warning, _( "Your %s will be frostnipped in the next few hours." ),
-                         body_part_name( bp ) );
+                add_msg_if_player( m_warning, _( "Your %s will be frostnipped in the next few hours." ),
+                                   body_part_name( bp ) );
             }
             // Medium risk zones
         } else if( temp_after < BODYTEMP_COLD &&
@@ -887,8 +884,8 @@ void Character::update_frostbite( const bodypart_id &bp, const int FBwindPower,
                        -4 * Ftemperature + 3 * FBwindPower - 170 >= 0 ) ) ) {
             mod_part_frostbite_timer( bp, 8 );
             if( one_in( 100 ) && intense < 2 ) {
-                add_msg( m_warning, _( "Your %s will be frostbitten within the hour!" ),
-                         body_part_name( bp ) );
+                add_msg_if_player( m_warning, _( "Your %s will be frostbitten within the hour!" ),
+                                   body_part_name( bp ) );
             }
             // High risk zones
         } else if( temp_after < BODYTEMP_COLD &&
@@ -897,8 +894,8 @@ void Character::update_frostbite( const bodypart_id &bp, const int FBwindPower,
                      ( Ftemperature < -35 && FBwindPower >= 10 ) ) ) {
             mod_part_frostbite_timer( bp, 72 );
             if( one_in( 100 ) && intense < 2 ) {
-                add_msg( m_warning, _( "Your %s will be frostbitten any minute now!" ),
-                         body_part_name( bp ) );
+                add_msg_if_player( m_warning, _( "Your %s will be frostbitten any minute now!" ),
+                                   body_part_name( bp ) );
             }
             // Risk free, so reduce frostbite timer
         } else {
@@ -1086,6 +1083,9 @@ void Character::update_stomach( const time_point &from, const time_point &to )
         } else {
             hunger_effect = effect_hunger_very_hungry;
         }
+    }
+    if( has_effect_with_flag( json_flag_HUNGER_DISRUPTION ) ) {
+        hunger_effect = effect_hunger_blank;
     }
     if( !has_effect( hunger_effect ) ) {
         remove_effect( effect_hunger_engorged );
@@ -1398,7 +1398,7 @@ void Character::update_heartrate_index()
     if( get_effect_dur( effect_cig ) > 0_turns ) {
         //Nicotine-induced tachycardia
         if( get_effect_dur( effect_cig ) >
-            10_minutes * ( addiction_level( STATIC( addiction_id( "nicotine" ) ) ) + 1 ) ) {
+            10_minutes * ( addiction_level( addiction_nicotine ) + 1 ) ) {
             hr_nicotine_mod = 0.2f;
         } else {
             hr_nicotine_mod = 0.1f;
@@ -1575,4 +1575,18 @@ void Character::update_respiration_rate()
     const int effect_mod = get_respiration_effect_mod();
     constexpr float RESP_EFFECT_INT_TO_FLOAT_MULT = 0.0001f;
     respiration_rate = 1.0f + effect_mod * RESP_EFFECT_INT_TO_FLOAT_MULT;
+}
+
+bool Character::has_sub_bodypart( const sub_bodypart_id &sbp ) const
+{
+    bool character_has_sub_part = false;
+    for( const bodypart_id &part : get_all_body_parts() ) {
+        for( const sub_bodypart_id sub_part : part->sub_parts ) {
+            if( sub_part == sbp ) {
+                character_has_sub_part = true;
+                break;
+            }
+        }
+    }
+    return character_has_sub_part;
 }

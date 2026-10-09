@@ -1,16 +1,18 @@
 #include <algorithm>
+#include <climits>
 #include <functional>
 #include <list>
 #include <optional>
 #include <vector>
 
+#include "avatar.h"
 #include "calendar.h"
 #include "cata_catch.h"
 #include "cata_utility.h"
 #include "character.h"
 #include "character_attire.h"
 #include "coordinates.h"
-#include "inventory.h"
+#include "enums.h"
 #include "item.h"
 #include "item_location.h"
 #include "itype.h"
@@ -28,9 +30,11 @@
 #include "vpart_position.h"
 
 static const itype_id itype_backpack( "backpack" );
-static const itype_id itype_bone( "bone" );
 static const itype_id itype_bottle_plastic( "bottle_plastic" );
+static const itype_id itype_butane( "butane" );
+static const itype_id itype_debug_backpack( "debug_backpack" );
 static const itype_id itype_flask_hip( "flask_hip" );
+static const itype_id itype_lighter( "lighter" );
 static const itype_id itype_null( "null" );
 static const itype_id itype_water( "water" );
 
@@ -40,7 +44,7 @@ template <typename T>
 static int count_items( const T &src, const itype_id &id )
 {
     int n = 0;
-    src.visit_items( [&n, &id]( const item * e, item * ) {
+    src.visit_items( [&n, &id]( const item_location & e ) {
         n += ( e->typeId() == id );
         return VisitResponse::NEXT;
     } );
@@ -62,7 +66,7 @@ TEST_CASE( "visitable_remove", "[visitable]" )
     Character &p = get_player_character();
     p.worn.wear_item( p, item( itype_backpack ), false, false );
     p.wear_item( item( itype_backpack ) ); // so we don't drop anything
-    clear_map();
+    clear_map_without_vision();
     map &here = get_map();
 
     // check if all tiles within radius are loaded within current submap and passable
@@ -205,7 +209,7 @@ TEST_CASE( "visitable_remove", "[visitable]" )
 
                         AND_THEN( "the remaining water is contained by the currently wielded bottle" ) {
                             REQUIRE( p.get_wielded_item()->num_item_stacks() == 1 );
-                            REQUIRE( p.get_wielded_item()->has_item_with( has_liquid_filter ) );
+                            REQUIRE( p.get_wielded_item().has_item_with( has_liquid_filter ) );
                         }
                     }
                 }
@@ -247,7 +251,7 @@ TEST_CASE( "visitable_remove", "[visitable]" )
                 THEN( "all of the bottles remain in the players possession" ) {
                     REQUIRE( count_items( p, container_id ) == 5 );
                     AND_THEN( "all of the bottles are now empty" ) {
-                        REQUIRE( p.visit_items( [&container_id]( const item * e, item * ) {
+                        REQUIRE( p.visit_items( [&container_id]( const item_location & e ) {
                             return ( e->typeId() != container_id || e->empty() ) ?
                                    VisitResponse::NEXT : VisitResponse::ABORT;
                         } ) != VisitResponse::ABORT );
@@ -428,7 +432,8 @@ TEST_CASE( "visitable_remove", "[visitable]" )
         std::vector<tripoint_bub_ms> tiles = closest_points_first( p.pos_bub(), 1 );
         tiles.erase( tiles.begin() ); // player tile
         tripoint_bub_ms veh = tripoint_bub_ms( random_entry( tiles ) );
-        REQUIRE( here.add_vehicle( vehicle_prototype_shopping_cart, veh, 0_degrees, 0, 0 ) );
+        REQUIRE( here.add_vehicle( vehicle_prototype_shopping_cart, veh, 0_degrees, 0,
+                                   veh_spawn_status::UNDAMAGED ) );
 
         REQUIRE( std::count_if( tiles.begin(), tiles.end(), [&here]( const tripoint_bub_ms & e ) {
             return static_cast<bool>( here.veh_at( e ) );
@@ -506,15 +511,14 @@ TEST_CASE( "visitable_remove", "[visitable]" )
     }
 }
 
-TEST_CASE( "inventory_remove_invalidates_binning_cache", "[visitable][inventory]" )
+TEST_CASE( "charges_of_in_tools_counts_ammo_loaded_in_a_tool", "[visitable]" )
 {
-    inventory inv;
-    std::list<item> items = { item( itype_bone ) };
-    inv += items;
-    CHECK( inv.amount_of( itype_bone ) == 1 );
-    inv.remove_items_with( return_true<item> );
-    CHECK( inv.size() == 0 );
-    // The following used to be a heap use-after-free due to a caching bug.
-    // Now should be safe.
-    CHECK( inv.amount_of( itype_bone ) == 0 );
+    clear_avatar();
+    Character &guy = get_avatar();
+    guy.worn.wear_item( guy, item( itype_debug_backpack ), false, false );
+    guy.i_add( tool_with_ammo( itype_lighter, 10 ) );
+    REQUIRE( guy.has_amount( itype_lighter, 1 ) );
+
+    CHECK( guy.charges_of( itype_butane, INT_MAX, return_true<item>, nullptr, true ) == 10 );
+    CHECK( guy.charges_of( itype_butane, INT_MAX, return_true<item>, nullptr, false ) == 0 );
 }

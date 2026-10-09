@@ -2,21 +2,12 @@
   {
     "type": "mutation",
     "id": "PrepNet",
-    "name": { "str": "PrepNet Tag", "//~": "NO_I18N" },
+    "name": { "str": "PrepNet Tag" },
     "points": 0,
     "valid": false,
-    "description": { "str": "NPC trait that makes monsters see it as a PrepNet.  It is a bug if you have it.", "//~": "NO_I18N" },
+    "description": "NPC trait that makes monsters see it as a PrepNet.  It is a bug if you have it.",
     "player_display": false,
     "threshold": true
-  },
-  {
-    "type": "mutation",
-    "id": "BKGR_EARTH",
-    "name": { "str": "Earthling" },
-    "points": 0,
-    "description": "Your mannerisms and accent are a dead giveaway that you were raised on Earth.  Whatever your thoughts about the homeworld might be, the simple fact that you can call it home is likely to affect relationships with people liable to care about such things.",
-    "valid": false,
-    "purifiable": false
   },
   {
     "type": "mutation",
@@ -44,16 +35,6 @@
     "name": { "str": "MD" },
     "points": 0,
     "description": "You're a doctor who went out to space and has somehow ended up out on the frontier in the Salus System.  At least out here you get a lot more hands on life or death work compared to the core UICA worlds.",
-    "valid": false,
-    "purifiable": false,
-    "profession": true
-  },
-  {
-    "type": "mutation",
-    "id": "PROF_REDISCOVERED_TRIBAL",
-    "name": { "str": "Rediscovered Tribal" },
-    "points": 0,
-    "description": "Some worlds maintained human life but lost technologically advanced civilization.  As these worlds get rediscovered some organizations leave the worlds to develop, while others see a source of cheap labor.  Whether you snuck onto a ship or were Shanghaied onto one you've somehow ended up on the hell that is Salus IV.  At least you have some experience surviving outside of what these spacers call 'civilization'.",
     "valid": false,
     "purifiable": false,
     "profession": true
@@ -136,7 +117,7 @@
   {
     "type": "mutation",
     "id": "MIGO_THRESH_RAD_FLUSH",
-    "name": { "str": "Radiation Flush " },
+    "name": { "str": "Radiation Flush" },
     "points": 5,
     "description": "You can instruct your immune system to flush out radioactive particles at an enviable speed.",
     "prereqs": [ "MIGO_RAD_ADAPTION" ],
@@ -846,18 +827,6 @@
   },
   {
     "type": "mutation",
-    "id": "AFS_BRUTAL_STRENGTH",
-    "name": { "str": "Brutal Strength" },
-    "description": "Genetic tampering made your body incredibly strong.  Strength + 7.",
-    "points": 0,
-    "valid": false,
-    "purifiable": false,
-    "cancels": [ "STR_UP" ],
-    "profession": true,
-    "enchantments": [ { "values": [ { "value": "STRENGTH", "add": 7 } ] } ]
-  },
-  {
-    "type": "mutation",
     "id": "AFS_CRYOADAPTATION",
     "name": { "str": "Cryoadaptation" },
     "description": "An experimental cryosleep procedure has permanently altered your body, allowing you to better tolerate cold temperatures.",
@@ -881,7 +850,7 @@
     "type": "mutation",
     "id": "LEG_TENTACLES",
     "copy-from": "LEG_TENTACLES",
-    "extend": { "allow_soft_gear": true }
+    "allow_soft_gear": true
   },
   {
     "type": "mutation",
@@ -899,30 +868,6 @@
     "type": "mutation",
     "id": "NIGHTVISION",
     "copy-from": "NIGHTVISION",
-    "extend": { "category": [ "MIGO" ] }
-  },
-  {
-    "type": "mutation",
-    "id": "DISRESISTANT",
-    "copy-from": "DISRESISTANT",
-    "extend": { "category": [ "MIGO" ] }
-  },
-  {
-    "type": "mutation",
-    "id": "DISIMMUNE",
-    "copy-from": "DISIMMUNE",
-    "extend": { "category": [ "MIGO" ] }
-  },
-  {
-    "type": "mutation",
-    "id": "INFRESIST",
-    "copy-from": "INFRESIST",
-    "extend": { "category": [ "MIGO" ] }
-  },
-  {
-    "type": "mutation",
-    "id": "INFIMMUNE",
-    "copy-from": "INFIMMUNE",
     "extend": { "category": [ "MIGO" ] }
   },
   {

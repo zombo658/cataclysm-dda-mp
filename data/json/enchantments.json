@@ -44,6 +44,21 @@
     ]
   },
   {
+    "id": "ench_rm13_environmental",
+    "type": "enchantment",
+    "name": { "str": "Environmental Protection" },
+    "description": "You are wearing equipment that protects you from caustic threats and fire.",
+    "has": "WORN",
+    "condition": "ACTIVE",
+    "mutations": [ "RM13_ENVIRONMENTAL" ]
+  },
+  {
+    "type": "enchantment",
+    "id": "ENCH_DEBUG_FREE_DODGES",
+    "condition": "ALWAYS",
+    "values": [ { "value": "FREE_DODGES", "add": 10 } ]
+  },
+  {
     "type": "enchantment",
     "id": "SQUEAKY_ANKLES",
     "condition": "ALWAYS",
@@ -240,6 +255,15 @@
     "values": [ { "value": "CLIMATE_CONTROL_HEAT", "add": 50 }, { "value": "CLIMATE_CONTROL_CHILL", "add": 50 } ]
   },
   {
+    "id": "ench_string_dimension_biosuit",
+    "name": { "str": "Passive Temperature Regulation" },
+    "description": "You are wearing equipment that moderates temperature change in your core.  It's can't protect against extreme conditions, but it helps.",
+    "type": "enchantment",
+    "has": "WORN",
+    "condition": "ALWAYS",
+    "values": [ { "value": "CLIMATE_CONTROL_HEAT", "add": 25 }, { "value": "CLIMATE_CONTROL_CHILL", "add": 25 } ]
+  },
+  {
     "id": "ench_climate_control_all_permanent",
     "name": { "str": "Complete Climate Control" },
     "description": "You are wearing equipment that helps handle harsh climates.",
@@ -293,21 +317,13 @@
     "values": [ { "value": "FOOTSTEP_NOISE", "multiply": -0.67 } ]
   },
   {
-    "id": "ench_wings_insect_active",
-    "type": "enchantment",
-    "name": { "str": "Insect Wings (Buzzing)" },
-    "description": "Your rapidly buzzing wings propel you with extra speed.",
-    "condition": "ALWAYS",
-    "values": [ { "value": "REGEN_STAMINA", "add": -110 }, { "value": "MOVE_COST", "multiply": -0.25 } ]
-  },
-  {
     "id": "ench_quadruped_movement_full",
     "//": "For quadrupeds with all four of their animal limbs.  We should avoid giving this to every animal mutant, as it helps keep lines distinct.",
     "type": "enchantment",
     "condition": {
       "and": [
         { "u_has_flag": "QUADRUPED_CROUCH" },
-        { "u_has_any_trait": [ "THRESH_RABBIT", "THRESH_BEAST", "THRESH_LUPINE", "THRESH_FELINE" ] },
+        { "u_has_flag": "THRESH_ALLOWS_QUADRUPEDAL_MOVEMENT" },
         { "u_has_flag": "QUADRUPED_RUN" },
         { "or": [ { "u_has_move_mode": "crouch" }, { "u_has_move_mode": "run" } ] },
         { "not": "u_can_drop_weapon" }
@@ -323,7 +339,7 @@
     "condition": {
       "and": [
         { "u_has_flag": "QUADRUPED_CROUCH" },
-        { "u_has_any_trait": [ "THRESH_RABBIT", "THRESH_BEAST", "THRESH_LUPINE", "THRESH_FELINE" ] },
+        { "u_has_flag": "THRESH_ALLOWS_QUADRUPEDAL_MOVEMENT" },
         { "not": { "u_has_flag": "QUADRUPED_RUN" } },
         { "u_has_move_mode": "crouch" },
         { "not": "u_can_drop_weapon" }
@@ -331,6 +347,14 @@
     },
     "values": [ { "value": "MOVE_COST", "multiply": -0.5 } ],
     "ench_effects": [ { "effect": "quadruped_half", "intensity": 1 } ]
+  },
+  {
+    "id": "ench_dextrous_paws_need_practice",
+    "type": "enchantment",
+    "condition": {
+      "and": [ { "u_has_any_trait": [ "PAWS_LITTLE", "PAWS_RAT" ] }, { "math": [ "u_progress_dextrous_paws_usage < 10" ] } ]
+    },
+    "ench_effects": [ { "effect": "effect_dextrous_paws_no_practice_manipulation_penalty", "intensity": 1 } ]
   },
   {
     "id": "combat_exoskeleton_inactive",
@@ -379,5 +403,80 @@
       { "value": "CARRY_WEIGHT", "multiply": 0.4 },
       { "value": "CLIMATE_CONTROL_CHILL", "add": 50 }
     ]
+  },
+  {
+    "id": "resonance_suit_active",
+    "type": "enchantment",
+    "name": { "str": "Anomaly protection" },
+    "description": "The electronics in your suit are protecting you from some types of extra-dimensional interference.",
+    "has": "WORN",
+    "condition": "ACTIVE",
+    "values": [ { "value": "ARTIFACT_RESONANCE", "add": -750 } ]
+  },
+  {
+    "id": "AR_targeting_system",
+    "type": "enchantment",
+    "name": { "str": "Adaptive targeting system" },
+    "description": "Your AR HUD includes an adaptive targeting system, making firearm target acquisition easier.",
+    "has": "WORN",
+    "condition": "ACTIVE",
+    "values": [ { "value": "WEAPON_DISPERSION", "add": -0.25 } ]
+  },
+  {
+    "id": "robofac_XM_LEG_on",
+    "type": "enchantment",
+    "name": { "str": "Active XM-LEG" },
+    "description": "Your active wearable leg cybernetics are helping you move quicker and easier over flat ground and obstacles, and are increasing the amount of weight you can carry.",
+    "has": "WORN",
+    "condition": "ACTIVE",
+    "values": [
+      { "value": "MOVEMENT_EXERTION_MODIFIER", "multiply": -0.2 },
+      { "value": "MOVE_COST", "multiply": -0.15 },
+      { "value": "MOVECOST_OBSTACLE_MOD", "multiply": -0.5 },
+      { "value": "CARRY_WEIGHT", "add": 20000 }
+    ]
+  },
+  {
+    "id": "robofac_XM_ARM_on",
+    "type": "enchantment",
+    "name": { "str": "Active XM-ARM" },
+    "description": "Your active wearable arm cybernetics are improving your weapon handling and throwing ability.",
+    "has": "WORN",
+    "condition": "ACTIVE",
+    "values": [
+      { "value": "RECOIL_MODIFIER", "multiply": -0.3 },
+      { "value": "WEAPON_DISPERSION", "multiply": -0.1 },
+      { "value": "THROW_STR", "multiply": 0.5 },
+      { "value": "THROW_DAMAGE", "multiply": 0.25 }
+    ]
+  },
+  {
+    "id": "robofac_XM_BACK_on",
+    "type": "enchantment",
+    "name": { "str": "Active XM-BACK" },
+    "description": "Your active wearable torso cybernetics are <color_white>slightly</color> increasing your carry weight and improving your ability to throw and absorb recoil.",
+    "has": "WORN",
+    "condition": "ACTIVE",
+    "values": [
+      { "value": "CARRY_WEIGHT", "multiply": 0.35 },
+      { "value": "RECOIL_MODIFIER", "multiply": -0.05 },
+      { "value": "WEAPON_DISPERSION", "multiply": -0.05 },
+      { "value": "THROW_STR", "multiply": 0.05 },
+      { "value": "THROW_DAMAGE", "multiply": 0.05 }
+    ]
+  },
+  {
+    "//": "This is overwritten in MoM",
+    "id": "ench_mom_incense_nether_attunement",
+    "type": "enchantment",
+    "has": "HELD",
+    "condition": "ALWAYS"
+  },
+  {
+    "//": "This is overwritten in MoM",
+    "id": "ench_mom_incense_nether_attunement_major",
+    "type": "enchantment",
+    "has": "HELD",
+    "condition": "ALWAYS"
   }
 ]

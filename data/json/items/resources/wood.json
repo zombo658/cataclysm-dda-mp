@@ -40,8 +40,8 @@
     "id": "stick",
     "symbol": "/",
     "color": "brown",
-    "name": { "str": "stick" },
-    "description": "A respectable length of wood, just big enough to wrap your hand around.  Makes a decent melee weapon.",
+    "name": { "str": "straight stick" },
+    "description": "A respectable length of wood, just big enough to wrap your hand around.  Relatively straight and makes a decent melee weapon.",
     "material": [ "wood" ],
     "techniques": [ "WBLOCK_1" ],
     "flags": [ "TRADER_AVOID", "FIREWOOD" ],
@@ -52,6 +52,14 @@
     "to_hit": { "grip": "solid", "length": "long", "surface": "any", "balance": "neutral" },
     "category": "spare_parts",
     "melee_damage": { "bash": 14 }
+  },
+  {
+    "type": "ITEM",
+    "id": "stick_common",
+    "copy-from": "stick",
+    "name": { "str": "stick" },
+    "description": "A respectable length of wood, just big enough to wrap your hand around.  It's a little bent, and that makes it useless for most things you'd want to make with it.  Also makes it a little harder to hit things with it.",
+    "relative": { "melee_damage": { "bash": -1 } }
   },
   {
     "type": "ITEM",
@@ -191,6 +199,24 @@
     "price_postapoc": "10 cent",
     "flags": [ "FRAGILE_MELEE", "FIREWOOD" ],
     "melee_damage": { "bash": 16 }
+  },
+  {
+    "type": "ITEM",
+    "id": "firewood",
+    "name": { "str": "piece of firewood", "str_pl": "pieces of firewood" },
+    "description": "A part of a log rough-chopped into firewood, burned for heat for longer than recorded history.",
+    "category": "spare_parts",
+    "weight": "2847 g",
+    "color": "brown",
+    "symbol": "/",
+    "material": [ "wood" ],
+    "volume": "4821 ml",
+    "longest_side": "61 cm",
+    "to_hit": { "grip": "none", "length": "long", "surface": "any", "balance": "uneven" },
+    "price": "5 USD",
+    "price_postapoc": "5 cent",
+    "flags": [ "FIREWOOD" ],
+    "melee_damage": { "bash": 13 }
   },
   {
     "type": "ITEM",

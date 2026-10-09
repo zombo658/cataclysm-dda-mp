@@ -49,7 +49,7 @@
   {
     "id": "spell_components_cable_whip",
     "type": "requirement",
-    "components": [ [ [ "cable", 15 ] ] ]
+    "components": [ [ [ "cable", 5 ] ] ]
   },
   {
     "id": "spell_components_hedge_ward_off_rain",
@@ -69,7 +69,7 @@
   {
     "id": "spell_components_hedge_witchlight",
     "type": "requirement",
-    "components": [ [ [ "lamp_oil", 4 ], [ "cooking_oil", 4 ], [ "cooking_oil2", 4 ], [ "crude_lamp_oil", 4 ] ] ]
+    "components": [ [ [ "lamp_oil", 4 ], [ "cooking_oil", 4 ], [ "crude_lamp_oil", 4 ] ] ]
   },
   {
     "id": "spell_components_hedge_see_fae_necklace",
@@ -94,7 +94,7 @@
   {
     "id": "spell_components_hedge_light_fire",
     "type": "requirement",
-    "components": [ [ [ "ash", 12 ], [ "corpse_ash", 12 ] ] ]
+    "components": [ [ [ "ash", 1 ], [ "corpse_ash", 1 ] ] ]
   },
   {
     "id": "spell_components_hedge_make_plants_grow",
@@ -135,7 +135,7 @@
   {
     "id": "spell_components_hedge_nether_eye_paste",
     "type": "requirement",
-    "components": [ [ [ "corpse_ash", 50 ] ], [ [ "edible_blood", 1, "LIST" ], [ "blood_tainted", 1 ] ], [ [ "wild_herbs", 20 ] ] ],
+    "components": [ [ [ "corpse_ash", 5 ] ], [ [ "edible_blood", 1, "LIST" ], [ "blood_tainted", 1 ] ], [ [ "wild_herbs", 20 ] ] ],
     "qualities": [ { "id": "FINE_GRIND", "level": 1 } ]
   },
   {
@@ -269,5 +269,32 @@
       ]
     ],
     "components": [ [ [ "paper", 3 ] ] ]
+  },
+  {
+    "id": "spell_components_hedge_extinguish_fire_spell",
+    "type": "requirement",
+    "tools": [ [ [ "spellbook_hedge_book_of_raziel", -1 ] ] ],
+    "components": [ [ [ "ash", 2 ] ] ]
+  },
+  {
+    "id": "spell_components_hedge_chicken_sacrifice_make_rain",
+    "type": "requirement",
+    "qualities": [ { "id": "CUT", "level": 1 } ],
+    "components": [
+      [ [ "milk_standard_raw_fresh", 6, "LIST" ] ],
+      [ [ "honey_bottled", 3 ], [ "honey_glassed", 1 ] ],
+      [ [ "wild_herbs", 20 ] ]
+    ]
+  },
+  {
+    "id": "spell_components_hedge_raziel_amulet_protection",
+    "type": "requirement",
+    "qualities": [ { "id": "CUT_FINE", "level": 1 } ],
+    "components": [
+      [ [ "worthy_wine", 3, "LIST" ] ],
+      [ [ "eggs_bird", 1, "LIST" ] ],
+      [ [ "apple", 1 ], [ "lemon", 1 ] ],
+      [ [ "copper_necklace", 1 ] ]
+    ]
   }
 ]

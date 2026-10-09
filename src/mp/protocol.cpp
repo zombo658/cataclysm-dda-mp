@@ -201,6 +201,7 @@ void handle_line( const std::string &line )
 
 void handle_line_from( const std::string &line, const bool from_queue )
 {
+    const reading_network reading;
     std::string cmd_name;
     std::string dir_name;
     // For "item".
@@ -461,6 +462,23 @@ void handle_line_from( const std::string &line, const bool from_queue )
 }
 
 } // namespace
+
+static int network_reads = 0;
+
+bool ignore_item_uids()
+{
+    return network_reads > 0 || remote_actions::client_active();
+}
+
+reading_network::reading_network()
+{
+    network_reads++;
+}
+
+reading_network::~reading_network()
+{
+    network_reads--;
+}
 
 void send_welcome()
 {

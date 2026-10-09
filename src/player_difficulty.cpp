@@ -9,9 +9,9 @@
 #include "bodypart.h"
 #include "character.h"
 #include "character_martial_arts.h"
-#include "inventory.h"
+#include "color.h"
+#include "debug.h"
 #include "item.h"
-#include "itype.h"
 #include "mutation.h"
 #include "npc_opinion.h"
 #include "options.h"
@@ -43,16 +43,23 @@ player_difficulty::player_difficulty()
     average = npc();
     reset_npc( average );
     average.prof = &profession_unemployed.obj();
+    ratings = {
+        {rating_category::Defense, OP_level::Underpowered},
+        {rating_category::Combat, OP_level::Underpowered},
+        {rating_category::Genetics, OP_level::Underpowered},
+        {rating_category::Expertise, OP_level::Underpowered},
+        {rating_category::Social, OP_level::Underpowered},
+    };
 }
 
 // creates an npc with similar stats to an avatar for testing
 void player_difficulty::npc_from_avatar( const avatar &u, npc &dummy )
 {
     // set stats
-    dummy.str_max = u.str_max;
-    dummy.dex_max = u.dex_max;
-    dummy.int_max = u.int_max;
-    dummy.per_max = u.per_max;
+    dummy.set_str_base( u.get_str_base() );
+    dummy.set_dex_base( u.get_dex_base() );
+    dummy.set_int_base( u.get_int_base() );
+    dummy.set_per_base( u.get_per_base() );
 
     // set skills
     for( const auto &t : u.get_all_skills() ) {
@@ -80,7 +87,6 @@ void player_difficulty::reset_npc( Character &dummy )
     // delete all worn items.
     dummy.clear_worn();
     dummy.calc_encumbrance();
-    dummy.inv->clear();
     dummy.remove_weapon();
     dummy.clear_mutations();
 
@@ -125,14 +131,114 @@ void player_difficulty::reset_npc( Character &dummy )
     dummy.clear_effects();
 
     // Make stats nominal.
-    dummy.str_max = 8;
-    dummy.dex_max = 8;
-    dummy.int_max = 8;
-    dummy.per_max = 8;
+    dummy.set_str_base( 8 );
+    dummy.set_dex_base( 8 );
+    dummy.set_int_base( 8 );
+    dummy.set_per_base( 8 );
     dummy.set_str_bonus( 0 );
     dummy.set_dex_bonus( 0 );
     dummy.set_int_bonus( 0 );
     dummy.set_per_bonus( 0 );
+}
+
+namespace io
+{
+
+template<>
+std::string enum_to_string<rating_category>( rating_category data )
+{
+    switch( data ) {
+        case rating_category::Defense:
+            //~This is a rating category when creating a new custom character.
+            return _( "Defense" );
+        case rating_category::Combat:
+            //~This is a rating category when creating a new custom character.
+            return _( "Offense" );
+        case rating_category::Genetics:
+            //~This is a rating category when creating a new custom character.
+            return _( "Lifestyle" );
+        case rating_category::Expertise:
+            //~This is a rating category when creating a new custom character.
+            return _( "Knowledge" );
+        case rating_category::Social:
+            //~This is a rating category when creating a new custom character.
+            return _( "Social" );
+        default:
+            break;
+    }
+    cata_fatal( "Invalid rating_category" );
+}
+
+template<>
+std::string enum_to_string<OP_level>( OP_level data )
+{
+    switch( data ) {
+        case OP_level::Underpowered:
+            //~This is a description for a rating category when creating a new custom character.
+            return _( "underpowered" );
+        case OP_level::Weak:
+            //~This is a description for a rating category when creating a new custom character.
+            return _( "weak" );
+        case OP_level::Average:
+            //~This is a description for a rating category when creating a new custom character.
+            return _( "average" );
+        case OP_level::Strong:
+            //~This is a description for a rating category when creating a new custom character.
+            return _( "strong" );
+        case OP_level::Powerful:
+            //~This is a description for a rating category when creating a new custom character.
+            return _( "powerful" );
+        case OP_level::Overpowered:
+            //~This is a description for a rating category when creating a new custom character.
+            return _( "overpowered" );
+        default:
+            break;
+    }
+    cata_fatal( "Invalid OP_level" );
+}
+
+} // namespace io
+
+std::string player_difficulty::format_text_for( OP_level overpowered, float per )
+{
+    std::string output;
+
+    switch( overpowered ) {
+        case OP_level::Underpowered:
+        case OP_level::Weak:
+            output = colorize( io::enum_to_string( overpowered ), c_light_red );
+            break;
+        case OP_level::Average:
+            output = colorize( io::enum_to_string( overpowered ), c_yellow );
+            break;
+        case OP_level::Strong:
+        case OP_level::Powerful:
+        case OP_level::Overpowered:
+        default:
+            output = colorize( io::enum_to_string( overpowered ), c_light_green );
+    }
+
+    if( per > -9999.9f && get_option<bool>( "DEBUG_DIFFICULTIES" ) ) {
+        output = string_format( "%2f: %s", per, output );
+    }
+    return output;
+}
+
+static OP_level level_for( float percent_band, float per )
+{
+    if( per < -1 * percent_band ) {
+        return OP_level::Underpowered;
+    } else if( per < 0.0f ) {
+        return OP_level::Weak;
+    } else if( per < percent_band ) {
+        return OP_level::Average;
+    } else if( per < 2 * percent_band ) {
+        return OP_level::Strong;
+    } else if( per < 3 * percent_band ) {
+        return OP_level::Powerful;
+    }
+
+    return OP_level::Overpowered;
 }
 
 double player_difficulty::calc_armor_value( const Character &u )
@@ -162,7 +268,7 @@ double player_difficulty::calc_armor_value( const Character &u )
     return armor_val;
 }
 
-std::string player_difficulty::get_defense_difficulty( const Character &u ) const
+std::pair<OP_level, std::string> player_difficulty::get_defense_difficulty( const Character &u )
 {
     // figure out how survivable the character is.
 
@@ -198,28 +304,9 @@ std::string player_difficulty::get_defense_difficulty( const Character &u ) cons
     // calculate dodge
     per += dodge * ( u.get_dodge() - average.get_dodge() ) / average.get_dodge();
 
-    return format_output( percent_band, per );
-}
-
-// ABSOLUTELY disgusting fake gun assembly for character creation
-static int default_max_ammo_for_gun( const item &maybe_weapon )
-{
-    int pretend_ammo = 0;
-    if( maybe_weapon.is_gun() ) {
-        itype_id ammo_id = itype_id::NULL_ID();
-        if( maybe_weapon.ammo_default().is_null() ) {
-            ammo_id = item( maybe_weapon.magazine_default() ).ammo_default();
-        } else {
-            ammo_id = maybe_weapon.ammo_default();
-        }
-        const ammotype &type_of_ammo = item::find_type( ammo_id )->ammo->type;
-        if( maybe_weapon.magazine_integral() ) {
-            pretend_ammo = maybe_weapon.ammo_capacity( type_of_ammo );
-        } else {
-            pretend_ammo = item( maybe_weapon.magazine_default() ).ammo_capacity( type_of_ammo );
-        }
-    }
-    return pretend_ammo;
+    OP_level rating = level_for( percent_band, per );
+    ratings[rating_category::Defense] = rating;
+    return {rating, format_text_for( rating, per ) };
 }
 
 double player_difficulty::calc_dps_value( const Character &u )
@@ -239,28 +326,28 @@ double player_difficulty::calc_dps_value( const Character &u )
     double baseline = 0.0;
 
     for( item &weapon : weapons_to_test ) {
-        const double new_weapon_value = u.weapon_value( weapon, default_max_ammo_for_gun( weapon ), true );
+        const double new_weapon_value = u.evaluate_weapon( weapon, true );
         baseline = std::max( baseline, new_weapon_value );
     }
 
     // check any other items the character has on them
     if( u.prof ) {
         for( const item &i : u.prof->items( true, std::vector<trait_id>() ) ) {
-            baseline = std::max( baseline, u.weapon_value( i, default_max_ammo_for_gun( i ), true ) );
+            baseline = std::max( baseline, u.evaluate_weapon( i, true ) );
         }
     }
 
     return baseline;
 }
 
-std::string player_difficulty::get_combat_difficulty( const Character &u ) const
+std::pair<OP_level, std::string> player_difficulty::get_combat_difficulty( const Character &u )
 {
     // figure out how good the player is at combat.
     // get the best dps of a basic civilian with 3 scavengable weapons
     // compare to the dps of this character with 1 of those 3 or their best weapon they spawn with
 
     // the percent margin between result bands
-    const float percent_band = 0.2f;
+    const float percent_band = 0.5f;
 
     // dps should be multiplied by speed which is a multiplier
     double npc_dps = calc_dps_value( average ) * average.get_speed();
@@ -268,10 +355,12 @@ std::string player_difficulty::get_combat_difficulty( const Character &u ) const
 
     float per = ( player_dps - npc_dps ) / npc_dps;
 
-    return format_output( percent_band, per );
+    OP_level rating = level_for( percent_band, per );
+    ratings[rating_category::Combat] = rating;
+    return {rating, format_text_for( rating, per ) };
 }
 
-std::string player_difficulty::get_genetics_difficulty( const Character &u ) const
+std::pair<OP_level, std::string> player_difficulty::get_genetics_difficulty( const Character &u )
 {
     // figure out how genetically advantaged the character is
 
@@ -284,11 +373,11 @@ std::string player_difficulty::get_genetics_difficulty( const Character &u ) con
     // the percent margin between result bands
     const float percent_band = 2.5f;
 
-    int genetics_total = u.str_max + u.dex_max + u.per_max + u.int_max;
-    genetics_total += std::max( 0, u.str_max - HIGH_STAT ) * high_stat_penalty;
-    genetics_total += std::max( 0, u.dex_max - HIGH_STAT ) * high_stat_penalty;
-    genetics_total += std::max( 0, u.per_max - HIGH_STAT ) * high_stat_penalty;
-    genetics_total += std::max( 0, u.int_max - HIGH_STAT ) * high_stat_penalty;
+    int genetics_total = u.get_str_base() + u.get_dex_base() + u.get_per_base() + u.get_int_base();
+    genetics_total += std::max( 0, u.get_str_base() - HIGH_STAT ) * high_stat_penalty;
+    genetics_total += std::max( 0, u.get_dex_base() - HIGH_STAT ) * high_stat_penalty;
+    genetics_total += std::max( 0, u.get_per_base() - HIGH_STAT ) * high_stat_penalty;
+    genetics_total += std::max( 0, u.get_int_base() - HIGH_STAT ) * high_stat_penalty;
 
     // each trait effects genetics slightly as well
     for( const trait_id &trait : u.get_mutations( true ) ) {
@@ -304,7 +393,9 @@ std::string player_difficulty::get_genetics_difficulty( const Character &u ) con
     // 0 to 1 percent band
     float per = static_cast<float>( genetics_total - ( average_stats - percent_band ) );
 
-    return format_output( percent_band, per );
+    OP_level rating = level_for( percent_band, per );
+    ratings[rating_category::Genetics] = rating;
+    return {rating, format_text_for( rating, per ) };
 }
 
 static int get_character_skill_value( const Character &u )
@@ -321,7 +412,7 @@ static int get_character_skill_value( const Character &u )
     return character_skills;
 }
 
-std::string player_difficulty::get_expertise_difficulty( const Character &u ) const
+std::pair<OP_level, std::string> player_difficulty::get_expertise_difficulty( const Character &u )
 {
     const float percent_band = 0.6f;
 
@@ -359,7 +450,9 @@ std::string player_difficulty::get_expertise_difficulty( const Character &u ) co
     per += learn_weighting * static_cast<float>( u.adjust_for_focus( 100 ) -
             average.adjust_for_focus( 100 ) ) / static_cast<float>( average.adjust_for_focus( 100 ) );
 
-    return format_output( percent_band, per );
+    OP_level rating = level_for( percent_band, per );
+    ratings[rating_category::Expertise] = rating;
+    return {rating, format_text_for( rating, per ) };
 }
 
 int player_difficulty::calc_social_value( const Character &u, const npc &compare )
@@ -379,7 +472,7 @@ int player_difficulty::calc_social_value( const Character &u, const npc &compare
     return social + lying + oppinion;
 }
 
-std::string player_difficulty::get_social_difficulty( const Character &u ) const
+std::pair<OP_level, std::string> player_difficulty::get_social_difficulty( const Character &u )
 {
     // compare the characters social value to an average npc
     int player_val = calc_social_value( u, average );
@@ -390,30 +483,9 @@ std::string player_difficulty::get_social_difficulty( const Character &u ) const
     float per = static_cast<float>( player_val - average_val ) / static_cast<float>
                 ( average_val );
 
-    return format_output( percent_band, per );
-}
-
-std::string player_difficulty::format_output( float percent_band, float per )
-{
-    std::string output;
-    if( per < -1 * percent_band ) {
-        output = string_format( "<color_%s>%s</color>", "light_red", _( "underpowered" ) );
-    } else if( per < 0.0f ) {
-        output = string_format( "<color_%s>%s</color>", "light_red", _( "weak" ) );
-    } else if( per < percent_band ) {
-        output = string_format( "<color_%s>%s</color>", "yellow", _( "average" ) );
-    } else if( per < 2 * percent_band ) {
-        output = string_format( "<color_%s>%s</color>", "light_green", _( "strong" ) );
-    } else if( per < 3 * percent_band ) {
-        output = string_format( "<color_%s>%s</color>", "light_green", _( "powerful" ) );
-    } else {
-        output = string_format( "<color_%s>%s</color>", "light_green", _( "overpowered" ) );
-    }
-
-    if( get_option<bool>( "DEBUG_DIFFICULTIES" ) ) {
-        output = string_format( "%2f: %s", per, output );
-    }
-    return output;
+    OP_level rating = level_for( percent_band, per );
+    ratings[rating_category::Social] = rating;
+    return {rating, format_text_for( rating, per ) };
 }
 
 const npc &player_difficulty::get_average_npc()
@@ -421,31 +493,38 @@ const npc &player_difficulty::get_average_npc()
     return average;
 }
 
-std::string player_difficulty::difficulty_to_string( const avatar &u ) const
+std::map<rating_category, OP_level> player_difficulty::get_ratings() const
+{
+    return ratings;
+}
+
+std::string player_difficulty::difficulty_to_string( const avatar &u )
 {
     // make a faux avatar that can have the effects of creation applied to it
     npc n = npc();
     reset_npc( n );
     npc_from_avatar( u, n );
 
-    std::string genetics = get_genetics_difficulty( n );
-    std::string socials = get_social_difficulty( n );
-    std::string expertise = get_expertise_difficulty( n );
-    std::string combat = get_combat_difficulty( n );
-    std::string defense = get_defense_difficulty( n );
+    std::string genetics = get_genetics_difficulty( n ).second;
+    std::string socials = get_social_difficulty( n ).second;
+    std::string expertise = get_expertise_difficulty( n ).second;
+    std::string combat = get_combat_difficulty( n ).second;
+    std::string defense = get_defense_difficulty( n ).second;
 
     if( get_option<bool>( "SCREEN_READER_MODE" ) ) {
-        // Put value before label to ensure the screen reader reads the label when the value changes
-        return string_format( "%s | %s %s, %s %s, %s %s, %s %s, %s %s",
-                              _( "Summary" ),
+        //~ Used in new charactor screen
+        //~ Put value before label to ensure the screen reader reads the label when the value changes
+        return string_format( _( "%s | %s %s, %s %s, %s %s, %s %s, %s %s" ),
+                              _( "Rating:" ),
                               genetics, _( "Lifestyle" ),
                               expertise, _( "Knowledge" ),
                               combat, _( "Offense" ),
                               defense, _( "Defense" ),
                               socials, _( "Social" ) );
     } else {
-        return string_format( "%s |  %s: %s  %s: %s  %s: %s  %s: %s  %s: %s",
-                              _( "Summary" ),
+        //~ Used in new charactor screen
+        return string_format( _( "%s |  %s: %s  %s: %s  %s: %s  %s: %s  %s: %s" ),
+                              _( "Rating:" ),
                               _( "Lifestyle" ), genetics,
                               _( "Knowledge" ), expertise,
                               _( "Offense" ), combat,

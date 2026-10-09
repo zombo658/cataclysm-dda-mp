@@ -2,6 +2,7 @@
 #ifndef CATA_SRC_UI_MANAGER_H
 #define CATA_SRC_UI_MANAGER_H
 
+#include <stddef.h>
 #include <functional>
 #include <memory>
 
@@ -231,6 +232,9 @@ class ui_adaptor
         static void redraw();
         static void redraw_invalidated();
         static void screen_resized();
+        // mark all UI for resize and redraw without drawing, for callers inside a frame
+        static void mark_all_for_resize();
+        static size_t ui_stack_size();
     private:
         static void invalidation_consistency_and_optimization();
 

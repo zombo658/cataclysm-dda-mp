@@ -15,7 +15,6 @@
 #include "item.h"
 #include "item_factory.h"
 #include "itype.h"
-#include "make_static.h"
 #include "output.h"
 #include "recipe.h"
 #include "recipe_dictionary.h"
@@ -27,6 +26,8 @@
 #include "type_id.h"
 #include "units.h"
 #include "value_ptr.h"
+
+static const flag_id json_flag_NUTRIENT_OVERRIDE( "NUTRIENT_OVERRIDE" );
 
 static const item_category_id item_category_drugs( "drugs" );
 static const item_category_id item_category_mutagen( "mutagen" );
@@ -75,9 +76,12 @@ static const std::vector<vitamin_id> mutagen_vit_list{ vitamin_mutagen, vitamin_
 
 static const std::vector<itype_id> marloss_food{ itype_marloss_berry, itype_marloss_gel, itype_marloss_seed };
 
+namespace
+{
 struct all_stats {
     statistics<int> calories;
 };
+} // namespace
 
 // given a list of components, adds all the calories together
 static int comp_calories( const std::vector<item_comp> &components )
@@ -218,7 +222,7 @@ TEST_CASE( "recipe_permutations", "[recipe]" )
         item temp( recipe_obj.result() );
         const bool is_food = temp.is_food();
         const bool should_make_sense = temp.made_of_any_food_components();
-        const bool has_override = temp.has_flag( STATIC( flag_id( "NUTRIENT_OVERRIDE" ) ) );
+        const bool has_override = temp.has_flag( json_flag_NUTRIENT_OVERRIDE );
         if( is_food && should_make_sense && !has_override ) {
             // Collection of kcal values of all ingredient permutations
             all_stats mystats = recipe_permutations( recipe_obj.simple_requirements().get_components(),

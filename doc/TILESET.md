@@ -1,13 +1,62 @@
 # TILESETS
 
-*Content*
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+*Contents*
 
 - [Terminology](#terminology)
+      - [Tileset](#tileset)
+      - [Sprite](#sprite)
+      - [Root name](#root-name)
+      - [Tile](#tile)
+      - [Tilesheet](#tilesheet)
+      - [`tile_config.json` file](#tile_configjson-file)
+      - [`tileset.txt` file](#tilesettxt-file)
+      - [Tile entry](#tile-entry)
+      - [Compositing Tileset](#compositing-tileset)
+      - [`compose.py` script](#composepy-script)
+      - [Tilesheet directory](#tilesheet-directory)
+      - [`tile_info.json` file](#tile_infojson-file)
 - [JSON Schema](#json-schema)
+  - [Tile entry](#tile-entry-1)
+    - [Hardcoded IDs](#hardcoded-ids)
+    - [Complex IDs](#complex-ids)
+    - [Optional gendered variants](#optional-gendered-variants)
+    - [Optional seasonal variants](#optional-seasonal-variants)
+    - [Optional transparent variant](#optional-transparent-variant)
+    - [Item/Mutation variant sprite variants](#itemmutation-variant-sprite-variants)
+    - [Rotations](#rotations)
+    - [Random variations](#random-variations)
+    - [Multitile](#multitile)
+    - [Connecting terrain and furniture - `connect_groups` and `connects_to`](#connecting-terrain-and-furniture---connect_groups-and-connects_to)
+    - [Auto-rotating terrain and furniture - `rotates_to`](#auto-rotating-terrain-and-furniture---rotates_to)
+      - [Windows and doors](#windows-and-doors)
+      - [Unconnected `rotates_to`](#unconnected-rotates_to)
+      - [Full `rotates_to` template](#full-rotates_to-template)
+    - [Multiple tile entries in the same file](#multiple-tile-entries-in-the-same-file)
+    - [Graffitis](#graffitis)
+      - [Graffitis for specific texts](#graffitis-for-specific-texts)
+  - [`tile_info.json`](#tile_infojson)
+  - [Expansion tile entries](#expansion-tile-entries)
+  - [layering.json](#layeringjson)
+      - [Items](#items)
+      - [Fields](#fields)
 - [`compose.py`](#composepy)
+  - [Usage](#usage)
 - [pyvips](#pyvips)
+  - [Windows](#windows)
+    - [Python and pyvips](#python-and-pyvips)
+    - [libvips](#libvips)
+    - [Launching scripts](#launching-scripts)
+  - [Linux](#linux)
+  - [MacOS](#macos)
 - [Including tilesets with the distribution](#including-tilesets-with-the-distribution)
 - [Legacy tilesets](#legacy-tilesets)
+  - [tilesheets](#tilesheets)
+  - [`tile_config`](#tile_config)
+  - [decompose.py](#decomposepy)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 >[!NOTE]
 >If you are looking for specific tileset information or style guides, try the tileset repository:
@@ -134,6 +183,29 @@ e.g. for an item with the id `item1`, with variants `orange` and `pear`, to spec
 #### Rotations
 
 You can add `"rotates": true` to allow sprites to be rotated by the game automatically. Alternatively, `fg` and `bg` can be an array of 2 or 4 pre-rotated variants, like `"fg": ["mon_dog_left", "mon_dog_right"]` or `"bg": ["t_wall_n", "t_wall_e", "t_wall_s", "t_wall_w"]`.
+
+#### Smooth lighting anchor
+
+In the "Smooth filtered" lighting mode, each sprite takes its light from one of two places:
+
+- `"ground"`: each pixel takes the light of the ground under it.  Use this for flat things: floors, rugs, puddles and debris.
+- `"base"`: the whole sprite takes the light from one line across its own tile, the same all the way up.  Use this for things that rise out of the ground: walls, trees, creatures and furniture.
+
+The game picks the anchor from what the sprite shows:
+
+- Terrain with the `WALL`, `CONNECT_WITH_WALL`, `TREE`, `SHRUB`, `DOOR` or `WINDOW` flag takes `"base"`.  Other terrain takes `"ground"`.
+- Furniture, monsters and vehicle parts take `"base"`.  This includes flat ones, such as rugs and vehicle floors.  Give those `"ground"` when their light should follow the floor.
+- Other sprites take `"base"` when they rise above their tile by more than an eighth of the tile width.  Otherwise they take `"ground"`.
+
+To override the game's choice for one tile entry, add `"light_anchor"`:
+
+```json
+{ "id": "f_rug", "fg": "f_rug", "light_anchor": "ground" }
+```
+
+An entry in `additional_tiles` takes the anchor of its parent entry, unless it has its own `"light_anchor"`.
+
+Only "Smooth filtered" reads this field.  "Smooth" lights each sprite from its own tile.  Classic lighting shades whole tiles.  Neither uses an anchor.  A value other than `"ground"` or `"base"` is a load error.
 
 #### Random variations
 
@@ -296,8 +368,6 @@ The full multitile would be defined like this:
 > Note that the same sprites are used here for `edge` and `end_piece`.
 
 The order of sprites ensures that the multitile also works with only the first 4 instead of all 8 sprites. It also makes it compatible with tilesets that don't use the `rotates_to` feature.
-
-Doors and windows work out of the box without modifying terrain definitions, as the required group `INDOORFLOOR` is implied by the flags `WINDOW`, `DOOR` (active) and `INDOORS` (target/passive).
 
 ##### Unconnected `rotates_to`
 

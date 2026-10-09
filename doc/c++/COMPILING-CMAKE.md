@@ -1,3 +1,28 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+*Contents*
+
+- [Compiling CMAKE](#compiling-cmake)
+- [Disclaimer](#disclaimer)
+- [Contents](#contents)
+- [Prerequisites](#prerequisites)
+- [Build Environment](#build-environment)
+  - [UNIX Environment](#unix-environment)
+  - [Windows Environment (MSYS2)](#windows-environment-msys2)
+- [CMake Build](#cmake-build)
+  - [CMake Build for MSYS2 (MinGW)](#cmake-build-for-msys2-mingw)
+  - [CMake Build for Visual Studio / MSBuild](#cmake-build-for-visual-studio--msbuild)
+    - [Get the tools](#get-the-tools)
+    - [Get the required libraries](#get-the-required-libraries)
+    - [Unpack the archives with the libraries](#unpack-the-archives-with-the-libraries)
+    - [Make a build directory and run CMake's configuration step](#make-a-build-directory-and-run-cmakes-configuration-step)
+    - [Build!](#build)
+- [Build Options](#build-options)
+  - [CMake-specific options](#cmake-specific-options)
+  - [CataclysmDDA-specific options](#cataclysmdda-specific-options)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Compiling CMAKE
 # Disclaimer
 
@@ -35,19 +60,19 @@ You'll need to have these libraries and their development headers installed in o
 * Curses
   * `ncurses`
 * Tiles
-  * `SDL`                       >= 2.0.0
-  * `SDL_image`                 >= 2.0.0
+  * `SDL`                       >= 3.4.0 (enforced by the build)
+  * `SDL_image`                 3.4.4 tested
     * `jpeg`
     * `png`
     * `tiff`
     * `jbig`
     * `LZMA`
     * `zstd`
-  * `SDL_ttf`                   >= 2.0.0
+  * `SDL_ttf`                   3.2.2 tested
     * `freetype`
     * `harfbuzz`
 * Sound
-  * `SDL_mixer`                 >= 2.0.0
+  * `SDL_mixer`                 3.2.4 tested
     * `modplug`
     * `fluidsynth`
     * `vorbisfile`      
@@ -72,7 +97,7 @@ Obtain the packages listed above with your system package manager.
 
 ## Windows Environment (MSYS2)
 
-Please refer to `COMPILING-MSYS.md`
+Please refer to [`COMPILING-MSYS.md`](COMPILING-MSYS.md)
 
    **NOTE**: If you're trying to test with Jetbrains CLion, point to the CMake version in the msys32/mingw32 path instead of using the built in. This will let CMake detect the installed packages.
 
@@ -117,7 +142,7 @@ $ cmake-gui ..
 
 ## CMake Build for MSYS2 (MinGW)
 
-1. Follow [`COMPILING-MSYS.md`](https://github.com/CleverRaven/Cataclysm-DDA/blob/master/doc/COMPILING/COMPILING-MSYS.md)
+1. Follow [`COMPILING-MSYS.md`](COMPILING-MSYS.md)
 
 2. Run
 ```
@@ -139,10 +164,12 @@ At the moment only a limited combination of options is supported (tiles only, no
 
 ### Get the required libraries
 
-* `SDL2` - <https://www.libsdl.org/download-2.0.php> (you need the "(Visual C++ 32/64-bit)" version; same below)
-* `SDL2_ttf` - <https://www.libsdl.org/projects/SDL_ttf/>
-* `SDL2_image` - <https://www.libsdl.org/projects/SDL_image/>
-* `SDL2_mixer` (optional, for sound support) - <https://www.libsdl.org/projects/SDL_mixer/>
+* `SDL3` - <https://github.com/libsdl-org/SDL/releases> (you need the "devel-VC" version; same below)
+* `SDL3_ttf` - <https://github.com/libsdl-org/SDL_ttf/releases>
+* `SDL3_image` - <https://github.com/libsdl-org/SDL_image/releases>
+* `SDL3_mixer` (optional, for sound support) - <https://github.com/libsdl-org/SDL_mixer/releases>
+
+SDL3 >= 3.4.0 is required; the GPU shader path uses APIs added in that release.
 * Unsupported (and unused in the following instructions) optional libs:
   *  `gettext`/`libintl` - <http://gnuwin32.sourceforge.net/packages/gettext.htm>
   * `ncurses` - ???
@@ -152,13 +179,13 @@ At the moment only a limited combination of options is supported (tiles only, no
 Open the Windows command line (or powershell) and set the environment variables to point to the libs above as follows (adjusting the paths as appropriate):
 
 ```
-> set SDL2DIR=C:\path\to\SDL2-devel-2.0.9-VC
-> set SDL2TTFDIR=C:\path\to\SDL2_ttf-devel-2.0.15-VC
-> set SDL2IMAGEDIR=C:\path\to\SDL2_image-devel-2.0.4-VC
-> set SDL2MIXERDIR=C:\path\to\SDL2_mixer-devel-2.0.4-VC
+> set CMAKE_PREFIX_PATH=C:\path\to\SDL3-devel-VC;C:\path\to\SDL3_ttf-devel-VC;C:\path\to\SDL3_image-devel-VC;C:\path\to\SDL3_mixer-devel-VC
 ```
 
-(for powershell the syntax is `$env:SDL2DIR="C:\path\to\SDL2-devel-2.0.9-VC"`).
+(for powershell the syntax is `$env:CMAKE_PREFIX_PATH="C:\path\to\SDL3-devel-VC;C:\path\to\SDL3_ttf-devel-VC;C:\path\to\SDL3_image-devel-VC;C:\path\to\SDL3_mixer-devel-VC"`).
+
+SDL3 ships CMake config packages, so `find_package` locates each library from
+`CMAKE_PREFIX_PATH`; there are no per-library environment variables.
 
 ### Make a build directory and run CMake's configuration step
 

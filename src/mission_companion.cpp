@@ -20,7 +20,6 @@
 #include "bodypart.h"
 #include "calendar.h"
 #include "cata_assert.h"
-#include "cata_utility.h"
 #include "catacharset.h"
 #include "character.h"
 #include "character_id.h"
@@ -37,10 +36,12 @@
 #include "faction_camp.h"
 #include "flexbuffer_json.h"
 #include "game.h"
+#include "horde_entity.h"
+#include "horde_map.h"
 #include "input_context.h"
-#include "inventory.h"
 #include "item.h"
 #include "item_group.h"
+#include "item_location.h"
 #include "itype.h"
 #include "json.h"
 #include "map.h"
@@ -58,6 +59,7 @@
 #include "overmap.h"
 #include "overmapbuffer.h"
 #include "point.h"
+#include "ret_val.h"
 #include "rng.h"
 #include "skill.h"
 #include "string_formatter.h"
@@ -165,17 +167,16 @@ static const std::string omt_ranch_camp_63 = "ranch_camp_63";
 static const std::string return_ally_question_string =
     "\n\nDo you wish to bring your allies back into your party?";
 
-//  Legacy faction camp mission strings used to translate tasks in progress when upgrading.
-static const std::string camp_upgrade_npc_string = "_faction_upgrade_camp";
-static const std::string camp_upgrade_expansion_npc_string = "_faction_upgrade_exp_";
-
 static const std::string caravan_commune_center_job_assign_parameter = "Assign";
 static const std::string caravan_commune_center_job_active_parameter = "Active";
 
+namespace
+{
 struct miss_data {
     std::string serialize_id;  // Serialized string for enum
     translation action;        // Optional extended UI description of task for return.
 };
+} // namespace
 namespace io
 {
 
@@ -426,137 +427,8 @@ void mission_id::deserialize( const JsonValue &val )
         obj.read( "parameters", parameters );
         obj.read( "mapgen_args", mapgen_args );
         obj.read( "dir", dir );
-    } else if( val.test_string() ) {
-        // Legacy values are stored as a string where the pieces need to be
-        // parsed out.  Replaced during 0.G.
-        std::string str = val.get_string();
-        size_t id_size = str.length();
-
-        if( id_size == 0 ) {
-            return;
-        }
-
-        for( const auto &direction : base_camps::all_directions ) {
-            if( string_ends_with( str, direction.second.id ) ) {
-                dir = direction.first;
-                id_size = str.length() - direction.second.id.length();
-                break;
-            }
-        }
-
-        std::string st = str.substr( 0, id_size );
-
-        for( int i = No_Mission + 1; i <= Camp_Harvest; i++ ) {
-            if( st.length() >= miss_info[i].serialize_id.length() &&
-                st.substr( 0, miss_info[i].serialize_id.length() ) == miss_info[i].serialize_id ) {
-                if( st.length() == miss_info[i].serialize_id.length() ) {
-                    id = static_cast<mission_kind>( i );
-                    return;
-                } else {
-                    id = static_cast<mission_kind>( i );
-                    parameters = st.substr( miss_info[i].serialize_id.length() );
-                    return;
-                }
-            }
-        }
-
-        // Even older legacy definition matching (replaced during 0.F)
-        if( str == "_scavenging_patrol" ) {
-            id = Scavenging_Patrol_Job;
-        } else if( str == "_scavenging_raid" ) {
-            id = Scavenging_Raid_Job;
-        } else if( str == "_labor" ) {
-            id = Menial_Job;
-        } else if( str == "_carpenter" ) {
-            id = Carpentry_Job;
-        } else if( str == "_forage" ) {
-            id = Forage_Job;
-        } else if( str == "_commune_refugee_caravan" ) {
-            id = Caravan_Commune_Center_Job;
-        }
-        //  The farm field actions do not result in npc missions
-
-        else if( string_ends_with( str, camp_upgrade_npc_string ) ) {  //  blueprint + id
-            id = Camp_Upgrade;
-            parameters = str.substr( 0, str.length() - camp_upgrade_npc_string.length() );
-            dir = base_camps::base_dir;
-        }  //  Camp_Emergency_Recall is an immediate action, and so isn't serialized
-
-        else if( st == "_faction_camp_crafting_" ) { //  id + dir
-            id = Camp_Crafting;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_gathering" ) {
-            id = Camp_Gather_Materials;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_firewood" ) {
-            id = Camp_Collect_Firewood;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_menial" ) {
-            id = Camp_Menial;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_field" ) {
-            id = Camp_Survey_Field;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_expansion" ) {
-            id = Camp_Survey_Expansion;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_cut_log" ) {
-            id = Camp_Cut_Logs;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_clearcut" ) {
-            id = Camp_Clearcut;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_hide_site" ) {
-            id = Camp_Setup_Hide_Site;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_hide_trans" ) {
-            id = Camp_Relay_Hide_Site;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_foraging" ) {
-            id = Camp_Foraging;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_trapping" ) {
-            id = Camp_Trapping;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_hunting" ) {
-            id = Camp_Hunting;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_om_fortifications" ) {
-            //  This legacy mission version hides the blueprint as a mission role rather than a string component
-            id = Camp_OM_Fortifications;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_recruit_0" ) {
-            id = Camp_Recruiting;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_scout_0" ) {
-            id = Camp_Scouting;
-            dir = base_camps::base_dir;
-        } else if( str == "_faction_camp_combat_0" ) {
-            id = Camp_Combat_Patrol;
-            dir = base_camps::base_dir;
-        } else if( id_size >= camp_upgrade_expansion_npc_string.length() &&
-                   st.substr( id_size - camp_upgrade_expansion_npc_string.length() ) ==
-                   camp_upgrade_expansion_npc_string ) { // blueprint + id + dir
-            id = Camp_Upgrade;
-            parameters = st.substr( 0, id_size - camp_upgrade_expansion_npc_string.length() );
-        } else if( st == "_faction_exp_kitchen_cooking_" ||   // id + dir
-                   st == "_faction_exp_blacksmith_crafting_" ||
-                   st == "_faction_exp_farm_crafting_" ) {
-            id = Camp_Crafting;
-        } else if( st == "_faction_exp_plow_" ) {             // id + dir
-            id = Camp_Plow;
-        } else if( st == "_faction_exp_plant_" ) {            // id + dir
-            id = Camp_Plant;
-        } else if( st == "_faction_exp_harvest_" ) {          // id + dir
-            id = Camp_Harvest;
-        }
-
-        if( id == No_Mission ) {
-            debugmsg(
-                "Unrecognized npc mission id string encountered: '%s'", str );
-        }
     } else {
-        debugmsg( "Mission id in JSON should be either a string or object, but was neither" );
+        debugmsg( "Mission id in JSON should be an object" );
     }
 }
 
@@ -1319,7 +1191,7 @@ npc_ptr talk_function::individual_mission( const tripoint_abs_omt &omt_pos,
 
     //Ensure we have someone to give equipment to before we lose it
     for( item *i : equipment ) {
-        comp->companion_mission_inv.add_item( *i );
+        comp->companion_mission_inv.insert( *i );
         if( item::count_by_charges( i->typeId() ) ) {
             comp->as_character()->use_charges( i->typeId(), i->charges );
         } else {
@@ -1421,7 +1293,7 @@ void talk_function::caravan_return( npc &p, const std::string &dest, const missi
             popup( _( "A bandit party approaches the caravan in the open!" ) );
             force_on_force( caravan_party, "caravan", bandit_party, "band", 1 );
         } else if( one_in( 3 ) ) {
-            popup( _( "A bandit party attacks the caravan while it it's camped!" ) );
+            popup( _( "A bandit party attacks the caravan while it's camped!" ) );
             force_on_force( caravan_party, "caravan", bandit_party, "band", 2 );
         } else {
             popup( _( "The caravan walks into a bandit ambush!" ) );
@@ -1433,7 +1305,7 @@ void talk_function::caravan_return( npc &p, const std::string &dest, const missi
     for( const auto &elem : caravan_party ) {
         //Scrub temporary party members and the dead
         if( elem->get_part_hp_cur( bodypart_id( "torso" ) ) == 0 && elem->has_companion_mission() ) {
-            overmap_buffer.remove_npc( comp->getID() );
+            overmap_buffer.remove_npc( elem->getID() );
             merch_amount += ( time / 600 ) * 4;
         } else if( elem->has_companion_mission() ) {
             merch_amount += ( time / 600 ) * 7;
@@ -1529,7 +1401,7 @@ int talk_function::combat_score( const std::vector< monster * > &group )
     int score = 0;
     for( monster * const &elem : group ) {
         if( elem->get_hp() > 0 ) {
-            score += elem->type->difficulty;
+            score += elem->type->get_total_difficulty();
         }
     }
     return score;
@@ -1546,16 +1418,13 @@ npc_ptr talk_function::temp_npc( const string_id<npc_template> &type )
 void talk_function::field_plant( npc &p, const std::string &place )
 {
     Character &player_character = get_player_character();
-    if( !warm_enough_to_plant( player_character.pos_bub() ) ) {
-        popup( _( "It is too cold to plant anything now." ) );
-        return;
-    }
-    std::vector<item *> seed_inv = player_character.cache_get_items_with( "is_seed", &item::is_seed,
-    []( const item & itm ) {
-        return itm.typeId() != itype_marloss_seed && itm.typeId() != itype_fungal_seeds;
+    std::vector<item_location> seed_inv = player_character.cache_get_items_with( "is_seed",
+                                          &item::is_seed,
+    []( const item_location & itm ) {
+        return itm->typeId() != itype_marloss_seed && itm->typeId() != itype_fungal_seeds;
     } );
     if( seed_inv.empty() ) {
-        popup( _( "You have no seeds to plant!" ) );
+        popup( _( "You have no seeds to plant." ) );
         return;
     }
 
@@ -1564,7 +1433,7 @@ void talk_function::field_plant( npc &p, const std::string &place )
 
     std::vector<itype_id> seed_types;
     std::vector<std::string> seed_names;
-    for( item *&seed : seed_inv ) {
+    for( item_location &seed : seed_inv ) {
         if( std::find( seed_types.begin(), seed_types.end(), seed->typeId() ) == seed_types.end() ) {
             seed_types.push_back( seed->typeId() );
             seed_names.push_back( seed->tname() );
@@ -1578,7 +1447,12 @@ void talk_function::field_plant( npc &p, const std::string &place )
         return;
     }
 
-    const auto &seed_id = seed_types[seed_index];
+    const itype_id &seed_id = seed_types[seed_index];
+    ret_val<void>can_plant = warm_enough_to_plant( player_character.pos_bub(), seed_id );
+    if( !can_plant.success() ) {
+        popup( can_plant.c_str() );
+        return;
+    }
     if( item::count_by_charges( seed_id ) ) {
         free_seeds = player_character.charges_of( seed_id );
     } else {
@@ -2248,25 +2122,27 @@ bool talk_function::companion_om_combat_check( const std::vector<npc_ptr> &group
         //return true;
     }
 
-    tripoint_abs_sm sm_tgt = project_to<coords::sm>( om_tgt );
-
     tinymap target_bay;
     target_bay.load( om_tgt, false );
     std::vector< monster * > monsters_around;
     for( int x = 0; x < 2; x++ ) {
         for( int y = 0; y < 2; y++ ) {
-            tripoint_abs_sm sm = sm_tgt + point( x, y );
             point_abs_om omp;
-            tripoint_om_sm local_sm;
-            std::tie( omp, local_sm ) = project_remain<coords::om>( sm );
+            tripoint_om_omt local_omt;
+            std::tie( omp, local_omt ) = project_remain<coords::om>( om_tgt );
             overmap &omi = overmap_buffer.get( omp );
 
-            auto monster_bucket = omi.monster_map.equal_range( local_sm );
-            std::for_each( monster_bucket.first,
-            monster_bucket.second, [&]( std::pair<const tripoint_om_sm, monster> &monster_entry ) {
-                monster &this_monster = monster_entry.second;
-                monsters_around.push_back( &this_monster );
-            } );
+            // TODO: Interact with dormant horde monsters as well?
+            for( std::unordered_map<tripoint_abs_ms, horde_entity> *bucket :
+                 omi.hordes.entity_group_at( local_omt ) ) {
+                for( std::pair<const tripoint_abs_ms, horde_entity> &monster_entry : *bucket ) {
+                    // TODO: figure out hwat to do if this involves lightweight horde entities?
+                    if( monster_entry.second.monster_data ) {
+                        monster &this_monster = *monster_entry.second.monster_data;
+                        monsters_around.push_back( &this_monster );
+                    }
+                }
+            }
         }
     }
     float avg_survival = 0.0f;
@@ -2282,7 +2158,7 @@ bool talk_function::companion_om_combat_check( const std::vector<npc_ptr> &group
         if( mons->get_hp() <= 0 ) {
             continue;
         }
-        int d_modifier = avg_survival - mons->type->difficulty;
+        int d_modifier = avg_survival - mons->type->get_total_difficulty();
         int roll = rng( 1, 20 ) + d_modifier;
         if( roll > 10 ) {
             if( try_engage ) {
@@ -2321,7 +2197,7 @@ bool talk_function::force_on_force( const std::vector<npc_ptr> &defender,
     faction *yours = player_character.get_faction();
     //Find out why your followers don't have your faction...
     popup( _( "Engagement between %d members of %s %s and %d %s%s!" ), defender.size(),
-           yours->name, def_desc, monsters_fighting.size(), att_desc, adv );
+           yours->get_name(), def_desc, monsters_fighting.size(), att_desc, adv );
     int defense = 0;
     int attack = 0;
     int att_init = 0;
@@ -2347,10 +2223,10 @@ bool talk_function::force_on_force( const std::vector<npc_ptr> &defender,
             attack_random( remaining_mon, remaining_def );
             if( defense == 0 || ( remaining_def.size() == 1 && remaining_def[0]->is_dead() ) ) {
                 //Here too...
-                popup( _( "%s forces are destroyed!" ), yours->name );
+                popup( _( "%s forces are destroyed!" ), yours->get_name() );
             } else {
                 //Again, no faction for your followers
-                popup( _( "%s forces retreat from combat!" ), yours->name );
+                popup( _( "%s forces retreat from combat!" ), yours->get_name() );
             }
             return false;
         } else if( attack * 3 < defense ) {
@@ -2386,8 +2262,8 @@ void talk_function::force_on_force( const std::vector<npc_ptr> &defender,
         adv = ", defender advantage";
     }
     popup( _( "Engagement between %d members of %s %s and %d members of %s %s%s!" ),
-           defender.size(), defender[0]->get_faction()->name, def_desc, attacker.size(),
-           attacker[0]->get_faction()->name, att_desc, adv );
+           defender.size(), defender[0]->get_faction()->get_name(), def_desc, attacker.size(),
+           attacker[0]->get_faction()->get_name(), att_desc, adv );
     int defense = 0;
     int attack = 0;
     int att_init = 0;
@@ -2412,18 +2288,18 @@ void talk_function::force_on_force( const std::vector<npc_ptr> &defender,
             attack_random( remaining_att, remaining_def );
             if( defense == 0 || ( remaining_def.size() == 1 &&
                                   remaining_def[0]->get_part_hp_cur( bodypart_id( "torso" ) ) == 0 ) ) {
-                popup( _( "%s forces are destroyed!" ), defender[0]->get_faction()->name );
+                popup( _( "%s forces are destroyed!" ), defender[0]->get_faction()->get_name() );
             } else {
-                popup( _( "%s forces retreat from combat!" ), defender[0]->get_faction()->name );
+                popup( _( "%s forces retreat from combat!" ), defender[0]->get_faction()->get_name() );
             }
             return;
         } else if( attack * 3 < defense ) {
             attack_random( remaining_def, remaining_att );
             if( attack == 0 || ( remaining_att.size() == 1 &&
                                  remaining_att[0]->get_part_hp_cur( bodypart_id( "torso" ) ) == 0 ) ) {
-                popup( _( "%s forces are destroyed!" ), attacker[0]->get_faction()->name );
+                popup( _( "%s forces are destroyed!" ), attacker[0]->get_faction()->get_name() );
             } else {
-                popup( _( "%s forces retreat from combat!" ), attacker[0]->get_faction()->name );
+                popup( _( "%s forces retreat from combat!" ), attacker[0]->get_faction()->get_name() );
             }
             return;
         } else {
@@ -2483,11 +2359,9 @@ void talk_function::companion_return( npc &comp )
     comp.companion_mission_time_ret = calendar::before_time_starts;
     Character &player_character = get_player_character();
     map &here = get_map();
-    for( size_t i = 0; i < comp.companion_mission_inv.size(); i++ ) {
-        for( const item &it : comp.companion_mission_inv.const_stack( i ) ) {
-            if( !it.count_by_charges() || it.charges > 0 ) {
-                here.add_item_or_charges( player_character.pos_bub(), it );
-            }
+    for( const item &it : comp.companion_mission_inv ) {
+        if( !it.count_by_charges() || it.charges > 0 ) {
+            here.add_item_or_charges( player_character.pos_bub(), it );
         }
     }
     comp.companion_mission_inv.clear();
@@ -2689,7 +2563,10 @@ npc_ptr talk_function::companion_choose( const std::map<skill_id, int> &required
     for( const npc_ptr &e : available ) {
         std::string npc_desc;
         bool can_do = true;
-        if( e->mission == NPC_MISSION_GUARD_ALLY ) {
+        if( e->mission == NPC_MISSION_CAMP_RESIDENT ) {
+            //~ %1$s: npc name
+            npc_desc = string_format( pgettext( "companion", "%1$s (Camp resident)" ), e->get_name() );
+        } else if( e->mission == NPC_MISSION_GUARD_ALLY ) {
             //~ %1$s: npc name
             npc_desc = string_format( pgettext( "companion", "%1$s (Guarding)" ), e->get_name() );
         } else {

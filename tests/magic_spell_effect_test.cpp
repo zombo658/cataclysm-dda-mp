@@ -15,6 +15,7 @@
 #include "magic_spell_effect_helpers.h"
 #include "map.h"
 #include "map_helpers.h"
+#include "map_helpers_tests.h"
 #include "messages.h"
 #include "npc.h"
 #include "player_helpers.h"
@@ -91,7 +92,7 @@ TEST_CASE( "remove_field_fd_fatigue", "[magic]" )
     // Test relies on lighting conditions, so ensure we control the level of
     // daylight.
     set_time( calendar::turn_zero );
-    clear_map();
+    clear_map_without_vision();
 
     map &m = get_map();
     spell sp( spell_AO_CLOSE_TEAR );
@@ -195,7 +196,7 @@ TEST_CASE( "remove_field_fd_fatigue", "[magic]" )
 
     // remove 3 fields again but without lighting this time
     clear_avatar();
-    clear_map();
+    clear_map_without_vision();
     Messages::clear_messages();
 
     player_initial_pos = dummy.pos_abs();

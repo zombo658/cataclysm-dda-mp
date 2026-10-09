@@ -9,6 +9,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -26,6 +27,7 @@
 #include "debug_menu.h"
 #include "effect.h"
 #include "enums.h"
+#include "flag.h"
 #include "game.h"
 #include "game_constants.h"
 #include "imgui/imgui.h"
@@ -63,15 +65,24 @@
 #include "units.h"
 #include "value_ptr.h"
 
-class uilist_impl;
-
 static const efftype_id effect_pet( "pet" );
 
 static const mongroup_id GROUP_ZOMBIE( "GROUP_ZOMBIE" );
 
+static float lines_for_msg( std::string_view msg )
+{
+    if( msg.empty() ) {
+        return 0.0;
+    }
+    return 1.0 + static_cast<float>( std::count( msg.begin(), msg.end(), '\n' ) );
+}
+
+namespace
+{
 class wish_mutate_callback: public uilist_callback
 {
     public:
+        cataimgui::scroll desc_scroll = cataimgui::scroll::none;
         // Last menu entry
         int lastlen = 0;
         // Feedback message
@@ -149,7 +160,16 @@ class wish_mutate_callback: public uilist_callback
         }
 
         wish_mutate_callback() = default;
-        bool key( const input_context &, const input_event &event, int entnum, uilist *menu ) override {
+        bool key( const input_context &ctxt, const input_event &event, int entnum, uilist *menu ) override {
+            const std::string &action = ctxt.input_to_action( event );
+            if( action == "SCROLL_DESC_UP" ) {
+                desc_scroll = cataimgui::scroll::page_up;
+                return true;
+            }
+            if( action == "SCROLL_DESC_DOWN" ) {
+                desc_scroll = cataimgui::scroll::page_down;
+                return true;
+            }
             if( event.get_first_input() == 't' && you->has_trait( vTraits[ entnum ] ) ) {
                 if( !you->has_base_trait( vTraits[ entnum ] ) ) {
                     you->unset_mutation( vTraits[ entnum ] );
@@ -177,7 +197,8 @@ class wish_mutate_callback: public uilist_callback
         }
 
         float desired_extra_space_right( ) override {
-            return 40 * ImGui::CalcTextSize( "X" ).x;
+            return std::min( ImGui::GetMainViewport()->Size.x / 2.0f,
+                             std::max( TERMX / 2, TERMX - 50 ) * ImGui::CalcTextSize( "X" ).x );
         }
 
         void refresh( uilist *menu ) override {
@@ -191,7 +212,13 @@ class wish_mutate_callback: public uilist_callback
 
             ImGui::TableSetColumnIndex( 2 );
 
-            if( menu->previewing >= 0 && static_cast<size_t>( menu->previewing ) < vTraits.size() ) {
+            ImVec2 info_size = ImGui::GetContentRegionAvail( );
+            // 1 line for ctxt + 0 to 1 line for msg
+            info_size.y -= ( 1.0 + lines_for_msg( msg ) ) * ImGui::GetTextLineHeightWithSpacing();
+            if( ImGui::BeginChild( "mutation info", info_size )
+                && menu->previewing >= 0 && static_cast<size_t>( menu->previewing ) < vTraits.size()
+              ) {
+                cataimgui::set_scroll( desc_scroll );
                 const mutation_branch &mdata = vTraits[menu->previewing].obj();
 
                 ImGui::TextUnformatted( mdata.valid ? _( "Valid" ) : _( "Nonvalid" ) );
@@ -235,30 +262,34 @@ class wish_mutate_callback: public uilist_callback
                 ImGui::NewLine();
                 ImGui::TextWrapped( "%s", you->mutation_desc( mdata.id ).c_str() );
             }
-
-            float y = ImGui::GetContentRegionMax().y - 3 * ImGui::GetTextLineHeightWithSpacing();
-            if( ImGui::GetCursorPosY() < y ) {
-                ImGui::SetCursorPosY( y );
+            ImGui::EndChild();
+            if( !msg.empty() ) {
+                ImGui::TextColored( c_green, "%s", msg.c_str() );
             }
-            ImGui::TextColored( c_green, "%s", msg.c_str() );
-            msg.clear();
             input_context ctxt( menu->input_category, keyboard_mode::keycode );
-            ImGui::Text( _( "[%s] find, [%s] quit, [t] toggle base trait" ),
-                         ctxt.get_desc( "FILTER" ).c_str(), ctxt.get_desc( "QUIT" ).c_str() );
 
-            if( only_active ) {
-                ImGui::TextColored( c_green, "%s", _( "[a] show active traits (active)" ) );
-            } else {
-                ImGui::TextColored( c_white, "%s", _( "[a] show active traits" ) );
-            }
+            cataimgui::TextKeybinding( ctxt, "UILIST.FILTER", _( "Find" ),
+                                       menu->filtering && ( !menu->filter.empty() ) );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "t",      _( "Toggle base trait" ),  false );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "a",      _( "Show active traits" ), only_active );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "UILIST.QUIT", _( "Quit" ),          false );
         }
 
         ~wish_mutate_callback() override = default;
 };
+} // namespace
 
 void debug_menu::wishmutate( Character *you )
 {
     uilist wmenu;
+    wmenu.input_category = "WISH_ITEM";
+    wmenu.additional_actions = {
+        { "SCROLL_DESC_UP", translation() },
+        { "SCROLL_DESC_DOWN", translation() },
+    };
     int c = 0;
 
     for( const mutation_branch &traits_iter : mutation_branch::get_all() ) {
@@ -343,7 +374,7 @@ void debug_menu::wishmutate( Character *you )
 
 void debug_menu::wishbionics( Character *you )
 {
-    std::vector<const itype *> cbm_items = item_controller->find( []( const itype & itm ) -> bool {
+    std::vector<const itype *> cbm_items = Item_factory::find( []( const itype & itm ) -> bool {
         return itm.can_use( "install_bionic" );
     } );
     std::sort( cbm_items.begin(), cbm_items.end(), []( const itype * a, const itype * b ) {
@@ -424,35 +455,31 @@ void debug_menu::wishbionics( Character *you )
                 break;
             }
             case 3: {
-                int new_value = 0;
-                if( query_int( new_value, false, _( "Set the value to (in kJ)?  Currently: %s" ),
-                               units::display( power_max ) ) ) {
+                int new_value = units::to_kilojoule( power_max );
+                if( query_int( new_value, true, _( "Set the value to (in kJ)?" ) ) ) {
                     you->set_max_power_level( units::from_kilojoule( static_cast<std::int64_t>( new_value ) ) );
                     you->set_power_level( you->get_power_level() );
                 }
                 break;
             }
             case 4: {
-                int new_value = 0;
-                if( query_int( new_value, false, _( "Set the value to (in J)?  Currently: %s" ),
-                               units::display( power_max ) ) ) {
+                int new_value = units::to_joule( power_max );
+                if( query_int( new_value, true, _( "Set the value to (in J)?" ) ) ) {
                     you->set_max_power_level( units::from_joule( static_cast<std::int64_t>( new_value ) ) );
                     you->set_power_level( you->get_power_level() );
                 }
                 break;
             }
             case 5: {
-                int new_value = 0;
-                if( query_int( new_value, false, _( "Set the value to (in kJ)?  Currently: %s" ),
-                               units::display( power_level ) ) ) {
+                int new_value = units::to_kilojoule( power_level );
+                if( query_int( new_value, true, _( "Set the value to (in kJ)?" ) ) ) {
                     you->set_power_level( units::from_kilojoule( static_cast<std::int64_t>( new_value ) ) );
                 }
                 break;
             }
             case 6: {
-                int new_value = 0;
-                if( query_int( new_value, false, _( "Set the value to (in J)?  Currently: %s" ),
-                               units::display( power_level ) ) ) {
+                int new_value = units::to_joule( power_level );
+                if( query_int( new_value, true, _( "Set the value to (in J)?" ) ) ) {
                     you->set_power_level( units::from_joule( static_cast<std::int64_t>( new_value ) ) );
                 }
                 break;
@@ -484,6 +511,14 @@ void debug_menu::wisheffect( Creature &p )
         {
             descstr << eff.disp_name() << '\n';
         }
+
+        descstr << _( "Current intensity: " );
+        descstr << eff.get_intensity();
+
+        descstr << _( " Max intensity: " );
+        descstr << eff.get_max_intensity();
+
+        descstr << '\n';
 
         descstr << _( "Intensity threshold: " );
         descstr <<  colorize( std::to_string( to_seconds<int>( efft.intensity_duration() ) ),
@@ -585,7 +620,7 @@ void debug_menu::wisheffect( Creature &p )
             effect &eff = effects[efmenu.ret - offset];
 
             int duration = to_seconds<int>( eff.get_duration() );
-            query_int( duration, false, _( "Set duration (current %1$d): " ), duration );
+            query_int( duration, true, _( "Set duration to?  (seconds)" ) );
             if( duration < 0 ) {
                 continue;
             }
@@ -637,9 +672,12 @@ void debug_menu::wisheffect( Creature &p )
     } while( efmenu.ret != UILIST_CANCEL );
 }
 
+namespace
+{
 class wish_monster_callback: public uilist_callback
 {
     public:
+        cataimgui::scroll desc_scroll = cataimgui::scroll::none;
         // last menu entry
         int lastent;
         // feedback message
@@ -661,8 +699,17 @@ class wish_monster_callback: public uilist_callback
             lastent = -2;
         }
 
-        bool key( const input_context &, const input_event &event, int /*entnum*/,
+        bool key( const input_context &ctxt, const input_event &event, int /*entnum*/,
                   uilist * /*menu*/ ) override {
+            const std::string &action = ctxt.input_to_action( event );
+            if( action == "SCROLL_DESC_UP" ) {
+                desc_scroll = cataimgui::scroll::page_up;
+                return true;
+            }
+            if( action == "SCROLL_DESC_DOWN" ) {
+                desc_scroll = cataimgui::scroll::page_down;
+                return true;
+            }
             if( event.get_first_input() == 'f' ) {
                 friendly = !friendly;
                 // Force tmp monster regen
@@ -683,57 +730,65 @@ class wish_monster_callback: public uilist_callback
         }
 
         float desired_extra_space_right( ) override {
-            return 30 * ImGui::CalcTextSize( "X" ).x;
+            return std::min( ImGui::GetMainViewport()->Size.x / 2.0f,
+                             std::max( TERMX / 2, TERMX - 50 ) * ImGui::CalcTextSize( "X" ).x );
         }
 
         void refresh( uilist *menu ) override {
-            ImVec2 info_size = ImGui::GetContentRegionAvail( );
-            info_size.x = desired_extra_space_right( );
-            ImGui::TableSetColumnIndex( 2 );
-            if( ImGui::BeginChild( "monster info", info_size ) ) {
-                const int entnum = menu->previewing;
-                const bool valid_entnum = entnum >= 0 && static_cast<size_t>( entnum ) < mtypes.size();
-                if( entnum != lastent ) {
-                    lastent = entnum;
-                    if( valid_entnum ) {
-                        tmp = monster( mtypes[ entnum ]->id );
-                        if( friendly ) {
-                            tmp.friendly = -1;
-                        }
-                    } else {
-                        tmp = monster();
-                    }
-                }
-
+            const int entnum = menu->previewing;
+            const bool valid_entnum = entnum >= 0 && static_cast<size_t>( entnum ) < mtypes.size();
+            if( entnum != lastent ) {
+                lastent = entnum;
                 if( valid_entnum ) {
-                    std::string header = string_format( "#%d: %s (%d)%s", entnum, tmp.type->id.c_str(), group,
-                                                        hallucination ? _( " (hallucination)" ) : "" );
-                    ImGui::SetCursorPosX( ( ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(
-                                                header.c_str() ).x ) * 0.5 );
-                    ImGui::TextColored( c_cyan, "%s", header.c_str() );
-
-                    // show debug info
-                    restore_on_out_of_scope<bool> restore_debugmode( debug_mode );
-                    debug_mode = true;
-                    tmp.print_info_imgui();
+                    tmp = monster( mtypes[ entnum ]->id );
+                    if( friendly ) {
+                        tmp.friendly = -1;
+                    }
+                } else {
+                    tmp = monster();
                 }
+            }
 
-                float y = ImGui::GetContentRegionMax().y - 3 * ImGui::GetTextLineHeightWithSpacing();
-                if( ImGui::GetCursorPosY() < y ) {
-                    ImGui::SetCursorPosY( y );
-                }
-                ImGui::TextColored( c_green, "%s", msg.c_str() );
-                msg.clear();
-                input_context ctxt( menu->input_category, keyboard_mode::keycode );
-                ImGui::Text(
-                    _( "[%s] find, [f]riendly, [h]allucination, [i]ncrease group, [d]ecrease group, [%s] quit" ),
-                    ctxt.get_desc( "FILTER" ).c_str(), ctxt.get_desc( "QUIT" ).c_str() );
+            ImGui::TableSetColumnIndex( 2 );
+            ImVec2 info_size = ImGui::GetContentRegionAvail( );
+            // 1 line for ctxt + 0 to 2 lines for msg
+            info_size.y -= ( 1.0 + lines_for_msg( msg ) ) * ImGui::GetTextLineHeightWithSpacing();
+            if( ImGui::BeginChild( "monster info", info_size ) && valid_entnum ) {
+                cataimgui::set_scroll( desc_scroll );
+                std::string header = string_format( "#%d: %s (%d)%s", entnum, tmp.type->id.c_str(), group,
+                                                    hallucination ? _( " (hallucination)" ) : "" );
+                ImGui::SetCursorPosX( ( ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(
+                                            header.c_str() ).x ) * 0.5 );
+                ImGui::TextColored( c_cyan, "%s", header.c_str() );
+
+                // show debug info
+                restore_on_out_of_scope<bool> restore_debugmode( debug_mode );
+                debug_mode = true;
+                tmp.print_info_imgui();
             }
             ImGui::EndChild();
+            if( !msg.empty() ) {
+                ImGui::TextColored( c_green, "%s", msg.c_str() );
+            }
+            input_context ctxt( menu->input_category, keyboard_mode::keycode );
+
+            cataimgui::TextKeybinding( ctxt, "UILIST.FILTER", _( "Find" ),
+                                       menu->filtering && ( !menu->filter.empty() ) );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "f",      _( "Friendly" ),       friendly );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "h",      _( "Hallucination" ),  hallucination );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "i",      _( "Increase Group" ), false );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "d",      _( "Decrease Group" ), false );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "UILIST.QUIT", _( "Quit" ),      false );
         }
 
         ~wish_monster_callback() override = default;
 };
+} // namespace
 
 static void setup_wishmonster( uilist &pick_a_monster, std::vector<const mtype *> &mtypes )
 {
@@ -778,8 +833,7 @@ void debug_menu::wishmonstergroup( tripoint_abs_omt &loc )
         const mongroup_id selected_group( possible_groups[selected] );
         new_group.type = selected_group;
         int new_value = new_group.population; // default value if query declined
-        query_int( new_value, false, _( "Set population to what value?  Currently %d" ),
-                   new_group.population );
+        query_int( new_value, true, _( "Set population to what value?" ) );
         new_group.population = new_value;
         overmap &there = overmap_buffer.get( project_to<coords::om>( loc ).xy() );
         there.debug_force_add_group( new_group );
@@ -824,6 +878,11 @@ void debug_menu::wishmonster( const std::optional<tripoint_bub_ms> &p )
     std::vector<const mtype *> mtypes;
 
     uilist wmenu;
+    wmenu.input_category = "WISH_ITEM";
+    wmenu.additional_actions = {
+        { "SCROLL_DESC_UP", translation() },
+        { "SCROLL_DESC_DOWN", translation() },
+    };
     setup_wishmonster( wmenu, mtypes );
     wish_monster_callback cb( mtypes );
     wmenu.callback = &cb;
@@ -850,7 +909,7 @@ void debug_menu::wishmonster( const std::optional<tripoint_bub_ms> &p )
                 }
                 input_context ctxt( wmenu.input_category, keyboard_mode::keycode );
                 cb.msg = string_format( _( "Spawned %d monsters, choose another or [%s] to quit." ),
-                                        num_spawned, ctxt.get_desc( "QUIT" ) );
+                                        num_spawned, ctxt.get_desc( "UILIST.QUIT" ) );
                 if( num_spawned == 0 ) {
                     cb.msg += _( "\nTarget location is not suitable for placing this kind of monster.  Choose a different target or [i]ncrease the groups size." );
                 }
@@ -883,10 +942,12 @@ static item wishitem_produce( const itype &type, std::string &flags, bool incont
     return granted;
 }
 
+namespace
+{
 class wish_item_callback: public uilist_callback
 {
     public:
-        int examine_pos;
+        cataimgui::scroll desc_scroll = cataimgui::scroll::none;
         bool incontainer;
         bool spawn_everything;
         bool renew_snippet;
@@ -914,7 +975,7 @@ class wish_item_callback: public uilist_callback
             if( menu->selected < 0 ) {
                 return;
             }
-            examine_pos = 0;
+            desc_scroll = cataimgui::scroll::begin;
             chosen_snippet_id = { -1, "" };
             renew_snippet = true;
             const itype &selected_itype = *standard_itype_ids[menu->selected];
@@ -947,16 +1008,13 @@ class wish_item_callback: public uilist_callback
                     // Otherwise, edit the existing list of user-defined instance flags
                     edit_flags = flags;
                 }
-                string_input_popup popup;
-                popup
-                .title( _( "Flags:" ) )
-                .description( _( "UPPERCASE, no quotes, separate with spaces" ) )
-                .max_length( 100 )
-                .text( edit_flags )
-                .query();
+                string_input_popup_imgui popup( 34, edit_flags, _( "Flags:" ) );
+                popup.set_description( _( "UPPERCASE, no quotes, separate with spaces" ) );
+                popup.set_max_input_length( 100 );
+                const std::string &rval = popup.query();
                 // Save instance flags on this item (will be reset when selecting another item)
-                if( popup.confirmed() ) {
-                    flags = popup.text();
+                if( !popup.cancelled() ) {
+                    flags = rval;
                     return true;
                 }
             }
@@ -999,10 +1057,10 @@ class wish_item_callback: public uilist_callback
                 return true;
             }
             if( action == "SCROLL_DESC_UP" ) {
-                examine_pos = std::max( examine_pos - 1, 0 );
+                desc_scroll = cataimgui::scroll::page_up;
             }
             if( action == "SCROLL_DESC_DOWN" ) {
-                examine_pos += 1;
+                desc_scroll = cataimgui::scroll::page_down;
             }
             if( cur_key == KEY_LEFT || cur_key == KEY_RIGHT ) {
                 // For Renew snippet_id.
@@ -1051,29 +1109,38 @@ class wish_item_callback: public uilist_callback
                 info = tmp.get_info( true );
             }
 
-            ImVec2 info_size = ImGui::GetContentRegionAvail();
-            info_size.x = desired_extra_space_right( );
-            info_size.y -= ( 3.0 * ImGui::GetTextLineHeightWithSpacing() ) - ImGui::GetFrameHeightWithSpacing();
-
             ImGui::TableSetColumnIndex( 2 );
+            ImVec2 info_size = ImGui::GetContentRegionAvail();
+            // 1 line for ctxt + 0 to 1 line for msg
+            info_size.y -= ( 1.0 + lines_for_msg( msg ) ) * ImGui::GetTextLineHeightWithSpacing();
+
             if( ImGui::BeginChild( "wish item", info_size ) ) {
+                cataimgui::set_scroll( desc_scroll );
                 ImGui::SetCursorPosX( ( info_size.x - ImGui::CalcTextSize( header.c_str() ).x ) * 0.5 );
                 ImGui::TextColored( c_cyan, "%s", header.c_str() );
                 display_item_info( info, {} );
             }
             ImGui::EndChild();
-
-            ImGui::TextColored( c_green, "%s", msg.c_str() );
+            if( !msg.empty() ) {
+                ImGui::TextColored( c_green, "%s", msg.c_str() );
+            }
             input_context ctxt( menu->input_category, keyboard_mode::keycode );
-            ImGui::Text( _( "[%s] find, [%s] container, [%s] flag, [%s] everything, [%s] snippet, [%s] quit" ),
-                         ctxt.get_desc( "FILTER" ).c_str(),
-                         ctxt.get_desc( "CONTAINER" ).c_str(),
-                         ctxt.get_desc( "FLAG" ).c_str(),
-                         ctxt.get_desc( "EVERYTHING" ).c_str(),
-                         ctxt.get_desc( "SNIPPET" ).c_str(),
-                         ctxt.get_desc( "QUIT" ).c_str() );
+
+            cataimgui::TextKeybinding( ctxt, "UILIST.FILTER", _( "Find" ),
+                                       menu->filtering && ( !menu->filter.empty() ) );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "CONTAINER",  _( "Container" ),  incontainer );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "FLAG",       _( "Flag" ),       !flags.empty() );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "EVERYTHING", _( "Everything" ), spawn_everything );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "SNIPPET",    _( "Snippet" ),    chosen_snippet_id.first != -1 );
+            cataimgui::TextListSeparator();
+            cataimgui::TextKeybinding( ctxt, "UILIST.QUIT", _( "Quit" ),      false );
         }
 };
+} // namespace
 
 void debug_menu::wishitem( Character *you )
 {
@@ -1126,7 +1193,7 @@ void debug_menu::wishitem( Character *you, const tripoint_bub_ms &pos )
         { "SCROLL_DESC_UP", translation() },
         { "SCROLL_DESC_DOWN", translation() },
     };
-    wmenu.desired_bounds = { -0.9, -0.9, 0.9, 0.9 };
+    wmenu.desired_bounds = { -1.0, -1.0, 1.0, 1.0 };
     wmenu.selected = uistate.wishitem_selected;
     wish_item_callback cb( itypes, ivariants, snipped_id_str );
     wmenu.callback = &cb;
@@ -1172,11 +1239,14 @@ void debug_menu::wishitem( Character *you, const tripoint_bub_ms &pos )
                 popup
                 .title( _( "How many?" ) )
                 .width( 20 )
-                .description( granted.tname() )
+                .description( cb.spawn_everything ? _( "Everything" ) : granted.tname() )
                 .edit( amount );
                 canceled = popup.canceled();
             }
             if( !canceled ) {
+                if( granted.has_flag( flag_PRESERVE_SPAWN_LOC ) ) {
+                    granted.preserve_location( you->pos_abs() );
+                }
                 did_amount_prompt = true;
                 if( you != nullptr ) {
                     if( amount > 0 ) {
@@ -1191,7 +1261,7 @@ void debug_menu::wishitem( Character *you, const tripoint_bub_ms &pos )
                 if( amount > 0 ) {
                     input_context ctxt( wmenu.input_category, keyboard_mode::keycode );
                     cb.msg = string_format( _( "Wish granted.  Wish for more or hit [%s] to quit." ),
-                                            ctxt.get_desc( "QUIT" ) );
+                                            ctxt.get_desc( "UILIST.QUIT" ) );
                 }
             }
             uistate.wishitem_selected = wmenu.selected;

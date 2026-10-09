@@ -5,8 +5,8 @@
     "looks_like": "shotbelt_20",
     "type": "ITEM",
     "subtypes": [ "MAGAZINE" ],
-    "name": { "str": "10-round assault shotgun magazine" },
-    "description": "A removable plastic 10-round box magazine, for use with firearms chambered in 12-gauge shotgun shells.",
+    "name": { "str": "assault shotgun 10-round magazine" },
+    "description": "A removable plastic 10-round box magazine, for use with compatible firearms chambered in 12-gauge shotgun shells.",
     "variant_type": "gun",
     "variants": [
       {
@@ -33,8 +33,8 @@
     "looks_like": "shotbelt_20",
     "type": "ITEM",
     "subtypes": [ "MAGAZINE" ],
-    "name": { "str": "20-round assault shotgun magazine" },
-    "description": "A removable plastic 20-round drum magazine, for use with firearms chambered in 12-gauge shotgun shells.",
+    "name": { "str": "assault shotgun 20-round magazine" },
+    "description": "A removable plastic 20-round drum magazine, for use with compatible firearms chambered in 12-gauge shotgun shells.",
     "variant_type": "gun",
     "variants": [
       {
@@ -65,7 +65,7 @@
     "subtypes": [ "ARMOR", "MAGAZINE" ],
     "name": { "str": "20-round shotshell belt" },
     "description": "A non-disintegrating cloth ammo belt which can hold up to 20 shotgun shells.  Notably less reliable than metal ammo belts.",
-    "weight": "41 g",
+    "weight": "17 g",
     "volume": "35 ml",
     "price": "10 USD",
     "price_postapoc": "50 cent",
@@ -295,11 +295,37 @@
     "pocket_data": [ { "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "shot": 20 } } ]
   },
   {
+    "id": "savage_220_magazine",
+    "type": "ITEM",
+    "subtypes": [ "MAGAZINE" ],
+    "name": { "str": "2-round 20 gauge magazine" },
+    "description": "Detachable box magazine for bolt-action shotgun, that can fit two 20 bore shells.",
+    "variant_type": "gun",
+    "variants": [
+      {
+        "id": "mossberg_590m_mag_20",
+        "name": { "str": "Savage 220 Slug 2-round magazine" },
+        "description": "Detachable box magazine for bolt-action shotgun, that can fit two 20 bore shells."
+      }
+    ],
+    "weight": "90 g",
+    "volume": "170 ml",
+    "longest_side": "182 mm",
+    "price": "40 USD",
+    "price_postapoc": "20 cent",
+    "material": [ "plastic" ],
+    "symbol": "#",
+    "color": "dark_gray",
+    "ammo_type": [ "20shot" ],
+    "flags": [ "MAG_COMPACT" ],
+    "pocket_data": [ { "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "20shot": 2 } } ]
+  },
+  {
     "id": "mka_1919_5",
     "copy-from": "mka_1919_10",
     "type": "ITEM",
     "subtypes": [ "MAGAZINE" ],
-    "name": { "str": "shotgun 5-round magazine" },
+    "name": { "str": "rifle shotgun 5-round magazine" },
     "description": "5-round box magazine for rifle-like magazine-fed shotguns.",
     "variant_type": "gun",
     "variants": [
@@ -325,7 +351,7 @@
     "id": "mka_1919_10",
     "type": "ITEM",
     "subtypes": [ "MAGAZINE" ],
-    "name": { "str": "shotgun 10-round magazine" },
+    "name": { "str": "rifle shotgun 10-round magazine" },
     "description": "10-round box magazine for rifle-like magazine-fed shotguns.",
     "variant_type": "gun",
     "variants": [
@@ -352,7 +378,7 @@
     "copy-from": "mka_1919_10",
     "type": "ITEM",
     "subtypes": [ "MAGAZINE" ],
-    "name": { "str": "shotgun 20-round drum magazine" },
+    "name": { "str": "rifle shotgun 20-round drum magazine" },
     "description": "20-round drum magazine for rifle-like magazine-fed shotguns.",
     "variant_type": "gun",
     "variants": [

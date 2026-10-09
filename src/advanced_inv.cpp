@@ -40,12 +40,12 @@
 #include "imgui/imgui.h"
 #include "input.h"
 #include "input_context.h"
-#include "inventory.h"
 #include "inventory_ui.h"
 #include "item.h"
 #include "item_category.h"
 #include "item_contents.h"
 #include "item_location.h"
+#include "item_tname.h"
 #include "itype.h"
 #include "localized_comparator.h"
 #include "map.h"
@@ -53,7 +53,6 @@
 #include "options.h"
 #include "output.h"
 #include "panels.h"
-#include "pimpl.h"
 #include "player_activity.h"
 #include "point.h"
 #include "ret_val.h"
@@ -325,12 +324,12 @@ void advanced_inventory::print_items( side p, bool active )
         if( pane.get_area() == AIM_CONTAINER ) {
             weight_carried = convert_weight( pane.container->get_total_contained_weight() );
             weight_capacity = convert_weight( pane.container->get_total_weight_capacity() );
-            volume_carried = pane.container->get_total_contained_volume();
-            volume_capacity = pane.container->get_total_capacity();
+            volume_carried = pane.container->get_contents_volume();
+            volume_capacity = pane.container->get_volume_capacity();
         } else {
             weight_carried = convert_weight( player_character.weight_carried() );
             weight_capacity = convert_weight( player_character.weight_capacity() );
-            volume_carried = player_character.volume_carried();
+            volume_carried = player_character.volume_capacity() - player_character.free_space();
             volume_capacity = player_character.volume_capacity();
         }
         // align right, so calculate formatted head length
@@ -360,7 +359,7 @@ void advanced_inventory::print_items( side p, bool active )
             units::volume maxvolume = 0_ml;
             advanced_inv_area &s = squares[pane.get_area()];
             if( pane.get_area() == AIM_CONTAINER && pane.container ) {
-                maxvolume = pane.container->get_total_capacity();
+                maxvolume = pane.container->get_volume_capacity();
             } else if( pane.in_vehicle() ) {
                 maxvolume = s.get_vehicle_stack().max_volume();
             } else {
@@ -486,9 +485,9 @@ void advanced_inventory::print_items( side p, bool active )
             }
         } else {
             if( stolen ) {
-                item_name = string_format( "%s %s", stolen_string, it.display_name() );
+                item_name = string_format( "%s %s", stolen_string, it.display_name( 1, true ) );
             } else {
-                item_name = it.display_name();
+                item_name = it.display_name( 1, true );
             }
         }
         if( get_option<bool>( "ITEM_SYMBOLS" ) ) {
@@ -497,7 +496,7 @@ void advanced_inventory::print_items( side p, bool active )
 
         //print item name
         trim_and_print( window, point( compact ? 1 : 4, 6 + item_line ), max_name_length, thiscolor,
-                        item_name );
+                        selected ? remove_color_tags( item_name ) : item_name );
 
         //print src column
         // TODO: specify this is coming from a vehicle!
@@ -557,6 +556,8 @@ void advanced_inventory::print_items( side p, bool active )
     }
 }
 
+namespace
+{
 struct advanced_inv_sorter {
     advanced_inv_sortby sortby;
     explicit advanced_inv_sorter( advanced_inv_sortby sort ) {
@@ -614,11 +615,8 @@ struct advanced_inv_sorter {
             case SORTBY_AMMO: {
                 const std::string a1 = d1.items.front()->ammo_sort_name();
                 const std::string a2 = d2.items.front()->ammo_sort_name();
-                // There are many items with "false" ammo types (e.g.
-                // scrap metal has "components") that actually is not
-                // used as ammo, so we consider them as non-ammo.
-                const bool ammoish1 = !a1.empty() && a1 != "components" && a1 != "none" && a1 != "NULL";
-                const bool ammoish2 = !a2.empty() && a2 != "components" && a2 != "none" && a2 != "NULL";
+                const bool ammoish1 = !a1.empty() && a1 != "NULL";
+                const bool ammoish2 = !a2.empty() && a2 != "NULL";
                 if( ammoish1 != ammoish2 ) {
                     return ammoish1;
                 } else if( ammoish1 && ammoish2 ) {
@@ -692,6 +690,7 @@ struct advanced_inv_sorter {
         return localized_compare( sort_key( d1 ), sort_key( d2 ) );
     }
 };
+} // namespace
 
 int advanced_inventory::print_header( advanced_inventory_pane &pane, aim_location sel )
 {
@@ -714,7 +713,7 @@ int advanced_inventory::print_header( advanced_inventory_pane &pane, aim_locatio
                             data_location <= AIM_NORTHEAST );
         nc_color bcolor = c_red;
         nc_color kcolor = c_red;
-        // Highlight location [#] if it can recieve items,
+        // Highlight location [#] if it can receive items,
         // or highlight container [C] if container mode is active.
         if( can_put_items ) {
             bcolor = in_vehicle ? c_light_blue :
@@ -877,7 +876,8 @@ void advanced_inventory::redraw_pane( side p )
         int itemcount = square.get_item_count();
         int fmtw = 7 + ( itemcount > 99 ? 3 : itemcount > 9 ? 2 : 1 ) +
                    ( max > 99 ? 3 : max > 9 ? 2 : 1 );
-        mvwprintw( w, point( w_width / 2 - fmtw, 0 ), "< %d/%d >", itemcount, max );
+        mvwprintz( w, point( w_width / 2 - fmtw, 0 ), active ? c_white : c_dark_gray, "< %d/%d >",
+                   itemcount, max );
     }
 
     std::string fprefix = string_format( _( "[%s] Filter" ), ctxt.get_desc( "FILTER" ) );
@@ -1798,10 +1798,6 @@ void advanced_inventory::action_examine( advanced_inv_listitem *sitem,
         } else {
             uistate.transfer_save.exit_code = aim_exit::none;
         }
-        // Might have changed a stack (activated an item, repaired an item, etc.)
-        if( spane.get_area() == AIM_INVENTORY ) {
-            player_character.inv->restack( player_character );
-        }
         recalc = true;
     } else {
         item &it = *sitem->items.front();
@@ -1809,7 +1805,8 @@ void advanced_inventory::action_examine( advanced_inv_listitem *sitem,
         std::vector<iteminfo> vDummy;
         it.info( true, vThisItem );
 
-        item_info_data data( it.tname(), it.type_name(), vThisItem, vDummy );
+        item_info_data data( it.tname( 1, tname::unprefixed_tname, true ), it.type_name(), vThisItem,
+                             vDummy );
         data.handle_scrolling = true;
         data.arrow_scrolling = true;
 
@@ -2016,8 +2013,6 @@ void advanced_inventory::display()
     exit = false;
     if( !is_processing() ) {
 
-        player_character.inv->restack( player_character );
-
         recalc = true;
         g->wait_popup_reset();
     }
@@ -2032,9 +2027,8 @@ void advanced_inventory::display()
                                     TERMX - 2 * ( panel_manager::get_manager().get_width_right() +
                                                   panel_manager::get_manager().get_width_left() ) );
 
-            w_height = TERMY < min_w_height + head_height ? min_w_height : TERMY - head_height;
-            w_width = TERMX < min_w_width ? min_w_width : TERMX > max_w_width ? max_w_width :
-                      static_cast<int>( TERMX );
+            w_height = std::max( min_w_height, TERMY - head_height );
+            w_width = std::clamp( TERMX, min_w_width, max_w_width );
 
             //(TERMY>w_height)?(TERMY-w_height)/2:0;
             headstart = 0;
@@ -2111,6 +2105,8 @@ void advanced_inventory::display()
     }
 }
 
+namespace
+{
 class query_destination_callback : public uilist_callback
 {
     private:
@@ -2129,6 +2125,7 @@ class query_destination_callback : public uilist_callback
             return rv;
         }
 };
+} // namespace
 
 void query_destination_callback::draw_squares( const uilist *menu )
 {
@@ -2346,9 +2343,7 @@ bool advanced_inventory::query_charges( aim_location destarea, const advanced_in
         if( amount <= 0 ) {
             return false;
         }
-        if( amount > possible_max ) {
-            amount = possible_max;
-        }
+        amount = std::min( amount, possible_max );
     }
     return true;
 }
@@ -2463,7 +2458,7 @@ void advanced_inventory::do_return_entry()
 
 void advanced_inventory::temp_hide()
 {
-    ui.reset();
+    ui = nullptr;
     do_return_entry();
     cancel_aim_processing();
 }

@@ -74,17 +74,28 @@ struct enum_traits<bionic_ui_sort_mode> {
     static constexpr bionic_ui_sort_mode last = bionic_ui_sort_mode::nsort;
 };
 
-enum class list_item_sort_mode : int {
-    DISTANCE,
-    NAME,
-    CATEGORY_DISTANCE,
-    CATEGORY_NAME,
+enum class veh_spawn_status : int {
+    DEFAULT_LIGHT_DMG = -1, // light damage (DEFAULT)
+    UNDAMAGED = 0, // Undamaged
+    DISABLED = 1, // disabled: destroyed seats, controls, tanks, tires, OR engine
+    PRISTINE = 2, // undamaged with no faults or security
+    LAST = 3
+};
+
+// default is sorting by distance
+enum class surroundings_menu_sort_flags : int {
+    DEFAULT       = 0,
+    NAME          = 1 << 0,
+    CATEGORY      = 1 << 1,
+    CATEGORY_NAME = NAME | CATEGORY, // this is currently needed to cycle through the option
     count
 };
 
 template<>
-struct enum_traits<list_item_sort_mode> {
-    static constexpr list_item_sort_mode last = list_item_sort_mode::count;
+struct enum_traits<surroundings_menu_sort_flags> {
+    static constexpr surroundings_menu_sort_flags first = surroundings_menu_sort_flags::DEFAULT;
+    static constexpr surroundings_menu_sort_flags last = surroundings_menu_sort_flags::count;
+    static constexpr bool is_flag_enum = true;
 };
 
 // When bool is not enough. NONE, SOME or ALL
@@ -161,6 +172,18 @@ enum class ot_match_type : int {
 template<>
 struct enum_traits<ot_match_type> {
     static constexpr ot_match_type last = ot_match_type::num_ot_match_type;
+};
+
+using accessor_flags = int;
+
+enum accessor_flags_ {
+    Access_None                       = 0,           // You probably don't want to use this!
+    Access_Inventory                  = 1 << 0,      // Only character's inventory
+    Access_Map_Around                 = 1 << 1,      // Items in radius PICKUP_RANGE around character (only reachable)
+    Access_Map_Current_Z              = 1 << 2,      // Everything on the current z-level (ignores reachability)
+    Access_Map_All                    = 1 << 3,      // Everything on the map, all z-levels (ignores reachability)
+    Access_Vehicle                    = 1 << 4,      // Everything on vehicles in the bubble *owned by that guy's faction* (ignores reachability)
+    Access_EVERYTHING                 = Access_Inventory | Access_Map_All | Access_Vehicle      // All of the above
 };
 
 enum class special_game_type : int {
@@ -350,6 +373,7 @@ enum class distraction_type : int {
     mutation,
     oxygen,
     withdrawal,
+    craft_step_complete,
     last,
 };
 
@@ -510,6 +534,59 @@ enum mut_count_type {
     POSITIVE,
     NEGATIVE,
     ALL
+};
+
+enum class bp_type {
+    // this is where helmets go, and is a vital part.
+    head,
+    // the torso is generally the center of mass of a creature
+    torso,
+    // provides sight
+    sensor,
+    // you eat and scream with this
+    mouth,
+    // may manipulate objects to some degree, is a main part
+    arm,
+    // manipulates objects. usually is not a main part.
+    hand,
+    // provides motive power
+    leg,
+    // helps with balance. usually is not a main part
+    foot,
+    // may reduce fall damage
+    wing,
+    // may provide balance or manipulation
+    tail,
+    // more of a general purpose limb, such as horns.
+    other,
+    num_types
+};
+
+template<>
+struct enum_traits<bp_type> {
+    static constexpr bp_type last = bp_type::num_types;
+};
+
+enum class surroundings_menu_tab_enum : int {
+    items = 0,
+    monsters,
+    terfurn,
+    num_tabs
+};
+
+template<>
+struct enum_traits<surroundings_menu_tab_enum> {
+    static constexpr surroundings_menu_tab_enum last = surroundings_menu_tab_enum::num_tabs;
+};
+
+// remaining capacity return value, see item::get_remaining_capacity_for_liquid()
+enum class rem_cap_return {
+    SUCCESS,
+    NO_SPACE,
+    NO_SPACE_IN_PARENT,
+    BUCKET_FAIL, // when item is bucket, and is not on ground/held
+    ANOTHER_LIQUID_INSIDE,
+    LAST
 };
 
 #endif // CATA_SRC_ENUMS_H

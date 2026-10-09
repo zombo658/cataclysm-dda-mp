@@ -396,23 +396,7 @@
     "max_range": 1,
     "message": "",
     "damage_type": "bash",
-    "sound_description": "a smash",
-    "extra_effects": [ { "id": "constructed_hammer_self_destruct" } ]
-  },
-  {
-    "id": "constructed_hammer_self_destruct",
-    "type": "SPELL",
-    "shape": "blast",
-    "name": { "str": "Constructed Hammer Self destruct", "//~": "NO_I18N" },
-    "description": { "str": "Removes constructed hammer.  You can't see it except in debug mode.", "//~": "NO_I18N" },
-    "valid_targets": [ "ground" ],
-    "effect": "effect_on_condition",
-    "effect_str": "EOC_REMOVE_CONSTRUCTED_HAMMER"
-  },
-  {
-    "id": "EOC_REMOVE_CONSTRUCTED_HAMMER",
-    "type": "effect_on_condition",
-    "effect": [ { "npc_remove_item_with": "constructed_hammer" } ]
+    "sound_description": "a smash"
   },
   {
     "id": "summon_duplicator",
@@ -638,6 +622,20 @@
     "max_level": { "math": [ "dreamer_level(1)" ] },
     "min_duration": { "math": [ "((u_spell_level('spell_ethereal_wings')+1)*500)*100" ] },
     "max_duration": { "math": [ "((u_spell_level('spell_ethereal_wings')+1)*500)*100" ] }
+  },
+  {
+    "type": "effect_on_condition",
+    "id": "EOC_XE_GETTING_HIT_WHILE_USING_ETHEREAL_WINGS",
+    "eoc_type": "EVENT",
+    "required_event": "character_takes_damage",
+    "condition": { "u_has_trait": "ethereal_wings" },
+    "effect": [
+      {
+        "if": { "not": { "x_in_y_chance": { "x": { "math": [ "min( (u_spell_level('spell_ethereal_wings') ),40)" ] }, "y": 50 } } },
+        "then": [ { "u_lose_trait": "ethereal_wings" }, { "u_message": "The wings behind you fade out of existence!", "type": "bad" } ],
+        "else": [ { "u_message": "Your ethereal wings flicker out of existence for just a moment.", "type": "mixed" } ]
+      }
+    ]
   },
   {
     "id": "spell_karma_arms",

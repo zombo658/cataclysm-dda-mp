@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "flexbuffer_json.h"
 #include "generic_factory.h"
+#include "localized_comparator.h"
 #include "mission.h"
 #include "mutation.h"
 #include "options.h"
@@ -113,6 +114,8 @@ void scenario::load( const JsonObject &jo, std::string_view )
     optional( jo, was_loaded, "distance_initial_visibility", distance_initial_visibility, 15 );
 
     optional( jo, was_loaded, "eoc", _eoc, auto_flags_reader<effect_on_condition_id> {} );
+
+    optional( jo, was_loaded, "origin_offset", origin_offset, point_rel_om::zero );
 
     if( !was_loaded ) {
 
@@ -220,11 +223,14 @@ void scenario::reset()
     all_scenarios.reset();
 }
 
-void scenario::finalize()
+void scenario::check_all()
 {
-    for( const scenario &scen : all_scenarios.get_all() ) {
-        scen.check_definition();
-    }
+    all_scenarios.check();
+}
+
+void scenario::finalize_all()
+{
+    all_scenarios.finalize();
     sc_blacklist.finalize();
 }
 
@@ -237,7 +243,7 @@ static void check_traits( const std::set<trait_id> &traits, const string_id<scen
     }
 }
 
-void scenario::check_definition() const
+void scenario::check() const
 {
     for( const auto &p : professions ) {
         if( !p.is_valid() ) {
@@ -413,7 +419,7 @@ void reset_scenarios_blacklist()
     sc_blacklist.whitelist = false;
 }
 
-std::vector<string_id<profession>> scenario::permitted_professions() const
+std::vector<string_id<profession>> scenario::permitted_professions( bool is_npc ) const
 {
     if( !cached_permitted_professions.empty() ) {
         return cached_permitted_professions;
@@ -422,7 +428,7 @@ std::vector<string_id<profession>> scenario::permitted_professions() const
     const std::vector<profession> &all = profession::get_all();
     std::vector<string_id<profession>> &res = cached_permitted_professions;
     for( const profession &p : all ) {
-        if( p.is_hobby() || p.is_blacklisted() ) {
+        if( p.is_hobby() || p.is_blacklisted() || ( is_npc && !p.chargen_allow_npc() ) ) {
             continue;
         }
         const bool present = std::find( professions.begin(), professions.end(),
@@ -455,7 +461,7 @@ std::vector<string_id<profession>> scenario::permitted_professions() const
     return res;
 }
 
-std::vector<string_id<profession>> scenario::permitted_hobbies() const
+std::vector<string_id<profession>> scenario::permitted_hobbies( bool is_npc ) const
 {
     if( !cached_permitted_hobbies.empty() ) {
         return cached_permitted_hobbies;
@@ -474,6 +480,9 @@ std::vector<string_id<profession>> scenario::permitted_hobbies() const
             continue;
         }
         if( hobbies_whitelist && !hobby_exclusion.empty() && hobby_exclusion.count( hobby ) == 0 ) {
+            continue;
+        }
+        if( is_npc && !hobby->chargen_allow_npc() ) {
             continue;
         }
 
@@ -520,11 +529,11 @@ bool scenario::has_hard_requirement() const
     return hard_requirement;
 }
 
-const profession *scenario::weighted_random_profession() const
+const profession *scenario::weighted_random_profession( bool is_npc ) const
 {
     // Strategy: 1/3 of the time, return the generic profession (if it's permitted).
     // Otherwise, the weight of each permitted profession is 2 / ( |point cost| + 2 )
-    const auto choices = permitted_professions();
+    const auto choices = permitted_professions( is_npc );
     if( one_in( 3 ) && choices.front() == profession::generic()->ident() ) {
         return profession::generic();
     }
@@ -575,7 +584,7 @@ bool scenario::get_reveal_locale() const
     return reveal_locale;
 }
 
-bool scenario::get_distance_initial_visibility() const
+int scenario::get_distance_initial_visibility() const
 {
     return distance_initial_visibility;
 }
@@ -697,6 +706,36 @@ ret_val<void> scenario::can_pick() const
     return ret_val<void>::make_success();
 }
 
+bool scenario_sorter::operator()( const scenario *a, const scenario *b ) const
+{
+    if( cities_enabled ) {
+        // The generic ("Unemployed") profession should be listed first.
+        const scenario *gen = scenario::generic();
+        if( b == gen ) {
+            return false;
+        } else if( a == gen ) {
+            return true;
+        }
+    }
+
+    if( !a->can_pick().success() && b->can_pick().success() ) {
+        return false;
+    }
+
+    if( a->can_pick().success() && !b->can_pick().success() ) {
+        return true;
+    }
+
+    if( !cities_enabled && a->has_flag( "CITY_START" ) != b->has_flag( "CITY_START" ) ) {
+        return a->has_flag( "CITY_START" ) < b->has_flag( "CITY_START" );
+    } else if( sort_by_points ) {
+        return a->point_cost() < b->point_cost();
+    } else {
+        return localized_compare( a->gender_appropriate_name( male ),
+                                  b->gender_appropriate_name( male ) );
+    }
+}
+
 bool scenario::has_map_extra() const
 {
     return !_map_extra.is_null();
@@ -704,6 +743,10 @@ bool scenario::has_map_extra() const
 const map_extra_id &scenario::get_map_extra() const
 {
     return _map_extra;
+}
+const point_rel_om &scenario::get_origin_offset() const
+{
+    return origin_offset;
 }
 const std::vector<mission_type_id> &scenario::missions() const
 {

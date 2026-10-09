@@ -20,6 +20,20 @@ void poll();
 bool has_deferred();
 
 void send_welcome();
+
+// Item references (item_location) that come over the network point at the
+// other side's copy of the items, whose unique ids differ from this side's
+// (each load of the JSON gives the items new ids): they are read by index,
+// as the game read them before items had ids. Hook in
+// item_location::deserialize(). True on the client, and on the host while
+// it reads a message.
+bool ignore_item_uids();
+struct reading_network {
+    reading_network();
+    ~reading_network();
+    reading_network( const reading_network & ) = delete;
+    reading_network &operator=( const reading_network & ) = delete;
+};
 // What guy sees around itself.
 void send_view( const npc &guy );
 // The world waits for guy's command. Sends the view first.

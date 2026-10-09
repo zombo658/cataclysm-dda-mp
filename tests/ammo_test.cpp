@@ -1,6 +1,7 @@
 #include <set>
 #include <string>
 
+#include "ammo.h"
 #include "cata_catch.h"
 #include "coordinates.h"
 #include "damage.h"
@@ -13,6 +14,7 @@
 static const ammotype ammo_762( "762" );
 static const ammotype ammo_9mm( "9mm" );
 static const ammotype ammo_battery( "battery" );
+static const ammotype ammo_tape( "tape" );
 
 static const itype_id itype_38_special( "38_special" );
 static const itype_id itype_44army( "44army" );
@@ -28,7 +30,7 @@ static const itype_id itype_battery_car( "battery_car" );
 static const itype_id itype_battery_motorbike( "battery_motorbike" );
 static const itype_id itype_belt308( "belt308" );
 static const itype_id itype_belt40mm( "belt40mm" );
-static const itype_id itype_bp_9mm( "bp_9mm" );
+static const itype_id itype_bp_9mmfmj( "bp_9mmfmj" );
 static const itype_id itype_colt_army( "colt_army" );
 static const itype_id itype_compositebow( "compositebow" );
 static const itype_id itype_cordless_drill( "cordless_drill" );
@@ -46,6 +48,7 @@ static const itype_id itype_light_battery_cell( "light_battery_cell" );
 static const itype_id itype_m1911( "m1911" );
 static const itype_id itype_magazine_battery_medium_mod( "magazine_battery_medium_mod" );
 static const itype_id itype_medium_battery_cell( "medium_battery_cell" );
+static const itype_id itype_misc_repairkit( "misc_repairkit" );
 static const itype_id itype_nail( "nail" );
 static const itype_id itype_nailgun( "nailgun" );
 static const itype_id itype_needle_bone( "needle_bone" );
@@ -189,7 +192,7 @@ TEST_CASE( "ammo_types", "[ammo][ammo_types]" )
         // Ammo for guns
         CHECK_FALSE( has_ammo_types( item( itype_38_special ) ) );
         CHECK_FALSE( has_ammo_types( item( itype_reloaded_308 ) ) );
-        CHECK_FALSE( has_ammo_types( item( itype_bp_9mm ) ) );
+        CHECK_FALSE( has_ammo_types( item( itype_bp_9mmfmj ) ) );
         CHECK_FALSE( has_ammo_types( item( itype_44magnum ) ) );
         // Not for guns but classified as ammo
         CHECK_FALSE( has_ammo_types( item( itype_sinew ) ) );
@@ -241,6 +244,40 @@ TEST_CASE( "ammo_default", "[ammo][ammo_default]" )
         // Revolver ammo is "44paper" but default ammunition type is "44army"
         CHECK( colt.ammo_default() == itype_44army );
     }
+}
+
+TEST_CASE( "ammo_type_and_sort_name", "[ammo][ammo_type][ammo_sort_name]" )
+{
+    SECTION( "ammo items report their ammo type" ) {
+        item ammo_round( itype_9mm );
+        CHECK( ammo_round.ammo_type() == ammo_9mm );
+        CHECK( ammo_round.ammo_sort_name() == ammo_9mm->name() );
+    }
+
+    SECTION( "tools with USES_NEARBY_AMMO report the nearby ammo type" ) {
+        item repairkit( itype_misc_repairkit );
+        CHECK( repairkit.ammo_type() == ammo_tape );
+        CHECK( repairkit.ammo_sort_name() == ammo_tape->name() );
+    }
+
+    SECTION( "items without ammo types return empty sort names" ) {
+        item flashlight( itype_flashlight );
+        CHECK( flashlight.ammo_type() == ammotype::NULL_ID() );
+        CHECK( flashlight.ammo_sort_name().empty() );
+    }
+}
+
+TEST_CASE( "common_ammo_default", "[ammo][common_ammo_default]" )
+{
+    item gun( itype_ak47 );
+    CHECK( gun.common_ammo_default().is_null() );
+
+    item mag( itype_akmag10 );
+    REQUIRE( gun.put_in( mag, pocket_type::MAGAZINE_WELL ).success() );
+    REQUIRE( gun.magazine_current() != nullptr );
+
+    CHECK_FALSE( gun.common_ammo_default().is_null() );
+    CHECK( gun.common_ammo_default() == mag.ammo_default() );
 }
 
 TEST_CASE( "barrel_test", "[ammo][weapon]" )
@@ -317,4 +354,3 @@ TEST_CASE( "battery_energy_test", "[ammo][energy][item]" )
     }
 
 }
-

@@ -46,7 +46,7 @@
 
 #if defined(__ANDROID__)
 #include <jni.h>
-#include <SDL_keyboard.h>
+#include "sdl_wrappers.h" // for GetAndroidJNIEnv(), GetAndroidActivity()
 #endif
 
 // Display data
@@ -69,13 +69,6 @@ int OVERMAP_WINDOW_TERM_HEIGHT;
 int OVERMAP_LEGEND_WIDTH;
 
 scrollingcombattext SCT;
-
-// Mouseover selection delays to keep different types of scrolling from fighting
-// Currently used by multiline_list
-static const std::chrono::duration<int, std::milli> base_mouse_delay =
-    std::chrono::milliseconds( 100 );
-static const std::chrono::duration<int, std::milli> scrollwheel_delay =
-    std::chrono::milliseconds( 500 );
 
 std::string string_from_int( const catacurses::chtype ch )
 {
@@ -844,8 +837,8 @@ bool query_yn( const std::string &text )
 {
 #if defined(__ANDROID__)
     if( get_option<bool>( "ANDROID_NATIVE_UI" ) ) {
-        JNIEnv *env = ( JNIEnv * )SDL_AndroidGetJNIEnv();
-        jobject activity = ( jobject )SDL_AndroidGetActivity();
+        JNIEnv *env = ( JNIEnv * )GetAndroidJNIEnv();
+        jobject activity = ( jobject )GetAndroidActivity();
         jclass clazz( env->GetObjectClass( activity ) );
         jmethodID get_nativeui_method_id = env->GetMethodID( clazz, "getNativeUI",
                                            "()Lcom/cleverraven/cataclysmdda/NativeUI;" );
@@ -957,8 +950,8 @@ int popup( const std::string &text, PopupFlags flags )
 {
 #if defined(__ANDROID__)
     if( get_option<bool>( "ANDROID_NATIVE_UI" ) && flags == PF_NONE ) {
-        JNIEnv *env = ( JNIEnv * )SDL_AndroidGetJNIEnv();
-        jobject activity = ( jobject )SDL_AndroidGetActivity();
+        JNIEnv *env = ( JNIEnv * )GetAndroidJNIEnv();
+        jobject activity = ( jobject )GetAndroidActivity();
         jclass clazz( env->GetObjectClass( activity ) );
         jmethodID get_nativeui_method_id = env->GetMethodID( clazz, "getNativeUI",
                                            "()Lcom/cleverraven/cataclysmdda/NativeUI;" );
@@ -1153,6 +1146,42 @@ void draw_item_filter_rules( const catacurses::window &win, const int starty, co
     wnoutrefresh( win );
 }
 
+static std::string format_table( std::string_view s )
+{
+    std::string table;
+
+    std::vector<std::string> rows = string_split( s, '\n' );
+
+    if( rows.empty() ) {
+        return table;
+    }
+
+    std::vector<std::string> header = string_split( rows[0], ';' );
+    table += header[0] + ":";
+    for( size_t col = 1; col < header.size(); col++ ) {
+        table += ( col == 1 ? " " : ", " ) + header[col];
+    }
+    if( rows.size() > 1 ) {
+        table += '\n';
+    }
+
+    for( size_t row = 1; row < rows.size(); row++ ) {
+        if( rows[row].empty() ) {
+            continue;
+        }
+        std::vector<std::string> cols = string_split( rows[row], ';' );
+        table += "  " + cols[0] + ":";
+        for( size_t i = 1; i < cols.size(); i++ ) {
+            table += ( i == 1 ? " " : ", " ) + cols[i];
+        }
+        if( row + 1 < rows.size() && !rows[row + 1].empty() ) {
+            table += '\n';
+        }
+    }
+
+    return table;
+}
+
 std::string format_item_info( const std::vector<iteminfo> &vItemDisplay,
                               const std::vector<iteminfo> &vItemCompare )
 {
@@ -1160,7 +1189,9 @@ std::string format_item_info( const std::vector<iteminfo> &vItemDisplay,
     bool bIsNewLine = true;
 
     for( const iteminfo &i : vItemDisplay ) {
-        if( i.sType == "DESCRIPTION" ) {
+        if( i.isTable ) {
+            buffer += format_table( i.sName );
+        } else if( i.sType == "DESCRIPTION" ) {
             // Always start a new line for sType == "DESCRIPTION"
             if( !bIsNewLine ) {
                 buffer += "\n";
@@ -1268,6 +1299,63 @@ static nc_color get_comparison_color( const iteminfo &i,
     return thisColor;
 }
 
+static int get_num_cols( std::vector<std::string> &rows )
+{
+    int cols = 0;
+
+    for( const std::string &row : rows ) {
+        cols = std::max( cols, static_cast<int>( string_split( row, ';' ).size() ) );
+    }
+
+    return cols;
+}
+
+static void draw_table( std::string_view s )
+{
+    std::vector<std::string> rows = string_split( s, '\n' );
+    int num_cols = get_num_cols( rows );
+
+    if( rows.empty() || num_cols == 0 ) {
+        return;
+    }
+
+    if( ImGui::BeginTable( "##ITEMINFO_TABLE", num_cols,
+                           ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV ) ) {
+        const std::vector<std::string> chopped_up = string_split( rows.front(), ';' );
+        for( const std::string &cell_text : chopped_up ) {
+            // this prefix prevents imgui from drawing the text. We still have color tags, which imgui won't parse, so we don't want those exposed to the user.
+            // But we still want proper column IDs. So we put them in, but we *hide them* with this.
+            // This results in a column with an ID of e.g.
+            // ##<color_white>Protection:</color>
+            //
+            // Not great for debugging, but better than having a column with default (randomly generated number) ID!
+            const std::string invisible_ID_label = "##" + cell_text;
+            ImGui::TableSetupColumn( invisible_ID_label.c_str(), ImGuiTableColumnFlags_WidthStretch );
+        }
+        ImGui::TableHeadersRow();
+        // After putting in the invisible labels in the last for-loop, this writes the actual text. Just the same text without the ## marker, and
+        // with our native functions doing the drawing. (So we parse color tags)
+        for( size_t i = 0; i < chopped_up.size(); i++ ) {
+            ImGui::TableSetColumnIndex( i );
+            cataimgui::draw_colored_text( chopped_up[i], c_unset );
+        }
+
+        for( size_t i = 1; i < rows.size(); i++ ) {
+            if( rows[i].empty() ) {
+                continue;
+            }
+            ImGui::TableNextRow();
+            const std::vector<std::string> delimited_strings = string_split( rows[i], ';' );
+            for( const std::string &text : delimited_strings ) {
+                ImGui::TableNextColumn();
+                cataimgui::draw_colored_text( text, c_unset );
+            }
+        }
+
+        ImGui::EndTable();
+    }
+}
+
 void display_item_info( const std::vector<iteminfo> &vItemDisplay,
                         const std::vector<iteminfo> &vItemCompare )
 {
@@ -1276,7 +1364,9 @@ void display_item_info( const std::vector<iteminfo> &vItemDisplay,
         if( i.bIsArt ) {
             cataimgui::PushMonoFont();
         }
-        if( i.sType == "DESCRIPTION" ) {
+        if( i.isTable ) {
+            draw_table( i.sName );
+        } else if( i.sType == "DESCRIPTION" ) {
             if( i.bDrawName ) {
                 if( i.sName == "--" ) {
                     if( !bAlreadyHasNewLine ) {
@@ -1494,15 +1584,6 @@ static std::string trim( std::string_view s, Predicate pred )
     return std::string( wsfront, wsend.base() );
 }
 
-template<typename Prep>
-std::string trim_trailing( std::string_view s, Prep prep )
-{
-    return std::string( s.begin(), std::find_if_not(
-    s.rbegin(), s.rend(), [&prep]( int c ) {
-        return prep( c );
-    } ).base() );
-}
-
 std::string trim( std::string_view s )
 {
     return trim( s, []( int c ) {
@@ -1510,32 +1591,54 @@ std::string trim( std::string_view s )
     } );
 }
 
+template<typename Predicate>
+static std::string rtrim( std::string_view s, Predicate pred )
+{
+    auto wsend = std::find_if_not( s.crbegin(), s.crend(), pred );
+    return std::string( s.begin(), wsend.base() );
+}
+
+std::string rtrim( std::string_view s )
+{
+    return rtrim( s, []( int c ) {
+        return isspace( c );
+    } );
+}
+
 std::string trim_trailing_punctuations( std::string_view s )
 {
-    return trim_trailing( s, []( int c ) {
+    std::u32string u32s = utf8_to_utf32( s );
+    auto it = std::find_if_not( u32s.rbegin(), u32s.rend(), []( char32_t ch ) {
         // '<' and '>' are used for tags and should not be removed
-        return c == '.' || c == '!';
+        return u32_ispunct( ch ) && ch != U'<' && ch != U'>';
     } );
+    u32s.erase( it.base(), u32s.end() );
+    return utf32_to_utf8( u32s );
 }
 
-std::string remove_punctuations( const std::string &s )
+std::string remove_punctuations( const std::string_view s )
 {
-    std::wstring ws = utf8_to_wstr( s );
-    std::wstring result;
-    std::remove_copy_if( ws.begin(), ws.end(), std::back_inserter( result ),
-    []( wchar_t ch ) {
-        return std::iswpunct( ch ) && ch != '_';
+    std::u32string u32s = utf8_to_utf32( s );
+    std::u32string result;
+    std::remove_copy_if( u32s.begin(), u32s.end(), std::back_inserter( result ),
+    []( const char32_t ch ) {
+        return u32_ispunct( ch ) && ch != '_';
     } );
-    return wstr_to_utf8( result );
+    return utf32_to_utf8( result );
 }
 
-using char_t = std::string::value_type;
-std::string to_upper_case( const std::string &s )
+std::string to_upper_case( const std::string_view s )
 {
-    const auto &f = std::use_facet<std::ctype<wchar_t>>( std::locale() );
-    std::wstring wstr = utf8_to_wstr( s );
-    f.toupper( wstr.data(), wstr.data() + wstr.size() );
-    return wstr_to_utf8( wstr );
+    std::u32string u32s = utf8_to_utf32( s );
+    std::transform( u32s.begin(), u32s.end(), u32s.begin(), u32_to_uppercase );
+    return utf32_to_utf8( u32s );
+}
+
+std::string to_lower_case( const std::string_view s )
+{
+    std::u32string u32s = utf8_to_utf32( s );
+    std::transform( u32s.begin(), u32s.end(), u32s.begin(), u32_to_lowercase );
+    return utf32_to_utf8( u32s );
 }
 
 // find the position of each non-printing tag in a string
@@ -1981,8 +2084,8 @@ bool scrollbar::handle_dragging( const std::string &action, const std::optional<
         // We don't want to accidentally select something on mouse-up after dragging the scrollbar, so if
         // there's a mouse-up event, tell the UI that we've handled it
         return action == "SELECT";
-    } else  if( action == "CLICK_AND_DRAG" && coord.has_value() &&
-                scrollbar_area.contains( coord.value() ) ) {
+    } else if( action == "CLICK_AND_DRAG" && coord.has_value() &&
+               scrollbar_area.contains( coord.value() ) ) {
         // Started dragging the scrollbar
         dragging = true;
         return true;
@@ -2002,287 +2105,6 @@ bool scrollbar::handle_dragging( const std::string &action, const std::optional<
         // Not doing anything related to the scrollbar
         return false;
     }
-}
-
-void multiline_list::activate_entry( const size_t entry_pos, const bool exclusive )
-{
-    if( entry_pos >= entries.size() ) {
-        debugmsg( "Unable to activate entry %d of %d", entry_pos, entries.size() );
-        return;
-    }
-
-    const bool cur_value = entries[entry_pos].active;
-
-    if( exclusive ) {
-        for( multiline_list_entry &entry : entries ) {
-            entry.active = false;
-        }
-    }
-
-    entries[entry_pos].active = exclusive ? true : !cur_value;
-}
-
-void multiline_list::add_entry( const multiline_list_entry &entry )
-{
-    entries.emplace_back( entry );
-    if( !has_prefix || entry.prefix.empty() ) {
-        entries.back().prefix.clear();
-        has_prefix = false;
-    }
-}
-
-void multiline_list::create_entry_prep()
-{
-    entries.clear();
-    has_prefix = true;
-}
-
-void multiline_list::fold_entries()
-{
-    int available_width = getmaxx( w ) - 2; // Border/scrollbar allowance
-    entry_sizes.clear();
-    total_length = 0;
-
-    std::vector<std::string> folded;
-    for( multiline_list_entry &entry : entries ) {
-        entry.folded_text.clear();
-        if( has_prefix ) {
-            // Do a prefixed list (e.g. starting with a hotkey )
-            const int prefix_width = utf8_width( entry.prefix, true );
-            const int fold_width = available_width - prefix_width;
-            folded = foldstring( entry.entry_text, fold_width );
-            for( size_t j = 0; j < folded.size(); ++j ) {
-                if( j == 0 ) {
-                    entry.folded_text.emplace_back( entry.prefix + folded[j] );
-                } else {
-                    entry.folded_text.emplace_back( std::string( prefix_width, ' ' ).append( folded[j] ) );
-                }
-            }
-        } else {
-            folded = foldstring( entry.entry_text, available_width );
-            for( const std::string &line : folded ) {
-                entry.folded_text.emplace_back( line );
-            }
-        }
-        entry_sizes.emplace_back( static_cast<int>( folded.size() ) );
-        total_length += folded.size();
-    }
-    if( !entries.empty() ) {
-        // Reset entry position at end, because the resulting offset depends on entry sizes
-        set_entry_pos( 0, false );
-    }
-}
-
-int multiline_list::get_entry_from_offset()
-{
-    return get_entry_from_offset( offset_position );
-}
-
-int multiline_list::get_entry_from_offset( const int offset )
-{
-    int offset_for_entry = 0;
-    for( int i = 0; i < static_cast<int>( entry_sizes.size() ); ++i ) {
-        /* If the last entry we scroll past before the end of the list is multiple lines,
-         * we need to be able to jump past it.  So, if it's a single-line entry, we can
-         * return it.  Otherwise, skip past it and return the next one
-         */
-        if( offset_for_entry + 1 > offset ) {
-            return i;
-        }
-        offset_for_entry += entry_sizes[i];
-        if( offset_for_entry > offset ) {
-            return i + 1;
-        }
-    }
-    return static_cast<int>( entry_sizes.size() ) - 1;
-}
-
-int multiline_list::get_offset_from_entry()
-{
-    return get_offset_from_entry( entry_position );
-}
-
-int multiline_list::get_offset_from_entry( const int entry )
-{
-    int target_entry = clamp( entry, 0, static_cast<int>( entry_sizes.size() ) );
-    int offset = 0;
-    for( int i = 0; i < target_entry; ++i ) {
-        offset += entry_sizes[i];
-    }
-    return offset;
-}
-
-bool multiline_list::handle_navigation( std::string &action, input_context &ctxt )
-{
-    std::optional<point> coord = ctxt.get_coordinates_text( catacurses::stdscr );
-    inclusive_rectangle<point> mouseover_area( point( catacurses::getbegx( w ),
-            catacurses::getbegy( w ) ), point( getmaxx( w ) + catacurses::getbegx( w ),
-                    getmaxy( w ) + catacurses::getbegy( w ) ) );
-    bool mouse_in_window = coord.has_value() && mouseover_area.contains( coord.value() );
-
-    mouseover_position = -1;
-    std::optional<point> local_coord = ctxt.get_coordinates_text( w );
-    if( local_coord.has_value() ) {
-        for( const auto &entry : entry_map ) {
-            if( entry.second.contains( local_coord.value() ) ) {
-                mouseover_position = entry.first;
-                break;
-            }
-        }
-    }
-
-    if( list_sb->handle_dragging( action, coord, offset_position ) ) {
-        // No action required
-    } else if( action == "HOME" ) {
-        set_entry_pos( 0, false );
-    } else if( action == "END" ) {
-        set_entry_pos( entries.size() - 1, false );
-    } else if( action == "PAGE_DOWN" ) {
-        set_offset_pos( offset_position + getmaxy( w ), true );
-    } else if( action == "PAGE_UP" ) {
-        set_offset_pos( offset_position - getmaxy( w ), true );
-    } else if( action == "UP" ) {
-        set_entry_pos( entry_position - 1, true );
-    } else if( action == "DOWN" ) {
-        set_entry_pos( entry_position + 1, true );
-    } else if( action == "SCROLL_UP" && mouse_in_window ) {
-        // Scroll selection, but only adjust view as if we're scrolling offset
-        set_entry_pos( entry_position - 1, false );
-        set_offset_pos( get_offset_from_entry( entry_position ), false );
-        mouseover_delay_end = std::chrono::steady_clock::now() + scrollwheel_delay;
-    } else if( action == "SCROLL_DOWN" && mouse_in_window ) {
-        set_entry_pos( entry_position + 1, false );
-        set_offset_pos( get_offset_from_entry( entry_position ), false );
-        mouseover_delay_end = std::chrono::steady_clock::now() + scrollwheel_delay;
-    } else if( action == "SELECT" && mouse_in_window ) {
-        if( mouseover_position >= 0 ) {
-            set_entry_pos( mouseover_position, false );
-            action = "CONFIRM";
-            mouseover_delay_end = std::chrono::steady_clock::now() + base_mouse_delay;
-        }
-    } else if( action == "MOUSE_MOVE" && mouse_in_window && local_coord.has_value() ) {
-        if( std::chrono::steady_clock::now() > mouseover_delay_end ) {
-            if( mouseover_position >= 0 ) {
-                entry_position = mouseover_position;
-            }
-            const int mouse_scroll_up_pos = 0;
-            const int mouse_scroll_down_pos = getmaxy( w ) - 1;
-            if( local_coord.value().y <= mouse_scroll_up_pos ) {
-                set_offset_pos( offset_position - 1, false );
-                ++mouseover_accel_counter;
-            } else if( local_coord.value().y >= mouse_scroll_down_pos ) {
-                set_offset_pos( offset_position + 1, false );
-                ++mouseover_accel_counter;
-            } else {
-                mouseover_accel_counter = 1;
-            }
-        }
-    } else {
-        return false;
-    }
-    return true;
-}
-
-void multiline_list::print_entries()
-{
-    werase( w ); // this undesirably erases the left border of the larger window
-    entry_map.clear();
-
-    int ycurrent = 0;
-    int current_offset = 0;
-    int available_height = getmaxy( w );
-    for( size_t i = 0; i < entries.size(); ++i ) {
-        for( size_t j = 0; j < entries[i].folded_text.size(); ++j ) {
-            if( current_offset >= offset_position && current_offset < offset_position + available_height ) {
-                print_line( i, point( 2, ycurrent ), entries[i].folded_text[j] );
-                ++ycurrent;
-            }
-            ++current_offset;
-        }
-    }
-
-    list_sb->offset_x( 0 )
-    .offset_y( 0 )
-    .content_size( total_length )
-    .viewport_pos( offset_position )
-    .viewport_size( getmaxy( w ) )
-    .apply( w, true );
-
-    wnoutrefresh( w );
-}
-
-void multiline_list::print_line( int entry, const point &start, const std::string &text )
-{
-    nc_color cur_color = c_light_gray;
-    std::string output_text = text;
-    if( entries[entry].active ) {
-        cur_color = c_light_green;
-        output_text = colorize( remove_color_tags( output_text ), cur_color );
-    }
-    if( entry == entry_position ) {
-        output_text = hilite_string( output_text );
-    }
-    print_colored_text( w, start, cur_color, c_light_gray, output_text );
-    entry_map.emplace( entry, inclusive_rectangle<point>( start, point( start.x +
-                       utf8_width( text, true ), start.y + entry_sizes[entry] - 1 ) ) );
-}
-
-void multiline_list::set_entry_pos( const int entry_pos, const bool looping = false )
-{
-    if( looping && !entries.empty() ) {
-        int new_position = entry_pos;
-        const int list_size = static_cast<int>( entries.size() );
-        if( new_position < 0 ) {
-            // Ensure we have a positive position index by adding a multiple of the list_size to it
-            new_position += list_size * ( ( std::abs( new_position ) / list_size ) + 1 );
-        }
-        entry_position = new_position % static_cast<int>( entries.size() );
-    } else {
-        entry_position = clamp( entry_pos, 0, static_cast<int>( entries.size() ) - 1 );
-    }
-    int available_space = getmaxy( w ) - entry_sizes[entry_position];
-    set_offset_pos( get_offset_from_entry() - available_space / 2, false );
-    mouseover_delay_end = std::chrono::steady_clock::now() + base_mouse_delay / mouseover_accel_counter;
-}
-
-void multiline_list::set_offset_pos( const int offset_pos, const bool update_selection )
-{
-    // Ensure offset is above 0 and below the maximum
-    const int max_offset = total_length - getmaxy( w );
-    if( max_offset <= 0 ) {
-        // Can't scroll offset, so just scroll entry
-        offset_position = 0;
-        if( update_selection ) {
-            if( offset_pos > offset_position ) {
-                set_entry_pos( entry_position + 5, false );
-            } else {
-                set_entry_pos( entry_position - 5, false );
-            }
-        }
-    } else {
-        if( update_selection ) {
-            entry_position = get_entry_from_offset( clamp( offset_pos, 0, total_length ) );
-            // The offset position might be slightly offset from the actual offset from that entry, so adjust
-            set_offset_pos( get_offset_from_entry(), false );
-        } else {
-            offset_position = clamp( offset_pos, 0, max_offset );
-        }
-    }
-    mouseover_delay_end = std::chrono::steady_clock::now() + base_mouse_delay / mouseover_accel_counter;
-}
-
-void multiline_list::set_up_navigation( input_context &ctxt )
-{
-    list_sb->set_draggable( ctxt );
-    ctxt.register_updown();
-    ctxt.register_action( "END" );
-    ctxt.register_action( "HOME" );
-    ctxt.register_action( "MOUSE_MOVE" );
-    ctxt.register_action( "PAGE_DOWN" );
-    ctxt.register_action( "PAGE_UP" );
-    ctxt.register_action( "SCROLL_DOWN" );
-    ctxt.register_action( "SCROLL_UP" );
-    ctxt.register_action( "SELECT" );
 }
 
 void scrolling_text_view::set_text( const std::string &text, const bool scroll_to_top )
@@ -2436,246 +2258,9 @@ void calcStartPos( int &iStartPos, const int iCurrentLine, const int iContentHei
     }
 }
 
-#if defined(_MSC_VER)
-std::string cata::string_formatter::raw_string_format( const char *const format, ... )
-{
-    va_list args;
-    va_start( args, format );
-
-    va_list args_copy;
-    va_copy( args_copy, args );
-    const int result = _vscprintf_p( format, args_copy );
-    va_end( args_copy );
-    if( result == -1 ) {
-        throw std::runtime_error( "Bad format string for printf: \"" + std::string( format ) + "\"" );
-    }
-
-    std::string buffer( result, '\0' );
-    _vsprintf_p( &buffer[0], result + 1, format, args ); //+1 for string's null
-    va_end( args );
-
-    return buffer;
-}
-#else
-
-// Cygwin has limitations which prevents
-// from using more than 9 positional arguments.
-// This functions works around it in two ways:
-//
-// First if all positional arguments are in "natural" order
-// (i.e. like %1$d %2$d %3$d),
-// then their positions is stripped away and string
-// formatted without positions.
-//
-// Otherwise only 9 arguments are passed to vsnprintf
-//
-std::string rewrite_vsnprintf( const char *msg )
-{
-    bool contains_positional = false;
-    const char *orig_msg = msg;
-    const char *formats = "diouxXeEfFgGaAcsCSpnm";
-
-    std::string rewritten_msg;
-    std::string rewritten_msg_optimised;
-    const char *ptr = nullptr;
-    int next_positional_arg = 1;
-    while( true ) {
-
-        // First find next position where argument might be used
-        ptr = strchr( msg, '%' );
-        if( !ptr ) {
-            rewritten_msg += msg;
-            rewritten_msg_optimised += msg;
-            break;
-        }
-
-        // Write portion of the string that was before %
-        rewritten_msg += std::string( msg, ptr );
-        rewritten_msg_optimised += std::string( msg, ptr );
-
-        const char *arg_start = ptr;
-
-        ptr++;
-
-        // If it simply '%%', then no processing needed
-        if( *ptr == '%' ) {
-            rewritten_msg += "%%";
-            rewritten_msg_optimised += "%%";
-            msg = ptr + 1;
-            continue;
-        }
-
-        // Parse possible number of positional argument
-        int positional_arg = 0;
-        while( isdigit( *ptr ) ) {
-            positional_arg = positional_arg * 10 + *ptr - '0';
-            ptr++;
-        }
-
-        // If '$' ever follows a numeral, the string has a positional arg
-        if( *ptr == '$' ) {
-            contains_positional = true;
-        }
-
-        // Check if it's expected argument
-        if( *ptr == '$' && positional_arg == next_positional_arg ) {
-            next_positional_arg++;
-        } else {
-            next_positional_arg = -1;
-        }
-
-        // Now find where it ends
-        const char *end = strpbrk( ptr, formats );
-        if( !end ) {
-            // Format string error. Just bail.
-            return orig_msg;
-        }
-
-        // write entire argument to rewritten_msg
-        if( positional_arg < 10 ) {
-            std::string argument( arg_start, end + 1 );
-            rewritten_msg += argument;
-        } else {
-            rewritten_msg += "<formatting error>";
-        }
-
-        // write argument without position to rewritten_msg_optimised
-        if( next_positional_arg > 0 ) {
-            std::string argument( ptr + 1, end + 1 );
-            rewritten_msg_optimised += "%" + argument;
-        }
-
-        msg = end + 1;
-    }
-
-    if( !contains_positional ) {
-        return orig_msg;
-    }
-
-    if( next_positional_arg > 0 ) {
-        // If all positioned arguments were in order (%1$d %2$d) then we simply
-        // strip arguments
-        return rewritten_msg_optimised;
-    }
-
-    return rewritten_msg;
-}
-
-// NOLINTNEXTLINE(cert-dcl50-cpp)
-std::string cata::string_formatter::raw_string_format( const char *format, ... )
-{
-#if defined(_WIN32)
-    // For unknown reason, vsnprintf on Windows does not seem to support positional arguments (e.g. "%1$s")
-    va_list args;
-    va_start( args, format );
-
-    va_list args_copy_1;
-    va_copy( args_copy_1, args );
-    // Return value of _vscprintf_p does not include the '\0' terminator
-    const int characters = _vscprintf_p( format, args_copy_1 ) + 1;
-    va_end( args_copy_1 );
-
-    std::vector<char> buffer( characters, '\0' );
-    va_list args_copy_2;
-    va_copy( args_copy_2, args );
-    _vsprintf_p( &buffer[0], characters, format, args_copy_2 );
-    va_end( args_copy_2 );
-
-    va_end( args );
-    return std::string( &buffer[0] );
-#else
-    va_list args;
-    va_start( args, format );
-
-    errno = 0; // Clear errno before trying
-    std::vector<char> buffer( 1024, '\0' );
-
-#if defined(__CYGWIN__)
-    std::string rewritten_format = rewrite_vsnprintf( format );
-    format = rewritten_format.c_str();
-#endif
-
-    for( ;; ) {
-        const size_t buffer_size = buffer.size();
-
-        va_list args_copy;
-        va_copy( args_copy, args );
-        const int result = vsnprintf( buffer.data(), buffer_size, format, args_copy );
-        va_end( args_copy );
-
-        // No error, and the buffer is big enough; we're done.
-        if( result >= 0 && static_cast<size_t>( result ) < buffer_size ) {
-            break;
-        }
-
-        // Standards conformant versions return -1 on error only.
-        // Some non-standard versions return -1 to indicate a bigger buffer is needed.
-        // Some of the latter set errno to ERANGE at the same time.
-        if( result < 0 && errno && errno != ERANGE ) {
-            throw std::runtime_error( "Bad format string for printf: \"" + std::string( format ) + "\"" );
-        }
-
-        // Looks like we need to grow... bigger, definitely bigger.
-        buffer.resize( buffer_size * 2 );
-    }
-
-    va_end( args );
-    return std::string( buffer.data() );
-#endif
-}
-#endif
-
 void replace_city_tag( std::string &input, const std::string &name )
 {
     replace_substring( input, "<city>", name, true );
-}
-
-// Legacy, moved to parse_tags
-void replace_keybind_tag( std::string &input )
-{
-    std::string keybind_tag_start = "<keybind:";
-    size_t keybind_length = keybind_tag_start.length();
-    std::string keybind_tag_end = ">";
-
-    size_t pos = input.find( keybind_tag_start );
-    while( pos != std::string::npos ) {
-        size_t pos_end = input.find( keybind_tag_end, pos );
-        if( pos_end == std::string::npos ) {
-            debugmsg( "Mismatched keybind tag in string: '%s'", input );
-            break;
-        }
-        size_t pos_keybind = pos + keybind_length;
-        std::string keybind_full = input.substr( pos_keybind, pos_end - pos_keybind );
-        std::string keybind = keybind_full;
-
-        size_t pos_category_split = keybind_full.find( ':' );
-
-        std::string category = "DEFAULTMODE";
-        if( pos_category_split != std::string::npos ) {
-            category = keybind_full.substr( 0, pos_category_split );
-            keybind = keybind_full.substr( pos_category_split + 1 );
-        }
-        input_context ctxt( category );
-
-        std::string keybind_desc;
-        std::vector<input_event> keys = ctxt.keys_bound_to( keybind, -1, false, false );
-        if( keys.empty() ) { // Display description for unbound keys
-            keybind_desc = colorize( '<' + ctxt.get_desc( keybind ) + '>', c_red );
-
-            if( !ctxt.is_registered_action( keybind ) ) {
-                debugmsg( "Invalid/Missing <keybind>: '%s'", keybind_full );
-            }
-        } else {
-            keybind_desc = enumerate_as_string( keys.begin(), keys.end(), []( const input_event & k ) {
-                return colorize( '\'' + k.long_description() + '\'', c_yellow );
-            }, enumeration_conjunction::or_ );
-        }
-        std::string to_replace = string_format( "%s%s%s", keybind_tag_start, keybind_full,
-                                                keybind_tag_end );
-        replace_substring( input, to_replace, keybind_desc, true );
-
-        pos = input.find( keybind_tag_start );
-    }
 }
 
 void replace_substring( std::string &input, const std::string &substring,
@@ -2694,18 +2279,22 @@ void replace_substring( std::string &input, const std::string &substring,
     }
 }
 
-std::string uppercase_first_letter( const std::string &str )
+std::string uppercase_first_letter( const std::string_view str )
 {
-    std::wstring wstr = utf8_to_wstr( str );
-    wstr[0] = towupper( wstr[0] );
-    return wstr_to_utf8( wstr );
+    std::u32string u32s = utf8_to_utf32( str );
+    if( !u32s.empty() ) {
+        u32s[0] = u32_to_uppercase( u32s[0] );
+    }
+    return utf32_to_utf8( u32s );
 }
 
-std::string lowercase_first_letter( const std::string &str )
+std::string lowercase_first_letter( const std::string_view str )
 {
-    std::wstring wstr = utf8_to_wstr( str );
-    wstr[0] = towlower( wstr[0] );
-    return wstr_to_utf8( wstr );
+    std::u32string u32s = utf8_to_utf32( str );
+    if( !u32s.empty() ) {
+        u32s[0] = u32_to_lowercase( u32s[0] );
+    }
+    return utf32_to_utf8( u32s );
 }
 
 //remove prefix of a string, between c1 and c2, i.e., "<prefix>remove it"
@@ -2882,11 +2471,12 @@ using RatingVector = std::vector<std::tuple<double, char, std::string>>;
 template std::string get_labeled_bar<RatingVector::iterator>( const double val, const int width,
         const std::string &label,
         RatingVector::iterator begin, RatingVector::iterator end,
-        std::function<std::string( RatingVector::iterator, int )> printer );
+        const std::function<std::string( RatingVector::iterator, int )> &printer );
 
 template<typename BarIterator>
 std::string get_labeled_bar( const double val, const int width, const std::string &label,
-                             BarIterator begin, BarIterator end, std::function<std::string( BarIterator, int )> printer )
+                             BarIterator begin, BarIterator end,
+                             const std::function<std::string( BarIterator, int )> &printer )
 {
     std::string result;
 

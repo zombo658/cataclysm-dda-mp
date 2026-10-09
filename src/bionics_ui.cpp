@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <list>
 #include <map>
 #include <memory>
@@ -29,9 +28,7 @@
 #include "item.h"
 #include "item_location.h"
 #include "localized_comparator.h"
-#include "make_static.h"
 #include "map.h"
-#include "options.h"
 #include "output.h"
 #include "pimpl.h"
 #include "point.h"
@@ -48,6 +45,8 @@
 static const itype_id itype_battery( "battery" );
 
 static const json_character_flag json_flag_BIONIC_GUN( "BIONIC_GUN" );
+static const json_character_flag json_flag_BIONIC_POWER_SOURCE( "BIONIC_POWER_SOURCE" );
+static const json_character_flag json_flag_BIONIC_TOGGLED( "BIONIC_TOGGLED" );
 
 // '!', '-' and '=' are uses as default bindings in the menu
 static const invlet_wrapper
@@ -195,13 +194,27 @@ bionic *avatar::bionic_by_invlet( const int ch )
     return nullptr;
 }
 
+static std::string action_bound_to_key( const input_context &ctxt, char key )
+{
+    return ctxt.input_to_action( input_event( key, input_event_t::keyboard_char ) );
+}
+
 char get_free_invlet( Character &p )
 {
     if( p.is_npc() ) {
         // npcs don't need an invlet
         return ' ';
     }
+
+    input_context ctxt( "BIONICS", keyboard_mode::keychar );
+    // Register standard uilist actions that might be bound to keys
+    ctxt.register_updown();
+    ctxt.register_action( "NEXT_TAB" );
+    ctxt.register_action( "PREV_TAB" );
     for( const char &inv_char : bionic_chars ) {
+        if( action_bound_to_key( ctxt, inv_char ) != "ERROR" ) {
+            continue;
+        }
         if( p.as_avatar()->bionic_by_invlet( inv_char ) == nullptr ) {
             return inv_char;
         }
@@ -285,9 +298,10 @@ static void draw_bionics_titlebar( const catacurses::window &window, avatar *p,
 
     std::string desc_append = string_format(
                                   _( "[<color_yellow>%s</color>] Reassign, [<color_yellow>%s</color>] Switch tabs, "
-                                     "[<color_yellow>%s</color>] Toggle fuel saving mode, [<color_yellow>%s</color>] Toggle sprite visibility, " ),
+                                     "[<color_yellow>%s</color>] Toggle fuel saving mode, [<color_yellow>%s</color>] Toggle sprite visibility, "
+                                     "[<color_yellow>%s</color>] Toggle shutdown on empty, " ),
                                   ctxt.get_desc( "REASSIGN" ), ctxt.get_desc( "NEXT_TAB" ), ctxt.get_desc( "TOGGLE_SAFE_FUEL" ),
-                                  ctxt.get_desc( "TOGGLE_SPRITE" ) );
+                                  ctxt.get_desc( "TOGGLE_SPRITE" ), ctxt.get_desc( "TOGGLE_SHUTDOWN" ) );
     desc_append += string_format( _( " [<color_yellow>%s</color>] Sort: %s" ), ctxt.get_desc( "SORT" ),
                                   sort_mode_str( uistate.bionic_sort_mode ) );
     std::string desc;
@@ -337,11 +351,14 @@ static std::string build_bionic_poweronly_string( const bionic &bio, avatar *p )
                               : string_format( _( "%s/%d turns" ), units::display( bio_data.power_over_time ),
                                                to_turns<int>( bio_data.charge_time ) ) );
     }
-    if( bio_data.has_flag( STATIC( json_character_flag( "BIONIC_TOGGLED" ) ) ) ) {
+    if( bio_data.has_flag( json_flag_BIONIC_TOGGLED ) ) {
         properties.emplace_back( bio.powered ? _( "ON" ) : _( "OFF" ) );
     }
     if( bio.incapacitated_time > 0_turns ) {
         properties.emplace_back( _( "(incapacitated)" ) );
+    }
+    if( !bio.auto_shutdown ) {
+        properties.emplace_back( _( "(shutdown off)" ) );
     }
     if( !bio.show_sprite ) {
         properties.emplace_back( _( "(hidden)" ) );
@@ -410,12 +427,9 @@ static void draw_description( const catacurses::window &win, const bionic &bio,
     }
     ypos += 1 + fold_and_print( win, point( 0, ypos ), width, c_light_blue, "%s", bio.id->description );
 
-    // TODO: Unhide when enforcing limits
-    if( get_option < bool >( "CBM_SLOTS_ENABLED" ) ) {
-        const bool each_bp_on_new_line = ypos + num_of_bp + 1 < getmaxy( win );
-        ypos += fold_and_print( win, point( 0, ypos ), width, c_light_gray, list_occupied_bps( bio.id,
-                                _( "This bionic occupies the following body parts:" ), each_bp_on_new_line ) );
-    }
+    const bool each_bp_on_new_line = ypos + num_of_bp + 1 < getmaxy( win );
+    ypos += fold_and_print( win, point( 0, ypos ), width, c_light_gray, list_occupied_bps( bio.id,
+                            _( "This bionic occupies the following body parts:" ), each_bp_on_new_line ) );
 
     if( bio.has_weapon() ) {
         fold_and_print( win, point( 0, ypos ), width, c_light_gray,
@@ -435,9 +449,6 @@ static void draw_connectors( const catacurses::window &win, const point &start,
         if( pos != bp_to_pos.end() ) {
             pos_and_num.emplace_back( static_cast<int>( pos->second ) + LIST_START_Y, elem.second );
         }
-    }
-    if( pos_and_num.empty() || !get_option < bool >( "CBM_SLOTS_ENABLED" ) ) {
-        return;
     }
 
     wattron( win, BORDER_COLOR );
@@ -531,7 +542,7 @@ static void draw_connectors( const catacurses::window &win, const point &start,
 static nc_color get_bionic_text_color( const bionic &bio, const bool isHighlightedBionic )
 {
     nc_color type = c_white;
-    bool is_power_source = bio.id->has_flag( STATIC( json_character_flag( "BIONIC_POWER_SOURCE" ) ) );
+    bool is_power_source = bio.id->has_flag( json_flag_BIONIC_POWER_SOURCE );
     if( bio.id->activated ) {
         if( isHighlightedBionic ) {
             if( bio.powered && !is_power_source ) {
@@ -667,6 +678,7 @@ void avatar::power_bionics()
     ctxt.register_action( "QUIT" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "TOGGLE_SAFE_FUEL" );
+    ctxt.register_action( "TOGGLE_SHUTDOWN" );
     ctxt.register_action( "TOGGLE_SPRITE" );
     ctxt.register_action( "SORT" );
 
@@ -693,14 +705,18 @@ void avatar::power_bionics()
             bp_to_pos.emplace( bp.id(), bps.size() - 1 );
             max_width = std::max( max_width, utf8_width( s ) );
         }
-        const int pos_x = WIDTH - 2 - max_width;
-        if( get_option < bool >( "CBM_SLOTS_ENABLED" ) ) {
-            wattron( wBio, c_light_gray );
-            for( size_t i = 0; i < bps.size(); ++i ) {
-                mvwprintw( wBio, point( pos_x, i + list_start_y ), bps[i] );
+
+        for( const bodypart_id &bp : get_all_body_parts() ) {
+            if( bp->similar_bodypart.has_value() ) {
+                bp_to_pos.emplace( bp->similar_bodypart.value(), bp_to_pos.at( bp.id() ) );
             }
-            wattroff( wBio, c_light_gray );
         }
+        const int pos_x = WIDTH - 2 - max_width;
+        wattron( wBio, c_light_gray );
+        for( size_t i = 0; i < bps.size(); ++i ) {
+            mvwprintw( wBio, point( pos_x, i + list_start_y ), bps[i] );
+        }
+        wattroff( wBio, c_light_gray );
 
         if( current_bionic_list->empty() ) {
             std::string msg;
@@ -726,7 +742,7 @@ void avatar::power_bionics()
                                                                 *( *current_bionic_list )[i], this ).c_str() );
                 trim_and_print( wBio, point( 2, list_start_y + i - scroll_position ), WIDTH - 3, col,
                                 desc );
-                if( is_highlighted && menu_mode != EXAMINING && get_option < bool >( "CBM_SLOTS_ENABLED" ) ) {
+                if( is_highlighted && menu_mode != EXAMINING ) {
                     const bionic_id bio_id = ( *current_bionic_list )[i]->id;
                     draw_connectors( wBio, point( utf8_width( desc ) + 3, list_start_y + i - scroll_position ),
                                      pos_x - 2, bio_id, bp_to_pos );
@@ -867,6 +883,17 @@ void avatar::power_bionics()
                     g->invalidate_main_ui_adaptor();
                 } else {
                     popup( _( "You can't toggle fuel saving mode on a non-fueled CBM." ) );
+                }
+            }
+        } else if( action == "TOGGLE_SHUTDOWN" ) {
+            sorted_bionics &bio_list = tab_mode == TAB_ACTIVE ? active : passive;
+            if( !current_bionic_list->empty() ) {
+                tmp = bio_list[cursor];
+                if( !tmp->info().fuel_opts.empty() || tmp->info().is_remote_fueled ) {
+                    tmp->auto_shutdown = !tmp->auto_shutdown;
+                    g->invalidate_main_ui_adaptor();
+                } else {
+                    popup( _( "You can't toggle shutdown on empty mode on a non-fueled CBM." ) );
                 }
             }
         } else if( action == "TOGGLE_SPRITE" ) {

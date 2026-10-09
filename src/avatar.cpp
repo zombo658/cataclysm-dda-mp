@@ -39,13 +39,14 @@
 #include "game.h"
 #include "game_constants.h"
 #include "game_inventory.h"
-#include "help.h"
 #include "inventory.h"
+#include "inventory_ui.h"
 #include "item.h"
 #include "item_location.h"
 #include "itype.h"
 #include "iuse.h"
 #include "json.h"
+#include "level_cache.h"
 #include "map.h"
 #include "map_memory.h"
 #include "map_scale_constants.h"
@@ -55,12 +56,12 @@
 #include "move_mode.h"
 #include "npc.h"
 #include "npc_opinion.h"
+#include "options.h"
 #include "output.h"
 #include "overmapbuffer.h"
 #include "pathfinding.h"
 #include "pimpl.h"
 #include "point.h"
-#include "profession.h"
 #include "ranged.h"
 #include "recipe.h"
 #include "ret_val.h"
@@ -70,6 +71,7 @@
 #include "string_formatter.h"
 #include "talker.h"
 #include "talker_avatar.h"
+#include "text_snippets.h"
 #include "timed_event.h"
 #include "translations.h"
 #include "type_id.h"
@@ -77,6 +79,7 @@
 #include "units.h"
 #include "value_ptr.h"
 #include "vehicle.h"
+#include "visitable.h"
 #include "vpart_position.h"
 
 static const bionic_id bio_cloak( "bio_cloak" );
@@ -105,6 +108,7 @@ static const itype_id itype_guidebook( "guidebook" );
 static const itype_id itype_mut_longpull( "mut_longpull" );
 
 static const json_character_flag json_flag_ALARMCLOCK( "ALARMCLOCK" );
+static const json_character_flag json_flag_CANNOT_READ_SPELLBOOKS( "CANNOT_READ_SPELLBOOKS" );
 static const json_character_flag json_flag_PAIN_IMMUNE( "PAIN_IMMUNE" );
 static const json_character_flag json_flag_WEBBED_HANDS( "WEBBED_HANDS" );
 
@@ -125,7 +129,6 @@ static const trait_id trait_ARACHNID_ARMS_OK( "ARACHNID_ARMS_OK" );
 static const trait_id trait_CHITIN2( "CHITIN2" );
 static const trait_id trait_CHITIN3( "CHITIN3" );
 static const trait_id trait_CHITIN_FUR3( "CHITIN_FUR3" );
-static const trait_id trait_COMPOUND_EYES( "COMPOUND_EYES" );
 static const trait_id trait_DEBUG_CLOAK( "DEBUG_CLOAK" );
 static const trait_id trait_INSECT_ARMS( "INSECT_ARMS" );
 static const trait_id trait_INSECT_ARMS_OK( "INSECT_ARMS_OK" );
@@ -140,11 +143,11 @@ static const trait_id trait_WHISKERS_RAT( "WHISKERS_RAT" );
 avatar::avatar()
 {
     player_map_memory = std::make_unique<map_memory>();
-    show_map_memory = true;
     active_mission = nullptr;
     grab_type = object_type::NONE;
     calorie_diary.emplace_front( );
     a_diary = nullptr;
+    desired_move_mode = move_mode_walk;
 }
 
 avatar::~avatar() = default;
@@ -178,14 +181,16 @@ void avatar::control_npc( npc &np, const bool debug )
     np.set_fac( faction_your_followers );
     // perception and mutations may have changed, so reset light level caches
     g->reset_light_level();
+    for( int z = -OVERMAP_DEPTH; z <= OVERMAP_HEIGHT; z++ ) {
+        get_map().set_lightmap_cache_dirty( z );
+    }
     // center the map on the new avatar character
     const bool z_level_changed = g->vertical_shift( posz() );
     g->update_map( *this, z_level_changed );
     character_mood_face( true );
 
-    profession_id prof_id = prof ? prof->ident() : profession::generic()->ident();
-    get_event_bus().send<event_type::game_avatar_new>( /*is_new_game=*/false, debug,
-            getID(), name, male, prof_id, custom_profession );
+    get_event_bus().send<event_type::game_avatar_new>( /*is_new_game=*/false, debug, getID(), name,
+            custom_profession );
 }
 
 void avatar::control_npc_menu( const bool debug )
@@ -224,11 +229,6 @@ void avatar::longpull( const std::string &name )
     Creature::longpull( name, traj.back() );
 }
 
-void avatar::toggle_map_memory()
-{
-    show_map_memory = !show_map_memory;
-}
-
 bool avatar::is_map_memory_valid() const
 {
     return player_map_memory->is_valid();
@@ -236,10 +236,10 @@ bool avatar::is_map_memory_valid() const
 
 bool avatar::should_show_map_memory() const
 {
-    if( get_timed_events().get( timed_event_type::OVERRIDE_PLACE ) ) {
+    if( !you_know_where_you_are() ) {
         return false;
     }
-    return show_map_memory;
+    return true;
 }
 
 bool avatar::save_map_memory()
@@ -250,6 +250,16 @@ bool avatar::save_map_memory()
 void avatar::load_map_memory()
 {
     player_map_memory->load( pos_abs() );
+}
+
+void avatar::clear_map_memory()
+{
+    player_map_memory->clear();
+}
+
+void avatar::ensure_portrait_valid()
+{
+    debugmsg( "No support for avatar portrait (yet)" );
 }
 
 void avatar::prepare_map_memory_region( const tripoint_abs_ms &p1, const tripoint_abs_ms &p2 )
@@ -263,6 +273,12 @@ const memorized_tile &avatar::get_memorized_tile( const tripoint_abs_ms &p ) con
         return player_map_memory->get_tile( p );
     }
     return mm_submap::default_tile;
+}
+
+bool avatar::has_memory_at( const tripoint_abs_ms &p ) const
+{
+    const memorized_tile &mt = get_memorized_tile( p );
+    return !mt.get_ter_id().empty() || !mt.get_dec_id().empty();
 }
 
 void avatar::memorize_terrain( const tripoint_abs_ms &p, std::string_view id,
@@ -302,9 +318,19 @@ std::vector<mission *> avatar::get_failed_missions() const
     return failed_missions;
 }
 
+std::vector<point_of_interest> avatar::get_points_of_interest() const
+{
+    return points_of_interest;
+}
+
 mission *avatar::get_active_mission() const
 {
     return active_mission;
+}
+
+point_of_interest avatar::get_active_point_of_interest() const
+{
+    return active_point_of_interest;
 }
 
 void avatar::reset_all_missions()
@@ -317,10 +343,12 @@ void avatar::reset_all_missions()
 
 tripoint_abs_omt avatar::get_active_mission_target() const
 {
-    if( active_mission == nullptr ) {
-        return tripoint_abs_omt::invalid;
+    if( active_mission != nullptr ) {
+        return active_mission->get_target();
+    } else {
+        // It's tripoint_abs_invalid if not active.
+        return active_point_of_interest.pos;
     }
-    return active_mission->get_target();
 }
 
 void avatar::set_active_mission( mission &cur_mission )
@@ -331,6 +359,33 @@ void avatar::set_active_mission( mission &cur_mission )
                   cur_mission.mission_id().c_str() );
     } else {
         active_mission = &cur_mission;
+        active_point_of_interest.pos = tripoint_abs_omt::invalid;
+    }
+}
+
+void avatar::set_active_point_of_interest( const point_of_interest &active_point_of_interest )
+{
+    for( const point_of_interest &iter : points_of_interest ) {
+        // It's really sufficient to only check the position as used...
+        if( iter.pos == active_point_of_interest.pos &&
+            iter.text == active_point_of_interest.text ) {
+            this->active_point_of_interest = active_point_of_interest;
+            active_mission = nullptr;
+            return;
+        }
+
+    }
+
+    debugmsg( "active point of interest %s is not in the points_of_interest list",
+              active_point_of_interest.text.c_str() );
+}
+
+void avatar::update_active_mission()
+{
+    if( active_missions.empty() ) {
+        active_mission = nullptr;
+    } else {
+        active_mission = active_missions.front();
     }
 }
 
@@ -362,11 +417,7 @@ void avatar::on_mission_finished( mission &cur_mission )
         active_missions.erase( iter );
     }
     if( &cur_mission == active_mission ) {
-        if( active_missions.empty() ) {
-            active_mission = nullptr;
-        } else {
-            active_mission = active_missions.front();
-        }
+        update_active_mission();
     }
 }
 
@@ -392,12 +443,46 @@ void avatar::remove_active_mission( mission &cur_mission )
     }
 
     if( &cur_mission == active_mission ) {
-        if( active_missions.empty() ) {
+        update_active_mission();
+    }
+}
+
+void avatar::add_point_of_interest( const point_of_interest &new_point_of_interest )
+{
+    for( point_of_interest &existing_point_of_interest : points_of_interest ) {
+        if( new_point_of_interest.pos == existing_point_of_interest.pos ) {
+            existing_point_of_interest.text = new_point_of_interest.text;
             active_mission = nullptr;
-        } else {
-            active_mission = active_missions.front();
+            active_point_of_interest = new_point_of_interest;
+            return;
         }
     }
+
+    points_of_interest.push_back( new_point_of_interest );
+    active_mission = nullptr;
+    active_point_of_interest = new_point_of_interest;
+}
+
+void avatar::delete_point_of_interest( tripoint_abs_omt pos )
+{
+    for( auto iter = points_of_interest.begin(); iter != points_of_interest.end(); iter++ ) {
+        if( iter->pos == pos ) {
+            points_of_interest.erase( iter );
+
+            if( active_point_of_interest.pos == pos ) {
+                active_point_of_interest.pos = tripoint_abs_omt::invalid;
+
+                if( !active_missions.empty() ) {
+                    active_mission = active_missions.front();
+                }
+            }
+
+            return;
+        }
+    }
+
+    debugmsg( "removed point of interest at %s was not in the points_of_interest list",
+              pos.to_string().c_str() );
 }
 
 diary *avatar::get_avatar_diary()
@@ -428,10 +513,13 @@ bool avatar::read( item_location &book, item_location ereader )
     // spells are handled in a different place
     // src/iuse_actor.cpp -> learn_spell_actor::use
     if( book->get_use( "learn_spell" ) ) {
+        if( has_flag( json_flag_CANNOT_READ_SPELLBOOKS ) ) {
+            return false;
+        }
+
         book->get_use( "learn_spell" )->call( this, *book, pos_bub() );
         return true;
     }
-
     bool continuous = false;
     const time_duration time_taken = time_to_read( *book, *reader );
     add_msg_debug( debugmode::DF_ACT_READ, "avatar::read time_taken = %s",
@@ -939,9 +1027,6 @@ void avatar::reset_stats()
     if( has_trait( trait_CHITIN2 ) || has_trait( trait_CHITIN3 ) || has_trait( trait_CHITIN_FUR3 ) ) {
         add_miss_reason( _( "Your chitin gets in the way." ), 1 );
     }
-    if( has_trait( trait_COMPOUND_EYES ) && !wearing_something_on( bodypart_id( "eyes" ) ) ) {
-        mod_per_bonus( 2 );
-    }
     if( has_trait( trait_INSECT_ARMS ) ) {
         add_miss_reason( _( "Your insect limbs get in the way." ), 2 );
     }
@@ -1017,14 +1102,12 @@ void avatar::reset_stats()
     // Starvation
     const float bmi = get_bmi_fat();
     if( bmi < character_weight_category::normal ) {
-        const int str_penalty = std::floor( ( 1.0f - ( get_bmi_fat() /
-                                              character_weight_category::normal ) ) * str_max );
-        const int dexint_penalty = std::floor( ( character_weight_category::normal - bmi ) * 3.0f );
+        const stat_mod wpen = get_weight_penalty();
         add_miss_reason( _( "You're weak from hunger." ),
                          static_cast<unsigned>( ( get_starvation() + 300 ) / 1000 ) );
-        mod_str_bonus( -1 * str_penalty );
-        mod_dex_bonus( -1 * dexint_penalty );
-        mod_int_bonus( -1 * dexint_penalty );
+        mod_str_bonus( -wpen.strength );
+        mod_dex_bonus( -wpen.dexterity );
+        mod_int_bonus( -wpen.intelligence );
     }
     // Thirst
     if( get_thirst() >= 200 ) {
@@ -1094,91 +1177,6 @@ void avatar::reset_stats()
 
 }
 
-// based on  D&D 5e level progression
-static const std::array<int, 20> xp_cutoffs = { {
-        300, 900, 2700, 6500, 14000,
-        23000, 34000, 48000, 64000, 85000,
-        100000, 120000, 140000, 165000, 195000,
-        225000, 265000, 305000, 355000, 405000
-    }
-};
-
-int avatar::free_upgrade_points() const
-{
-    int lvl = 0;
-    for( const int &xp_lvl : xp_cutoffs ) {
-        if( kill_xp >= xp_lvl ) {
-            lvl++;
-        } else {
-            break;
-        }
-    }
-    return lvl - spent_upgrade_points;
-}
-
-void avatar::upgrade_stat_prompt( const character_stat &stat )
-{
-    const int free_points = free_upgrade_points();
-
-    if( free_points <= 0 ) {
-        const std::size_t lvl = spent_upgrade_points + free_points;
-        if( lvl >= xp_cutoffs.size() ) {
-            popup( _( "You've already reached maximum level." ) );
-        } else {
-            popup( _( "Needs %d more experience to gain next level." ), xp_cutoffs[lvl] - kill_xp );
-        }
-        return;
-    }
-
-    std::string stat_string;
-    switch( stat ) {
-        case character_stat::STRENGTH:
-            stat_string = _( "strength" );
-            break;
-        case character_stat::DEXTERITY:
-            stat_string = _( "dexterity" );
-            break;
-        case character_stat::INTELLIGENCE:
-            stat_string = _( "intelligence" );
-            break;
-        case character_stat::PERCEPTION:
-            stat_string = _( "perception" );
-            break;
-        case character_stat::DUMMY_STAT:
-            stat_string = _( "invalid stat" );
-            debugmsg( "Tried to use invalid stat" );
-            break;
-        default:
-            return;
-    }
-
-    if( query_yn( _( "Are you sure you want to raise %s?  %d points available." ), stat_string,
-                  free_points ) ) {
-        switch( stat ) {
-            case character_stat::STRENGTH:
-                str_max++;
-                spent_upgrade_points++;
-                recalc_hp();
-                break;
-            case character_stat::DEXTERITY:
-                dex_max++;
-                spent_upgrade_points++;
-                break;
-            case character_stat::INTELLIGENCE:
-                int_max++;
-                spent_upgrade_points++;
-                break;
-            case character_stat::PERCEPTION:
-                per_max++;
-                spent_upgrade_points++;
-                break;
-            case character_stat::DUMMY_STAT:
-                debugmsg( "Tried to use invalid stat" );
-                break;
-        }
-    }
-}
-
 faction *avatar::get_faction() const
 {
     return g->faction_manager_ptr->get( faction_your_followers );
@@ -1215,6 +1213,12 @@ bool avatar::cant_see( const tripoint_bub_ms &p ) const
     }
 
     return aim_cache[p.x()][p.y()];
+}
+
+void avatar::mark_aim_cache_dirty()
+{
+    aim_cache_dirty = true;
+    aim_cache_generation = next_cache_generation();
 }
 
 void avatar::rebuild_aim_cache() const
@@ -1283,7 +1287,6 @@ void avatar::rebuild_aim_cache() const
 
 void avatar::set_movement_mode( const move_mode_id &new_mode )
 {
-    map &here = get_map();
 
     if( can_switch_to( new_mode ) ) {
         if( is_hauling() && new_mode->stop_hauling() ) {
@@ -1293,42 +1296,12 @@ void avatar::set_movement_mode( const move_mode_id &new_mode )
         move_mode = new_mode;
         // Enchantments based on move modes can stack inappropriately without a recalc here
         recalculate_enchantment_cache();
-        // crouching affects visibility
-        //TODO: Replace with dirtying vision_transparency_cache
-        here.set_transparency_cache_dirty( pos_bub() );
-        here.set_seen_cache_dirty( posz() );
         recoil = MAX_RECOIL;
     } else {
         add_msg( new_mode->change_message( false, get_steed_type() ) );
     }
 }
 
-void avatar::toggle_run_mode()
-{
-    if( is_running() ) {
-        set_movement_mode( move_mode_walk );
-    } else {
-        set_movement_mode( move_mode_run );
-    }
-}
-
-void avatar::toggle_crouch_mode()
-{
-    if( is_crouching() ) {
-        set_movement_mode( move_mode_walk );
-    } else {
-        set_movement_mode( move_mode_crouch );
-    }
-}
-
-void avatar::toggle_prone_mode()
-{
-    if( is_prone() ) {
-        set_movement_mode( move_mode_walk );
-    } else {
-        set_movement_mode( move_mode_prone );
-    }
-}
 void avatar::activate_crouch_mode()
 {
     if( !is_crouching() ) {
@@ -1343,23 +1316,102 @@ void avatar::reset_move_mode()
     }
 }
 
-void avatar::cycle_move_mode()
+bool avatar::is_waiting_to_change_mode_mode()
 {
-    const move_mode_id next = current_movement_mode()->cycle();
-    set_movement_mode( next );
-    // if a movemode is disabled then just cycle to the next one
-    if( !movement_mode_is( next ) ) {
-        set_movement_mode( next->cycle() );
+    return move_mode != desired_move_mode;
+}
+
+void avatar::set_desired_movement_mode( const move_mode_id &new_mode )
+{
+    if( can_switch_to( new_mode ) ) {
+        add_msg( new_mode->prepare_message( get_steed_type() ) );
+        desired_move_mode = new_mode;
+    } else {
+        add_msg( new_mode->change_message( false, get_steed_type() ) );
     }
 }
 
-void avatar::cycle_move_mode_reverse()
+move_mode_id avatar::get_desired_move_mode() const
 {
-    const move_mode_id prev = current_movement_mode()->cycle_reverse();
-    set_movement_mode( prev );
-    // if a movemode is disabled then just cycle to the previous one
-    if( !movement_mode_is( prev ) ) {
-        set_movement_mode( prev->cycle_reverse() );
+    return this->desired_move_mode;
+}
+
+bool avatar::is_run_mode_desired() const
+{
+    return desired_move_mode->type() == move_mode_type::RUNNING;
+}
+
+void avatar::toggle_run_mode_desired()
+{
+    if( is_run_mode_desired() ) {
+        set_desired_movement_mode( move_mode_walk );
+    } else {
+        set_desired_movement_mode( move_mode_run );
+    }
+}
+
+bool avatar::is_crouch_mode_desired() const
+{
+    return get_desired_move_mode()->type() == move_mode_type::CROUCHING;
+}
+
+void avatar::toggle_crouch_mode_desired()
+{
+    if( is_crouching() ) {
+        set_desired_movement_mode( move_mode_walk );
+    } else {
+        set_desired_movement_mode( move_mode_crouch );
+    }
+}
+
+bool avatar::is_prone_mode_desired() const
+{
+    return get_desired_move_mode()->type() == move_mode_type::PRONE;
+}
+
+void avatar::toggle_prone_mode_desired()
+{
+    if( is_prone() ) {
+        set_desired_movement_mode( move_mode_walk );
+    } else {
+        set_desired_movement_mode( move_mode_prone );
+    }
+}
+
+
+bool avatar::is_walk_mode_desired() const
+{
+    return get_desired_move_mode()->type() == move_mode_type::WALKING;
+}
+
+void avatar::set_walk_mode_desired()
+{
+    if( !is_walk_mode_desired() ) {
+        set_desired_movement_mode( move_mode_walk );
+    }
+}
+
+void avatar::cycle_desired_move_mode()
+{
+    move_mode_id next = get_desired_move_mode()->cycle();
+    while( next != get_desired_move_mode() ) {
+        if( can_switch_to( next ) ) {
+            set_desired_movement_mode( next );
+            return;
+        }
+        next = next->cycle();
+    }
+}
+
+void avatar::cycle_desired_move_mode_reverse()
+{
+    move_mode_id prev = get_desired_move_mode()->cycle_reverse();
+    while( prev != get_desired_move_mode() ) {
+        if( can_switch_to( prev ) ) {
+            set_desired_movement_mode( prev );
+            return;
+        }
+        prev = prev->cycle_reverse();
     }
 }
 
@@ -1395,7 +1447,7 @@ bool avatar::invoke_item( item *used, const tripoint_bub_ms &pt, int pre_obtain_
     const std::map<std::string, use_function> &use_methods = used->type->use_methods;
     const int num_methods = use_methods.size();
 
-    const bool has_relic = used->has_relic_activation();
+    const bool has_relic = used->has_relic_activation() && used->can_use_relic( *this );
     if( use_methods.empty() && !has_relic ) {
         return false;
     } else if( num_methods == 1 && !has_relic ) {
@@ -1729,6 +1781,16 @@ std::string avatar::total_daily_calories_string() const
     return ret;
 }
 
+std::set<character_id> avatar::get_followers() const
+{
+    return follower_ids;
+}
+
+std::set<character_id> avatar::get_known_faction_representatives() const
+{
+    return faction_representatives;
+}
+
 std::unique_ptr<talker> get_talker_for( avatar &me )
 {
     return std::make_unique<talker_avatar>( &me );
@@ -1738,27 +1800,39 @@ std::unique_ptr<talker> get_talker_for( avatar *me )
     return std::make_unique<talker_avatar>( me );
 }
 
+void avatar::reassign_item_cache( item &it, char invlet, bool remove_old )
+{
+    if( it.invlet == invlet ) { // no change needed
+        return;
+    }
+    if( remove_old && it.invlet ) {
+        invlet_cache.erase( it.invlet );
+    }
+    it.invlet = invlet;
+    update_cache_with_item( it );
+}
+
 void avatar::reassign_item( item &it, int invlet )
 {
     bool remove_old = true;
     if( invlet ) {
-        item *prev = invlet_to_item( invlet );
-        if( prev != nullptr ) {
+        item_location prev = invlet_to_item( invlet );
+        if( prev.valid() ) {
             remove_old = it.typeId() != prev->typeId();
-            inv->reassign_item( *prev, it.invlet, remove_old );
+            reassign_item_cache( *prev, it.invlet, remove_old );
         }
     }
 
     if( !invlet || inv_chars.valid( invlet ) ) {
-        const auto iter = inv->assigned_invlet.find( it.invlet );
-        bool found = iter != inv->assigned_invlet.end();
+        const auto iter = assigned_invlet.find( it.invlet );
+        bool found = iter != assigned_invlet.end();
         if( found ) {
-            inv->assigned_invlet.erase( iter );
+            assigned_invlet.erase( iter );
         }
         if( invlet && ( !found || it.invlet != invlet ) ) {
-            inv->assigned_invlet[invlet] = it.typeId();
+            assigned_invlet[invlet] = it.typeId();
         }
-        inv->reassign_item( it, invlet, remove_old );
+        reassign_item_cache( it, invlet, remove_old );
     }
 }
 
@@ -1875,4 +1949,176 @@ void monster_visible_info::remove_npc( npc *n )
             t.erase( it );
         }
     }
+}
+
+char avatar::find_usable_cached_invlet( const itype_id &item_type )
+{
+
+    for( char invlet : invlet_cache.invlets_for( item_type ) ) {
+        // Don't overwrite user assignments.
+        if( assigned_invlet.count( invlet ) ) {
+            continue;
+        }
+        // Check if anything is using this invlet.
+        if( invlet_to_item( invlet ).valid() ) {
+            continue;
+        }
+        return invlet;
+    }
+
+    return 0;
+}
+
+void avatar::update_cache_with_item( item &newit )
+{
+    // This function does two things:
+    // 1. It adds newit's invlet to the list of favorite letters for newit's item type.
+    // 2. It removes newit's invlet from the list of favorite letters for all other item types.
+
+    // no invlet item, just return.
+    // TODO: Should we instead remember that the invlet was cleared?
+    if( newit.invlet == 0 ) {
+        return;
+    }
+
+    invlet_cache.set( newit.invlet, newit.typeId() );
+}
+
+bool avatar::invlet_is_assigned( const char invlet ) const
+{
+    return assigned_invlet.count( invlet ) != 0;
+}
+
+void avatar::add_invlet_to_new_item( item &newit )
+{
+    update_invlet( newit );
+    update_cache_with_item( newit );
+}
+
+void avatar::update_invlet( item &newit, const item *ignore_invlet_collision_with )
+{
+    if( newit.invlet ) {
+        // Avoid letters that have been manually assigned to other things.
+        if( assigned_invlet.find( newit.invlet ) != assigned_invlet.end() ) {
+            if( assigned_invlet[newit.invlet] != newit.typeId() ) {
+                newit.invlet = '\0';
+            }
+
+            // Remove letters that are not in the favorites cache
+        } else if( !invlet_cache.contains( newit.invlet, newit.typeId() ) ) {
+            newit.invlet = '\0';
+        }
+    }
+
+    // Remove letters that have been assigned to other items in the inventory
+    if( newit.invlet ) {
+        char tmp_invlet = newit.invlet;
+        newit.invlet = '\0';
+        item_location collidingItem = invlet_to_item( tmp_invlet );
+
+        if( !collidingItem.valid() || collidingItem.get_item() == ignore_invlet_collision_with ) {
+            newit.invlet = tmp_invlet;
+        }
+    }
+
+    // Assign a cached letter to the item
+    if( !newit.invlet ) {
+        newit.invlet = find_usable_cached_invlet( newit.typeId() );
+    }
+
+    // Give the item an invlet if it has none
+    if( !newit.invlet ) {
+        assign_empty_invlet( newit );
+    }
+}
+
+itype_id avatar::get_itype_by_invlet( const char invlet ) const
+{
+    auto iter = assigned_invlet.find( invlet );
+    if( iter == assigned_invlet.end() ) {
+        return null_item_reference().typeId();
+    }
+    return iter->second;
+}
+
+char avatar::free_assigned_invlet( const itype_id &id )
+{
+
+    const invlets_bitset cur_inv = allocated_invlets();
+    for( const auto &iter : assigned_invlet ) {
+        if( iter.second == id && !cur_inv[iter.first] ) {
+            return iter.first;
+        }
+    }
+    return 0;
+}
+
+void avatar::assign_empty_invlet( item &it, const bool force )
+{
+    const std::string auto_setting = get_option<std::string>( "AUTO_INV_ASSIGN" );
+    if( auto_setting == "disabled" || ( ( auto_setting == "favorites" ) && !it.is_favorite ) ) {
+        return;
+    }
+
+    itype_id target_type = it.typeId();
+    if( const char invlet = free_assigned_invlet( target_type ) ) {
+        it.invlet = invlet;
+        return;
+    }
+    const invlets_bitset cur_inv = allocated_invlets();
+    if( cur_inv.count() < inv_chars.size() ) {
+        // XXX YUCK I don't know how else to get the keybindings
+        // FIXME: Find a better way to get bound keys
+        inventory_selector selector( *this );
+
+        for( const char &inv_char : inv_chars ) {
+            if( assigned_invlet.count( inv_char ) ) {
+                // don't overwrite assigned keys
+                continue;
+            }
+            if( selector.action_bound_to_key( inv_char ) != "ERROR" ) {
+                // don't auto-assign bound keys
+                continue;
+            }
+            if( !cur_inv[inv_char] ) {
+                it.invlet = inv_char;
+                return;
+            }
+        }
+    }
+    if( !force ) {
+        it.invlet = 0;
+        return;
+    }
+    bool found = false;
+    // No free hotkey exist, re-use some of the existing ones
+    visit_items(
+    [&it, &found]( item_location node ) {
+        if( node->invlet != 0 ) {
+            it.invlet = node->invlet;
+            node->invlet = 0;
+            found = true;
+            return VisitResponse::ABORT;
+        }
+        return VisitResponse::NEXT;
+    }
+    );
+    if( !found ) {
+        debugmsg( "could not find a hotkey for %s", it.tname() );
+    }
+}
+
+invlets_bitset avatar::allocated_invlets() const
+{
+    invlets_bitset invlets;
+
+    visit_items(
+    [&invlets]( item_location node ) {
+        invlets.set( node->invlet );
+        return VisitResponse::NEXT;
+    }
+    );
+
+    invlets[0] = false;
+    return invlets;
 }

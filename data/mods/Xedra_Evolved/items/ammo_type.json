@@ -2,7 +2,7 @@
   {
     "type": "ammunition_type",
     "id": "aetheric_charge",
-    "name": "aetheric_charge",
+    "name": "aetheric charge",
     "default": "aetheric_charge"
   },
   {
@@ -10,12 +10,6 @@
     "id": "fae_blood",
     "name": "fae blood",
     "default": "fae_blood"
-  },
-  {
-    "type": "ammunition_type",
-    "id": "moon_tears_fasteners",
-    "name": "moon tears fasteners",
-    "default": "moon_tears_fasteners"
   },
   {
     "type": "ammunition_type",

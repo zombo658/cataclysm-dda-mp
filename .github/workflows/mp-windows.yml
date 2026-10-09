@@ -1,7 +1,12 @@
 name: "MP: Windows build"
 
-# Builds the multiplayer fork for Windows (tiles, MSVC) the same way the
-# upstream 0.I release does, and uploads a zip ready to play as an artifact.
+# Builds the multiplayer fork for Windows (tiles, MSVC) the way the upstream
+# experimental release does, and publishes it as a GitHub release (the
+# launcher, tools/mp/launcher, installs the newest one) and an artifact.
+#
+# The upstream release builds tilesets, shaders and translations in separate
+# jobs (translations need a Transifex token we don't have); this workflow
+# takes them from the newest upstream experimental Windows release instead.
 
 on:
   push:
@@ -22,6 +27,9 @@ concurrency:
   group: mp-windows-${{ github.ref_name }}
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Windows Tiles x64 MSVC
@@ -31,6 +39,8 @@ jobs:
       ZSTD_CLEVEL: 17
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
 
       # MSVC puts all objects of a project into one folder by file name, so
       # src/mp/foo.cpp must not share a name with src/foo.cpp. Fail fast
@@ -47,10 +57,28 @@ jobs:
           done
           exit $status
 
-      - uses: lukka/get-cmake@latest
-        with:
-          # 4.0.0 has issues compiling old packages in vcpkg
-          cmakeVersion: 3.31.6
+      - name: Get tilesets, shaders and translations from upstream
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          tag=$(gh api 'repos/CleverRaven/Cataclysm-DDA/releases?per_page=10' \
+                --jq '[.[] | select(any(.assets[]; .name | startswith("cdda-windows-with-graphics-x64-")))][0].tag_name')
+          echo "Upstream release: $tag"
+          gh release download "$tag" -R CleverRaven/Cataclysm-DDA -p 'cdda-windows-with-graphics-x64-*.zip' -D "$RUNNER_TEMP"
+          mkdir "$RUNNER_TEMP/up"
+          unzip -q "$RUNNER_TEMP"/cdda-windows-with-graphics-x64-*.zip -d "$RUNNER_TEMP/up"
+          up="$RUNNER_TEMP/up"
+          [ -d "$up/gfx" ] || up=$(dirname "$(find "$RUNNER_TEMP/up" -maxdepth 2 -type d -name gfx | head -1)")
+          cp -r "$up/gfx/." gfx/
+          cp -r "$up/data/shaders/." data/shaders/
+          mkdir -p lang/mo
+          cp -r "$up/lang/mo/." lang/mo/
+          # The shader rule sees them as up to date and skips build_shaders.py.
+          touch data/shaders/build-*.stamp data/shaders/*.spv data/shaders/*.dxil data/shaders/*.msl 2>/dev/null || true
+          echo "$tag" > upstream-assets.txt
+
       - uses: microsoft/setup-msbuild@v2
       - uses: lukka/run-vcpkg@v11
         with:
@@ -59,26 +87,22 @@ jobs:
       - name: Integrate vcpkg
         run: |
           vcpkg integrate install --vcpkg-root '${{ runner.workspace }}\b\vcpkg'
-      - uses: msys2/setup-msys2@v2
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
         with:
-          msystem: mingw64
-          install: >-
-            gettext
-            make
+          path: msvc-full-features/vcpkg_installed
+          key: vcpkg-installed-sdl3-${{ hashFiles('msvc-full-features/vcpkg.json', '.github/vcpkg_triplets/x64-windows-static.cmake') }}-f6672d8e480ccdecddfad3fd1b838ba369ffe6cd
 
       - name: Write VERSION.txt
         shell: bash
         run: |
           cat >VERSION.txt <<EOL
           build type: cdda-mp windows-with-graphics-x64
+          build number: ${{ github.run_number }}
           commit sha: ${{ github.sha }}
           commit url: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+          upstream assets: $(cat upstream-assets.txt)
           EOL
-
-      - name: Compile translations
-        shell: msys2 {0}
-        run: |
-          lang/compile_mo.sh all
 
       - name: Build
         env:
@@ -87,13 +111,22 @@ jobs:
         run: |
           msbuild -m -p:Configuration=Release -p:Platform=x64 "-target:Cataclysm-vcpkg-static;JsonFormatter-vcpkg-static;zzip" msvc-full-features\Cataclysm-vcpkg-static.sln
 
-      # The same soundpack as the upstream "with sounds" release; without it
-      # the game has only the menu sounds of the basic pack.
+      # The same soundpack as the upstream "with sounds" release.
       - name: Get soundpack
         shell: bash
         run: |
           git clone --depth=1 --shallow-submodules --recurse-submodules https://github.com/Fris0uman/CDDA-Soundpacks "$RUNNER_TEMP/CDDA-Soundpacks"
           mv "$RUNNER_TEMP/CDDA-Soundpacks/sound/CC-Sounds" data/sound/CC-Sounds
+
+      # Plain .NET Framework 4: present on every Windows 10/11.
+      - name: Build launcher
+        run: |
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ `
+            /out:cdda-mp-launcher.exe `
+            /r:System.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll `
+            /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll `
+            tools\mp\launcher\Launcher.cs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Package
         run: |
@@ -101,12 +134,30 @@ jobs:
           mkdir mp-extra\mp
           cp tools\mp\client.py mp-extra\mp\
           cp docs\mp\*.md mp-extra\mp\
-          Compress-Archive -Update -Path mp-extra\mp -DestinationPath cataclysmdda-0.I.zip
-          mv cataclysmdda-0.I.zip cdda-mp-windows-x64.zip
+          Compress-Archive -Update -Path mp-extra\mp -DestinationPath cataclysmdda-0.J.zip
+          mv cataclysmdda-0.J.zip cdda-mp-windows-x64.zip
 
       - uses: actions/upload-artifact@v4
         with:
           name: cdda-mp-windows-x64
-          path: cdda-mp-windows-x64.zip
+          path: |
+            cdda-mp-windows-x64.zip
+            cdda-mp-launcher.exe
           compression-level: 0
           retention-days: 14
+
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="mp-build-${{ github.run_number }}"
+          {
+            echo "Build ${{ github.run_number }}, commit ${GITHUB_SHA::7}, upstream assets $(cat upstream-assets.txt)."
+            echo
+            echo "Recent changes:"
+            git log -15 --format='- %s'
+          } > notes.txt
+          gh release create "$tag" cdda-mp-windows-x64.zip cdda-mp-launcher.exe \
+            --title "CDDA Multiplayer build ${{ github.run_number }}" \
+            --notes-file notes.txt --target "$GITHUB_SHA" --latest

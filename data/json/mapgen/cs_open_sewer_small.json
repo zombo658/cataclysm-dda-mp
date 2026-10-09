@@ -42,7 +42,8 @@
       [ "bag_canvas", 40 ],
       [ "jumper_cable", 40 ],
       [ "jumper_cable_heavy", 20 ],
-      [ "glasses_safety", 30 ],
+      [ "glasses_safety", 25 ],
+      [ "goggles_chem", 5 ],
       [ "crowbar", 15 ],
       [ "mask_filter", 30 ],
       { "item": "mask_gas_half", "prob": 25, "charges": [ 0, 100 ] },
@@ -66,8 +67,8 @@
         "        21││││12  |||| -",
         "    h   21││││12  ...|  ",
         "- hn    21││││12  ..L|  ",
-        "  hn    21││││12  ..L| -",
-        "   nh   21││││12  ..L|  ",
+        "  hn    21││││12  ...| -",
+        "   nh   21││││12  ...|  ",
         "- h     21││││12  ||||  ",
         "        21111112       -",
         "        22222222        ",
@@ -100,7 +101,7 @@
       "place_furniture": [ { "furn": "f_diesel_generator", "x": [ 18, 20 ], "y": 14 } ],
       "items": {
         "n": { "item": "os_items", "chance": 33 },
-        "L": { "item": "os_items", "chance": 80, "repeat": [ 2, 5 ] },
+        "L": { "item": "os_items", "chance": 80 },
         " ": { "item": "os_items", "chance": 1 }
       },
       "place_vehicles": [

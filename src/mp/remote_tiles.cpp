@@ -71,8 +71,7 @@ void cata_tiles::draw_remote_view( const point &dest, int width, int height,
                                    const mp::view::grid &grid )
 {
     SDL_Rect clip_rect = { dest.x, dest.y, width, height };
-    printErrorIf( SDL_RenderSetClipRect( renderer.get(), &clip_rect ) != 0,
-                  "SDL_RenderSetClipRect failed" );
+    RenderSetClipRect( renderer, &clip_rect );
     geometry->rect( renderer, clip_rect, SDL_Color() );
 
     const point s = get_window_base_tile_counts( point( width, height ) );
@@ -124,8 +123,7 @@ void cata_tiles::draw_remote_view( const point &dest, int width, int height,
             }
         }
     }
-    printErrorIf( SDL_RenderSetClipRect( renderer.get(), nullptr ) != 0,
-                  "SDL_RenderSetClipRect failed" );
+    RenderSetClipRect( renderer, nullptr );
 }
 
 

@@ -4,12 +4,12 @@
 #include <string>
 #include <utility>
 
-#include "assign.h"
 #include "calendar.h"
 #include "cata_utility.h"
 #include "debug.h"
 #include "enum_conversions.h"
 #include "flexbuffer_json.h"
+#include "generic_factory.h"
 #include "mtype.h"
 #include "options.h"
 #include "rng.h"
@@ -456,14 +456,7 @@ void MonsterGroupManager::LoadMonsterGroup( const JsonObject &jo )
     int freq_total = 0;
     std::pair<mtype_id, int> max_freq( { mon_null, 0 } );
 
-    //TODO: Remove after 0.I
-    if( !jo.has_string( "id" ) && jo.has_string( "name" ) ) {
-        g.id = mongroup_id( jo.get_string( "name" ) );
-        debugmsg( R"((safely ignorable) monstergroup %s's "name" member should be renamed "id" before 0.I stable, you can use /tools/json-tools/monstergroup_name_to_id.py to automate this change)",
-                  g.id.c_str() );
-    } else {
-        g.id = mongroup_id( jo.get_string( "id" ) );
-    }
+    g.id = mongroup_id( jo.get_string( "id" ) );
 
     bool extending = false;  //If already a group with that name, add to it instead of overwriting it
     if( monsterGroupMap.count( g.id ) != 0 && !jo.get_bool( "override", false ) ) {
@@ -554,7 +547,9 @@ void MonsterGroupManager::LoadMonsterGroup( const JsonObject &jo )
     g.replace_monster_group = jo.get_bool( "replace_monster_group", false );
     g.new_monster_group = mongroup_id( jo.get_string( "new_monster_group_id",
                                        mongroup_id::NULL_ID().str() ) );
-    assign( jo, "replacement_time", g.monster_group_time, false, 1_days );
+    if( jo.has_member( "replacement_time" ) ) {
+        mandatory( jo, false, "replacement_time", g.monster_group_time, time_bound_reader{ 1_days } );
+    }
     g.is_safe = jo.get_bool( "is_safe", false );
 
     g.freq_total = jo.get_int( "freq_total", ( extending ? g.freq_total : 0 ) + freq_total );

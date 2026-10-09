@@ -45,7 +45,7 @@ class options_manager
             std::map<std::string, cata_path> &storage, std::vector<id_and_option> &option_list,
             const std::vector<cata_path> &search_paths, const std::string &resource_name,
             const std::string &resource_filename );
-        static std::vector<id_and_option> build_tilesets_list();
+        static std::vector<id_and_option> build_tilesets_list( bool only_portraits = false );
         static std::vector<id_and_option> build_soundpacks_list();
         static std::unordered_set<std::string> get_langs_with_translation_files();
 
@@ -103,6 +103,10 @@ class options_manager
                 /// The translated currently selected option value.
                 std::string getValueName() const;
                 std::string getDefaultText( bool bTranslated = true ) const;
+                // raw default of a string option, e.g. a string_select id
+                const std::string &getDefaultValue() const {
+                    return sDefault;
+                }
 
                 int getItemPos( const std::string &sSearch ) const;
                 std::vector<id_and_option> getItems() const;
@@ -228,6 +232,9 @@ class options_manager
          * current value, which acts as the default for new worlds.
          */
         options_container get_world_defaults() const;
+
+        // Return a bare copy of all options in raw form, for debugging use only.
+        options_container get_raw_options();
 
         void set_world_options( options_container *options );
 
@@ -430,6 +437,7 @@ struct option_slider {
         static void finalize_all();
         static void check_consistency();
         void load( const JsonObject &jo, std::string_view src );
+        void finalize();
         void check() const;
         static const std::vector<option_slider> &get_all();
 

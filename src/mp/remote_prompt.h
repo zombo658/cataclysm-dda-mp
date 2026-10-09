@@ -70,7 +70,10 @@ std::optional<std::optional<std::string>> ask_string( const std::string &title,
 
 // dialogue::opt(): the NPC's line and the responses; the chosen response
 // (negative: leave), or std::nullopt when not the second player's talk.
-std::optional<int> ask_dialogue( const std::string &npc_name, const std::string &line,
+// `at` is where the other side of the talk stands (the client draws its
+// dialogue window with the copy of it there).
+std::optional<int> ask_dialogue( const std::string &npc_name, const tripoint_abs_ms &at,
+                                 const std::string &line,
                                  const std::string &speaker, const nc_color &speaker_color,
                                  const std::vector<talk_data> &responses, const std::vector<bool> &selectable );
 // A new conversation starts: the client opens a fresh dialogue window.

@@ -19,6 +19,7 @@
     "id": "mushroom_ketchup",
     "name": { "str_sp": "mushroom ketchup" },
     "description": "A savory condiment made from mushrooms.",
+    "display_type": "BY_VOLUME",
     "material": [ "mushroom" ],
     "symbol": "~",
     "color": "brown",
@@ -55,7 +56,7 @@
     "material": [ "mushroom" ],
     "volume": "250 ml",
     "fun": 1,
-    "flags": [ "FREEZERBURN", "SMOKABLE" ],
+    "flags": [ "FREEZERBURN" ],
     "smoking_result": "dry_mushroom",
     "vitamins": [ [ "calcium", 2 ], [ "iron", 52 ], [ "veggy_allergen", 1 ] ]
   },
@@ -103,10 +104,10 @@
     "quench": -1,
     "calories": 22,
     "description": "Dried mushrooms are a tasty and healthy addition to many meals.",
+    "display_type": "BY_WEIGHT",
     "price": "1 USD 80 cent",
     "price_postapoc": "1 USD",
-    "material": [ "mushroom" ],
-    "primary_material": "dried_vegetable",
+    "material": [ { "type": "dried_vegetable", "portion": 10 }, { "type": "mushroom", "portion": 1 } ],
     "volume": "25 ml",
     "flags": [ "EDIBLE_FROZEN" ],
     "fun": 1,
@@ -129,7 +130,7 @@
     "material": [ "mushroom" ],
     "volume": "250 ml",
     "fun": -3,
-    "flags": [ "FREEZERBURN", "SMOKABLE", "FORAGE_POISON", "FORAGE_HALLU", "RAW" ],
+    "flags": [ "FREEZERBURN", "FORAGE_POISON", "FORAGE_HALLU", "RAW" ],
     "smoking_result": "dry_mushroom",
     "vitamins": [ [ "vitC", 2 ], [ "iron", 2 ], [ "veggy_allergen", 1 ] ]
   }

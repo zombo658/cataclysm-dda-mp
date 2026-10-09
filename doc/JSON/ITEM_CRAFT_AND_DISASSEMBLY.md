@@ -1,18 +1,25 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+*Contents*
 
 - [Recipes](#recipes)
-   * [Practice recipes](#practice-recipes)
-   * [Nested recipes](#nested-recipes)
-   * [Recipe requirements](#recipe-requirements)
-   * [Defining common requirements](#defining-common-requirements)
-   * [Overlapping recipe component requirements](#overlapping-recipe-component-requirements)
+  - [Recipe steps](#recipe-steps)
+  - [Practice recipes](#practice-recipes)
+  - [Nested recipes](#nested-recipes)
+  - [Recipe requirements](#recipe-requirements)
+  - [Character resource costs](#character-resource-costs)
+  - [Defining common requirements](#defining-common-requirements)
+  - [Overlapping recipe component requirements](#overlapping-recipe-component-requirements)
 - [Item disassembly](#item-disassembly)
 - [Introduction](#introduction)
 - [The three methods](#the-three-methods)
-   * [Uncraft recipes](#uncraft-recipes)
-   * [Reversible crafting recipes](#reversible-crafting-recipes)
-   * [Salvaging / Cutting Up](#salvaging-cutting-up)
+  - [Uncraft recipes](#uncraft-recipes)
+  - [Reversible crafting recipes](#reversible-crafting-recipes)
+  - [Salvaging / Cutting Up](#salvaging--cutting-up)
 - [Choosing the method](#choosing-the-method)
 - [Closing words (Or what you should remember when working with item disassembly in general)](#closing-words-or-what-you-should-remember-when-working-with-item-disassembly-in-general)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # Recipes
 
@@ -34,6 +41,12 @@ Crafting recipes are defined as a JSON object with the following fields:
 "delete_flags": [ "CANNIBALISM" ], // Optional (default: empty list). Flags specified here will be removed from the resultant item upon crafting. This will override flag inheritance, but *will not* delete flags that are part of the item type itself.
 "skill_used": "fabrication", // Skill trained and used for success checks
 "skills_required": [["survival", 1], ["throw", 2]], // Skills required to unlock recipe
+"character_requirements": { // Optional minimum final character stat values required to craft the recipe.
+  "str": 9,
+  "dex": 6,
+  "int": 4,
+  "per": 12
+},
 "book_learn": {	             // (optional) Books that this recipe can be learned from.
     "textbook_anarch" : {    // ID of the book the recipe can be learned from
         "skill_level" : 7,   // Skill level at which it can be learned
@@ -45,7 +58,7 @@ Crafting recipes are defined as a JSON object with the following fields:
 },
 "difficulty": 3,             // Difficulty of success check
 "time": "5 m",               // Preferred time to perform recipe, can specify in minutes, hours etc.
-"time": 5000,                // Legacy time to perform recipe (where 1000 ~= 10 turns ~= 10 seconds game time).
+"morale_modifier": [ -5, "2 hours" ], // Optional (int, time duration). Any morale penalty or bonus conferred by crafting this recipe. Penalties are conferred at the start of crafting, bonuses upon completion. The second member of the pair is how long the morale will last. Decay always starts after half of the total time.
 "reversible": true,          // Can be disassembled. Time taken is as long as to craft the item.
 "reversible": { "time": "30 s" }, // Can be disassembled. Time to disassemble as specified.
 "autolearn": true,           // Automatically learned upon gaining required skills
@@ -71,16 +84,17 @@ Crafting recipes are defined as a JSON object with the following fields:
 "contained": true, // Boolean value which defines if the resulting item comes in its designated container. Automatically set to true if any container is defined in the recipe. 
 "container": "jar_glass_sealed", //The resulting item will be contained by the item set here, overrides default container.
 "container_variant": "jar_glass_sealed_strawberry_picture", //The container specified above will spawn as the specified variant, overrides the normal weighted behavior.
-"batch_time_factors": [25, 15], // Optional factors for batch crafting time reduction. First number specifies maximum crafting time reduction as percentage, and the second number the minimal batch size to reach that number. In this example given batch size of 20 the last 6 crafts will take only 3750 time units.
-"charges": 2,                // Number of resulting items/charges per craft. Uses default charges if not set. If a container is set, this is the amount that gets put inside it, capped by container capacity.
+"batch_time_factors": ..., // See below for details
+"charges": 2,                // (Optional, default 1) Number of resulting items/charges per craft. If a container is set, this is the amount that gets put inside it, capped by container capacity.
 "result_mult": 2,            // Multiplier for resulting items. Also multiplies container items.
 "flags": [                   // A set of strings describing boolean features of the recipe
   "BLIND_EASY",
   "ANOTHERFLAG"
 ],
-"result_eocs": [ {"id": "TEST", "effect": { "u_message": "You feel Test" } } // List of inline effect_on_conditions or effect_on_condition ids that attempt to activate when this recipe is successfully finished.  If a value is provided a result becomes optional, though a name and id will be needed it it is missing.  If no result is provided and a description is present, that will be displayed as the result on the crafting gui.
+"result_eocs": [ {"id": "TEST", "effect": { "u_message": "You feel Test" } } // List of inline effect_on_conditions or effect_on_condition ids that attempt to activate when this recipe is successfully finished.  If a value is provided a result becomes optional, though a name and id will be needed if it is missing.  If no result is provided and a description is present, "description" will be displayed as the result on the crafting gui.
 ], 
 "name" : "%s with quern", // optional string to further describe recipe where %s is the recipe result name. Example if the result name is "flour", the final name will be "flour with quern". Especially useful for recipes with "id_suffix" that produce the same result as other recipes.
+"description": "foobar.  your name is <u_name>" // if crafting result is not an item, this text will be shown. Support color and NPC tags
 "construction_blueprint": "camp", // an optional string containing an update_mapgen_id.  Used by faction camps to upgrade their buildings
 "on_display": false,         // this is a hidden construction item, used by faction camps to calculate construction times but not available to the player
 "qualities": [               // Generic qualities of tools needed to craft
@@ -109,7 +123,232 @@ Crafting recipes are defined as a JSON object with the following fields:
 "component_blacklist": [     // List of item types that don't get added to result item components. Reversible recipes won't recover these and comestibles will not include them in calorie calculations.
   "item_a",
   "item_b"
-]
+],
+"character_resources": {    // Optional character resources consumed while crafting. Costs scale linearly with batch size.
+  "mana": 100,              // Mana consumed per crafted unit.
+  "stamina": 500,           // Stamina consumed per crafted unit.
+  "vitamins": [             // Vitamins consumed per crafted unit.
+    {
+      "vitamin": "blood",  // Vitamin id.
+      "value": 1000,        // Amount consumed.
+      "safe_level": -20000  // Optional minimum level the craft may reduce this vitamin to.
+    }
+  ]
+}
+```
+
+#### `character_requirements`
+
+`character_requirements` optionally restricts a recipe to characters whose current final primary stat values meet the configured minimums. The supported members are `str`, `dex`, `int`, and `per`. Final values include all modifiers currently affecting the character.
+
+Each member is an integer minimum:
+
+```jsonc
+"character_requirements": {
+  "str": 9,
+  "dex": 6,
+  "int": 4,
+  "per": 12
+}
+```
+
+A value of `0` is valid but has no effect. The recipe cannot be started while any effective requirement is unmet.
+
+When a recipe with `copy-from` defines `character_requirements`, the entire inherited object is replaced. Members omitted from the child object are not inherited individually.
+
+#### `batch_time_factors`
+
+`batch_time_factors` supports several formats, with two different scaling functions.
+
+Logistic scaling provides savings of some percent once the batch reaches a certain size.
+```jsonc
+"batch_time_factors": [ 25, 15 ], // legacy
+"batch_time_factors": { "mode": "logistic", "percent": 25, "at": 15 }
+```
+
+This shows both formats for logistic scaling. The first number specifies the maximum crafting time reduction as a percentage, and the second number the minimal batch size to reach that number. If this recipe took 5000 moves, when made in a batch of 20, the last 5 units would take only 3750 moves to produce.
+
+Linear scaling provides purely linear scaling. There are two parameters, the `setup` time `T`, and the max batch size `M`, which is optional. The time taken for a batch of size `n` for a recipe which takes `t` time is: `(ceil(n/M) * T) + (n * (t - T))`. If `M` is not specified, it defaults to n, simplifying to `T + (n * (t - T))`.
+In other words, max does not limit the max batch size, it merely specifies when the setup cost will be applied again.
+It is specified as follows:
+```jsonc
+"batch_time_factors": { "mode": "linear", "setup": "12 m" },
+"batch_time_factors": { "mode": "linear", "setup": "12 m", "max": 20 },
+```
+
+## Recipe steps
+
+Recipes can optionally define a `"steps"` array to split the craft into named phases.  Each step has its own time, activity level, proficiencies, tools, qualities, and batch savings.
+
+When `"steps"` is present, the following fields must appear per-step and must **not** appear at root level: `"time"`, `"activity_level"`, `"tools"`, `"qualities"`, `"proficiencies"`, `"batch_time_factors"`.
+
+`"using"` is allowed at both root level and step level for step recipes.  Root-level `"using"` merges into whole-recipe requirements (tools, qualities, and components are all gated at craft start).  Step-level `"using"` merges into that step's requirements and also participates in tool speed resolution for that step.
+
+`"components"` remains at root level.  All other recipe fields (`"result"`, `"skill_used"`, `"difficulty"`, `"book_learn"`, `"autolearn"`, etc.) also remain at root.
+
+### Inheritance
+
+Step recipes support `"copy-from"` and `"abstract"`.
+
+- If a child recipe uses `"copy-from"` pointing to a step recipe and does **not** include a `"steps"` array, it inherits the base's steps.  The child can override root-level fields like `"difficulty"`, `"skill_used"`, `"components"`, etc.
+- If the child **does** include a `"steps"` array, its steps replace the base's.  Root-level `"using"` from the base is preserved; the child can override it by providing its own `"using"`.
+- An `"abstract"` recipe with steps serves as a template.  Concrete children inherit steps and provide their own `"components"` and `"result"`.
+
+### Step fields
+
+Each entry in the `"steps"` array is an object with these fields:
+
+```jsonc
+"name":               // (Mandatory) Translatable string.  Shown in the crafting progress message.
+"time":               // (Mandatory) Duration (e.g. "5 m").  Must be > 0.
+"activity_level":     // (Mandatory) Same values as the recipe-level field.
+"proficiencies":      // (Optional)  Same format as recipe-level.  Only these proficiencies are
+                      //             trained while the craft is in this step.
+"tools":              // (Optional)  Same format as recipe-level.
+"qualities":          // (Optional)  Same format as recipe-level.
+"using":              // (Optional)  Same format as recipe-level.  Merges into this step's requirements.
+"batch_time_factors": // (Optional)  Same format as recipe-level.
+"attention":          // (Optional)  Either "none" (default) or "unattended".  See "Unattended steps".
+"max_time":           // (Optional)  Duration.  Hard deadline for an unattended step.  Must be > "time".
+                      //             Authored per-unit; the ruin deadline ("max_time" + "grace_period")
+                      //             scales with batch size through "batch_time_factors", like "time".
+"grace_period":       // (Optional)  Duration.  Extra time past "max_time" before the craft is destroyed.
+                      //             Only allowed when "max_time" is set.
+"unattend_message":   // (Optional)  Translatable string.  Shown when an unattended step finishes
+                      //             while the player is elsewhere.  Has a generic fallback.
+```
+
+`"components"` at step level is not allowed.
+
+### Example
+
+```jsonc
+{
+  "type": "recipe",
+  "result": "bread",
+  "category": "CC_FOOD",
+  "subcategory": "CSC_FOOD_BREAD",
+  "skill_used": "cooking",
+  "difficulty": 2,
+  "charges": 10,
+  "components": [
+    [ [ "flour", 22 ], [ "bread_flour", 5 ] ],
+    [ [ "yeast", 1 ] ],
+    [ [ "water_clean", 2 ] ],
+    [ [ "sugar", 4 ] ]
+  ],
+  "steps": [
+    {
+      "name": "Mix dough",
+      "time": "5 m",
+      "activity_level": "MODERATE_EXERCISE",
+      "batch_time_factors": [ 25, 4 ],
+      "proficiencies": [
+        { "proficiency": "prof_food_prep" },
+        { "proficiency": "prof_baking" },
+        { "proficiency": "prof_baking_bread" }
+      ]
+    },
+    {
+      "name": "Let dough rise",
+      "time": "10 m",
+      "activity_level": "NO_EXERCISE",
+      "batch_time_factors": [ 5, 4 ]
+    },
+    {
+      "name": "Bake",
+      "time": "5 m",
+      "activity_level": "LIGHT_EXERCISE",
+      "batch_time_factors": [ 50, 4 ],
+      "qualities": [ { "id": "OVEN", "level": 1 } ],
+      "tools": [ [ [ "surface_heat", 22, "LIST" ] ] ]
+    }
+  ]
+}
+```
+
+### Runtime behavior
+
+- All step tools and qualities are merged and checked at craft start.
+- The craft tracks a single overall progress bar.
+- The activity level changes as the craft moves between steps.
+- Proficiency training is limited to the proficiencies listed on the current step.
+- Batch savings are applied per-step and summed.
+- The current step name appears in the crafting progress message.
+- Tool speed modifiers (see `"speed"` in item quality definitions) apply per-step: a tool with `"speed": 0.5` on a quality halves the time of steps requiring that quality, without affecting other steps.
+- Tool charges are consumed per-step, in proportion to that step's progress, so a charged tool listed on one step drains only while that step runs.  Recipe-root tools (root `"using"`/`"tools"`) are spread across the steps by each step's share of the total time.
+
+### Unattended steps
+
+A step marked `"attention": "unattended"` is wall-clock time the crafter does not actively work through (rising, marinating, curing).  Starting or resuming such a recipe shows a planning modal per unattended step:
+
+- Wait: player roots under `ACT_CRAFT_WAIT`, time passes, activity flips back to active mode when the step finishes (or ends entirely if the step was the last one).
+- Do something else: activity ends, craft stays where it landed, player is free.
+- Set a timer: like "do something else" plus an alarm clock at a chosen offset.  Only offered with a watch, smartphone, or alarm-clock bionic.
+
+Choices persist across save/load.  On resume the modal asks only about the in-flight unattended step and any later unattended steps; already-completed steps are skipped.  The item name shows live percentage progress projected from counter snapshots taken at step entry, even when no actor is running.
+
+When the wall-clock deadline elapses:
+
+- Non-terminal: step advances, distraction fires with `unattend_message` (or a vague log line without a timepiece).  Suppressed if the player is already on this craft.
+- Terminal: craft auto-finalizes at the deadline, so morale, EOCs, heat, and birthday use in-game completion time.
+- `max_time + grace_period` past start: craft is destroyed.  This deadline is batch-scaled the same way as completion, so the ruin window tracks the batch-scaled completion time rather than staying a flat per-unit duration.
+
+If the step's tools or qualities become unavailable, or a charged tool runs short on charges, the step pauses and the deadline slides forward once the requirement is restored.  `crafter_id` is remembered so env-check picks up the crafter's pseudo-tools, bionics, and trait qualities when they are next to the craft.
+
+NPCs do not see the planning modal and behave as if implicitly waiting; the unattended block in the craft activity actor still drives their craft forward.
+
+### Counting quality providers
+
+Two rules decide how many providers a quality requirement sees.  Both can change whether a recipe is offered.
+
+- A quality requirement's `"amount"` counts **distinct providers**.  A qualifying tool inside a container counts once, not twice.  A stack of a charge-counted qualifying item counts once, not once per charge.
+- Liquids that a crafting inventory would merge into one stack are **one provider**.  Water carried in a canteen merges with equivalent water on the map, and a lake counts once, not once per tile.
+
+A component can also supply a quality the recipe needs.  When the `"amount"` is one, that check counts items rather than providers.  A stack survives losing a charge, so one spare item is one surviving provider.  One rock cannot be both the hammer and the material.  Two can, even in the same stack.  Above an `"amount"` of one the check counts providers again, because a stack is one tool whatever its charge count.
+
+A quality is measured against the character the check is about.  A charged quality reads that character's power, not the avatar's.  A mutation or body part that grants a quality without an item counts for that character too.
+
+### Reservations
+
+A live unattended step reserves what it depends on, so a second craft cannot quietly take it:
+
+- The **providers** covering the step's quality groups and its presence tools, whether those are items, furniture, a vehicle part, a nearby fire, or the crafter's own bionics and mutations.  Charged tools are not reserved, because charges drain from a pool by type rather than from one instance, but the pool is filtered so a reserved tool is never drained by anything else.
+- The **tile the craft sits on**, and any tile supplying it a provider.  Construction, including deconstruction, is refused on both.
+
+A reserved provider is invisible to every crafting inventory, including the owning crafter's own.  The craft validates through its reservations instead of searching for them.
+
+Automation and NPCs skip it too.  Zone sorting, fetching, auto-pickup and NPC pickup all pass over a reserved provider.  An NPC will not path through a tile it would have to smash to reach one.  A live unattended craft stays where it was placed rather than being hauled to a loot zone.  Reserved items are shown as `(in use)` and say so in their description.
+
+An NPC will also not wield, throw, consume or burn a reserved provider.  A follower may therefore fight with a worse weapon while one of your crafts holds the better one.
+
+Manual actions are never blocked.  Picking up, wielding, throwing or smashing a reserved item all work exactly as before; the craft notices at its next check, up to a minute later, and pauses.  Because picking an item up gives it a new identity, putting the same item back down does not resume the craft: use the explicit resume, which re-resolves against whatever is present.
+
+Two limitations are deliberate:
+
+- A reserved tool's **UPS charge is not protected** and may be drained by anything, since no UPS path carries a filter.
+- A craft's tile lock follows it within one check rather than instantly, so a craft riding a moving vehicle briefly holds the tile it was loaded at.
+
+Reservations lapse an hour after a craft last completed a check, so a craft destroyed by fire or smashing frees its tile without needing a reload.
+
+Schema:
+
+- `"max_time"`, when set, must be strictly greater than `"time"`.
+- `"grace_period"` requires `"max_time"`.
+- `"attention": "supervised"` is rejected at load (reserved).
+- An unattended step may list charged tools.  Their charges are drained over the step's wall-clock progress (fully spent by completion), drawn from the crafter when next to the craft or from the craft's own tile otherwise; running short pauses the step until charges return.
+
+Example:
+
+```jsonc
+{
+  "name": "Let dough rise",
+  "time": "10 m",
+  "activity_level": "NO_EXERCISE",
+  "batch_time_factors": [ 5, 4 ],
+  "attention": "unattended",
+  "unattend_message": "The dough has finished rising."
+}
 ```
 
 ## Practice recipes
@@ -241,6 +480,55 @@ And to bind the grip onto the javelin, some sinew or thread should be required, 
 "UNRECOVERABLE" flag on the item itself, indicating they can never be reclaimed when disassembling.
 See [JSON_FLAGS.md](JSON_FLAGS.md) for how to use this and other item flags.
 
+
+## Character resource costs
+
+Recipes and practice recipes may use the optional `character_resources` object to consume
+resources directly from the crafting character.  Supported resources are mana, stamina, and any
+vitamin id.
+
+```jsonc
+"character_resources": {
+  "mana": 100,
+  "stamina": 500,
+  "vitamins": [
+    {
+      "vitamin": "blood",
+      "value": 1000,
+      "safe_level": -20000
+    }
+  ]
+}
+```
+
+`mana` and `stamina` are non-negative integer costs.  Each entry in `vitamins` has these
+fields:
+
+- `vitamin`: the vitamin id to consume.
+- `value`: a non-negative integer cost.
+- `safe_level`: optional integer minimum.  The recipe cannot reduce that vitamin below this
+  value.  If omitted, the vitamin's defined minimum is used.
+
+A vitamin may appear only once in the array.  Unknown character resource names, negative costs,
+and duplicate vitamin entries are JSON errors.
+
+Character resource costs are authored per crafted unit and scale linearly with batch size.  Batch
+time reductions do not discount them.  During an active craft, resources are consumed gradually in
+proportion to progress.  Previously paid portions are tracked on the in-progress craft, so pausing
+or resuming does not charge them again.
+
+Before each debit, all character resource costs due at the current progress are checked together.
+If any one resource is unavailable, none of them are consumed for that progress update and crafting
+cannot continue.  Stamina may be reduced to zero.  A vitamin cannot be reduced below its applicable
+minimum.
+
+When an unattended recipe step begins, the remaining character resource cost for the whole craft is
+consumed immediately because the crafter is no longer present to pay it over time.  If the remaining
+cost is unavailable, the unattended step does not begin.
+
+When a recipe using `copy-from` defines its own `character_resources` object, that object
+replaces the inherited character resource costs rather than merging with them.
+
 ## Defining common requirements
 
 To avoid repeating commonly used sets of components, instead of an individual item id, provide
@@ -307,7 +595,11 @@ For instance, this `"uncraft"` recipe for a motorbike alternator uses either 20 
 ```
 
 Requirements may include `"tools"` or `"qualities"` in addition to
-`"components"`.  Here we have a standard soldering requirement needing either a
+`"components"`.  An optional `"name"` field provides a human-readable
+display name (e.g. "Heat source", "Welding tools") that UIs can show
+instead of listing every alternative tool individually.
+
+Here we have a standard soldering requirement needing either a
 `"soldering_iron"` or `"toolset"`, plus 1 unit of the `"solder_wire"` component:
 
 
@@ -315,6 +607,7 @@ Requirements may include `"tools"` or `"qualities"` in addition to
 {
   "id": "soldering_standard",
   "type": "requirement",
+  "name": "Soldering tools",
   "//": "Tools and materials needed for soldering metal items or electronics",
   "tools": [ [ [ "soldering_iron", 1 ], [ "toolset", 1 ] ] ],
   "components": [ [ [ "solder_wire", 1 ] ] ]
@@ -383,12 +676,14 @@ error during recipe finalization that your recipe is too complex.  In this
 case, the game may not be able to correctly predict whether it can be crafted.
 
 To work around this issue, if you do not wish to simplify the recipe
-requirements, then you can split your recipe into multiple steps.  For
-example, if we wanted to simplify the above survivor telescope recipe we could
-introduce an intermediate item "survivor eyepiece", which requires one of
-either lens, and then the telescope would require a high-quality lens and an
-eyepiece.  Overall, the requirements are the same, but neither recipe has any
-overlap.
+requirements, you can introduce intermediate items to break the overlap.
+For example, if we wanted to simplify the above survivor telescope recipe we
+could introduce an intermediate item "survivor eyepiece", which requires one
+of either lens, and then the telescope would require a high-quality lens and
+an eyepiece.  Overall, the requirements are the same, but neither recipe has
+any overlap.
+
+Note: this is different from [recipe steps](#recipe-steps), which split a single recipe into named phases with per-step tools and proficiencies but do not create intermediate items.
 
 For more details, see [this pull
 request](https://github.com/CleverRaven/Cataclysm-DDA/pull/36657) and the
@@ -397,10 +692,10 @@ request](https://github.com/CleverRaven/Cataclysm-DDA/pull/36657) and the
 
 # Item disassembly
 
-# Introduction
+## Introduction
 This document describes various methods of taking apart items in the game, as well as how these work and how the approach should be balanced. For furniture/terrain ***DECONSTRUCTION*** you're out of luck because we don't have a guide for it.
 
-# The three methods
+## The three methods
 There are three* general methods of having items taken apart into other items:
 - Uncraft recipes
 - Reversible crafting recipes
@@ -410,7 +705,7 @@ The first two are able to be altered through JSON, while the other can only be e
 
 *Technically you could argue that butchery is a separate method as well, but given its highly unique nature, and the fact that it's not possible for it to violate the conservation of mass, it has been omitted for the purpose of this file.
 
-## Uncraft recipes
+### Uncraft recipes
 They are the most common and well known way of defining an item disassembly. With a syntax not unlike that of regular crafting recipes, they're fairly self-explanatory and easy to grasp.
 
 ```jsonc
@@ -457,7 +752,7 @@ Things to note:
 - it is technically possible to define proficiencies for uncraft recipes, but they currently have no effect
 - similarly, it is possible to define a ``skills_required`` field for uncraft recipes, but it has no effect either
 
-## Reversible crafting recipes
+### Reversible crafting recipes
 A reversible recipe and an uncraft recipe are almost indistinguishable in game, with the only potential way to tell them apart being items crafted by the player through a reversible crafting recipe may yield different items upon disassembly than items of the same ID found spawned in the world. Having said that, they are quite different from the JSON side.
 
 The first thing that comes to mind is - reversible crafting recipes are created through a singular field. Adding ``"reversible": "true`` to the recipe definition automatically creates a disassembly for the item the recipe is for. It is worth noting that unlike uncraft recipes, reversible crafting recipes support ingredient lists, **but only in regards to items crafted by the player**. If the item in question was crafted by the player, disassembling it will yield items used to craft it. If the item was spawned in the world, however, the disassembly will instead yield the first component combination the game reads off the recipe definition.
@@ -474,7 +769,7 @@ Things to note:
 - Either of those methods will work alone, but they also interact if both are defined
 - If a crafting recipe has ``reversible: true``, *and* the item has a manually defined uncraft recipe, what will happen is the uncraft recipe will be able to return components used to craft the specific item. In a case like this, the uncraft will supply all information exception for the components used to craft that item - this means that this combination can remember components (overcoming uncraft's weakness) **AND** avoid nonsensical tool requirements or difficulty levels (overcoming reversible crafting's weakness)
 
-## Salvaging / Cutting Up
+### Salvaging / Cutting Up
 This process is largely hardcoded, with the JSON side only consisting of defining whether a specific material is salvageable, and possible per-item salvaging disabling through flags. The only way to make an item that's normally salvageable not-salvageable is by either editing its material or adding the ``NO_SALVAGE`` flag.
 
 To salvage an item with **at least one salvageable material** you must have a tool with the ``CUTTING`` quality. This process can only grant a singular type of resource (per material), with the amount calculated from the item's weight. How long the process takes is calculated from the item's size as well.
@@ -487,7 +782,7 @@ Things to note:
 - It is the only listed here method of taking an item apart which cannot be done through the ``disassemble`` option or menu
 - It does not work with charges well. Multiple charge-based item will be treated as a singular bigger item for the purpose of salvaging. **100 charge-based items weighing 1g equals to 1 normal item weighing 100g**
 
-# Choosing the method
+## Choosing the method
 
 So you want to make a new disassembly recipe? First of all, I'm proud of you, but you probably should have some vague idea of which of the methods above you should pick, because they all have their pros and cons. Except salvaging, that's all cons - we're ignoring it for this part of the documentation.
 
@@ -498,7 +793,7 @@ You should use reversible crafting recipes if:
 
 If the following three are **NOT** true, you likely want a manually defined uncraft recipe, as you can omit skills and define tools required as you please.
 
-# Closing words (Or what you should remember when working with item disassembly in general)
+## Closing words (Or what you should remember when working with item disassembly in general)
 1. Conservation of mass is pretty damn important. You won't always be able to make sure there is no mass loss or generation - it is just not possible in more complex crafts due to our generic nature of resource items - but you should still try to minimize the amount of mass lost or generated whenever you're working on a recipe. After getting your recipe done, calculate the mass of the ingredients and compare it to the mass of the item to make sure you're not violating physics.
 2. Double check the syntax when it comes to uncraft recipes. They do not support lists, but the game doesn't realize that. You will not get an error, it is only on **YOU** to catch your missing brackets.
 3. It is not possible to have both an uncraft and a reversible recipe defined for the same item. The same goes for more than one uncraft. If this occurs, the game will only read one and ignore everything else altogether.

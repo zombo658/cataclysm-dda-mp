@@ -149,7 +149,7 @@ void talker_monster::set_anger( int new_val )
     me_mon->anger = new_val;
 }
 
-int talker_monster_const::morale_cur() const
+int talker_monster_const::morale_cur( bool ) const
 {
     return me_mon_const->morale;
 }
@@ -166,7 +166,7 @@ int talker_monster_const::get_friendly() const
 
 int talker_monster_const::get_difficulty() const
 {
-    return me_mon_const->type->difficulty;
+    return me_mon_const->type->get_total_difficulty();
 }
 
 int talker_monster_const::get_size() const

@@ -115,14 +115,19 @@ void Character::try_remove_bear_trap()
             }
         }
     } else {
-        if( can_escape_trap( 100 ) ) {
-            remove_effect( effect_beartrap );
-            here.spawn_item( pos_bub(), itype_beartrap );
-            add_msg_player_or_npc( m_good, _( "You free yourself from the bear trap!" ),
-                                   _( "<npcname> frees themselves from the bear trap!" ) );
-        } else {
-            add_msg_if_player( m_bad,
-                               _( "You try to free yourself from the bear trap, but can't get loose!" ) );
+        // If we were caught in several bear traps at once, conduct a separate attempt to free for each one
+        for( const bodypart_id &bp : get_all_body_parts() ) {
+            if( has_effect( effect_beartrap, bp ) ) {
+                if( can_escape_trap( 100 ) ) {
+                    remove_effect( effect_beartrap, bp );
+                    here.spawn_item( pos_bub(), itype_beartrap );
+                    add_msg_player_or_npc( m_good, _( "You free yourself from the bear trap!" ),
+                                           _( "<npcname> frees themselves from the bear trap!" ) );
+                } else {
+                    add_msg_if_player( m_bad,
+                                       _( "You try to free yourself from the bear trap, but can't get loose!" ) );
+                }
+            }
         }
     }
 }
@@ -163,7 +168,7 @@ void Character::try_remove_heavysnare()
             }
         }
     } else {
-        if( can_escape_trap( 32 - dex_cur, true ) ) {
+        if( can_escape_trap( 32 - get_dex(), true ) ) {
             remove_effect( effect_heavysnare );
             add_msg_player_or_npc( m_good, _( "You free yourself from the heavy snare!" ),
                                    _( "<npcname> frees themselves from the heavy snare!" ) );
@@ -220,8 +225,11 @@ bool Character::try_remove_grab( bool attacking )
 
         // No need to recalculate it in-loop, breaking previous grabs doesn't change skills
         float skill_factor = std::min( 0.8f,
-                                       std::max( std::max( static_cast<float>( get_skill_level( skill_melee ) ) / 10, 0.1f ),
-                                               std::max( static_cast<float>( get_skill_level( skill_unarmed ) ) / 8, 0.1f ) ) );
+        std::max( {
+            static_cast<float>( get_skill_level( skill_melee ) ) / 10,
+            0.1f,
+            static_cast<float>( get_skill_level( skill_unarmed ) ) / 8
+        } ) );
         int grab_break_factor = has_grab_break_tec() ? 10 : 0;
         const tripoint_range<tripoint_bub_ms> &surrounding = here.points_in_radius( pos_bub(), 1, 0 );
 
@@ -419,7 +427,7 @@ bool Character::move_effects( bool attacking )
     // than this will need to be reworked to only have success effects if /all/ checks succeed
     if( has_effect( effect_in_pit ) ) {
         /** @EFFECT_DEX increases chance to escape pit, slightly */
-        if( !can_escape_trap( 40 - dex_cur / 2 ) ) {
+        if( !can_escape_trap( 40 - get_dex() / 2 ) ) {
             add_msg_if_player( m_bad, _( "You try to escape the pit, but slip back in." ) );
             return false;
         } else {

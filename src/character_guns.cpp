@@ -38,17 +38,18 @@ static const itype_id itype_small_repairkit( "small_repairkit" );
 static const trait_id trait_DEBUG_HS( "DEBUG_HS" );
 
 template <typename T, typename Output>
-void find_ammo_helper( T &src, const item &obj, bool empty, Output out, bool nested )
+static void find_ammo_helper( T &src, const item &obj, bool empty, Output out, bool nested,
+                              bool now = true )
 {
-    src.visit_items( [&src, &nested, &out, &obj, empty]( item * node, item * parent ) {
+    src.visit_items( [&nested, &out, &obj, empty, now]( item_location node ) {
 
         // This stops containers and magazines counting *themselves* as ammo sources
-        if( node == &obj ) {
+        if( node.get_item() == &obj ) {
             return VisitResponse::SKIP;
         }
 
         // Spills are not valid. spilled liquids have no parent.
-        if( parent == nullptr && node->made_of_from_type( phase_id::LIQUID ) ) {
+        if( !node.has_parent() && node->made_of_from_type( phase_id::LIQUID ) ) {
             return VisitResponse::SKIP;
         }
 
@@ -58,12 +59,12 @@ void find_ammo_helper( T &src, const item &obj, bool empty, Output out, bool nes
         }
 
         // Do not steal ammo from magazines
-        if( parent != nullptr && parent->is_magazine() ) {
+        if( node.has_parent() && node.parent_item()->is_magazine() ) {
             return VisitResponse::SKIP;
         }
 
         // Do not steal magazines from other items
-        if( parent != nullptr && node == parent->magazine_current() ) {
+        if( node.has_parent() && node.get_item() == node.parent_item()->magazine_current() ) {
             return VisitResponse::SKIP;
         }
 
@@ -80,51 +81,64 @@ void find_ammo_helper( T &src, const item &obj, bool empty, Output out, bool nes
             // All speedloaders are accepted.
             // Ammo check is done somewhere else
             // Ammo check should probably happen here...
-            if( obj.can_reload_with( *node, true ) ) {
-                if( parent != nullptr ) {
-                    out = item_location( item_location( src, parent ), node );
-                } else {
-                    out = item_location( src, node );
-                }
+            if( obj.can_reload_with( *node, now ) ) {
+                out = node;
             }
             return VisitResponse::SKIP;
         }
 
-        if( obj.can_reload_with( *node, true ) ) {
-            if( parent != nullptr ) {
-                out = item_location( item_location( src, parent ), node );
-            } else {
-                out = item_location( src, node );
-            }
+        if( obj.can_reload_with( *node, now ) ) {
+            out = node;
         }
 
         // Not-nested checks only top level containers and their immediate contents.
-        return parent == nullptr || nested ? VisitResponse::NEXT : VisitResponse::SKIP;
+        return !node.has_parent() || nested ? VisitResponse::NEXT : VisitResponse::SKIP;
 
     } );
 }
 
-std::vector<const item *> Character::get_ammo( const ammotype &at ) const
+std::vector<item_location> Character::get_ammo( const ammotype &at ) const
 {
-    return cache_get_items_with( "is_ammo", &item::is_ammo, [at]( const item & it ) {
-        return it.ammo_type() == at;
+    return cache_get_items_with( "is_ammo", &item::is_ammo, [at]( const item_location & it ) {
+        return it->ammo_type() == at;
     } );
 }
 
-std::vector<item_location> Character::find_ammo( const item &obj, bool empty, int radius ) const
+std::vector<item_location> Character::find_ammo( const item &obj, bool empty, int radius,
+        bool now ) const
 {
     map &here = get_map();
 
-    std::vector<item_location> res;
+    std::vector<item_location> res = cache_get_items_with( "is_ammo",
+    &item::is_ammo, [&obj, now]( const item_location & it ) {
+        return obj.can_reload_with( *it, now );
+    } );
 
-    find_ammo_helper( const_cast<Character &>( *this ), obj, empty, std::back_inserter( res ), true );
+    std::vector<item_location> mag_locs = cache_get_items_with( "is_magazine",
+    &item::is_magazine, [&obj, &empty, now]( const item_location & it ) {
+        if( &obj == &*it ) {
+            return false;
+        }
+        if( it.parent_item() && &*it == it.parent_item()->magazine_current() ) {
+            return false;
+        }
+        if( !it->ammo_remaining() && !empty ) {
+            return false;
+        }
+        if( it->has_flag( flag_SPEEDLOADER ) && ( !it->ammo_remaining() || !obj.magazine_integral() ) ) {
+            return false;
+        }
+        return obj.can_reload_with( *it, now );
+    } );
+
+    res.insert( res.end(), mag_locs.begin(), mag_locs.end() );
 
     if( radius >= 0 ) {
         for( map_cursor &cursor : map_selector( pos_bub(), radius ) ) {
-            find_ammo_helper( cursor, obj, empty, std::back_inserter( res ), false );
+            find_ammo_helper( cursor, obj, empty, std::back_inserter( res ), false, now );
         }
         for( vehicle_cursor &cursor : vehicle_selector( here, pos_bub( here ), radius ) ) {
-            find_ammo_helper( cursor, obj, empty, std::back_inserter( res ), false );
+            find_ammo_helper( cursor, obj, empty, std::back_inserter( res ), false, now );
         }
     }
 
@@ -151,7 +165,7 @@ std::pair<int, int> Character::gunmod_installation_odds( const item_location &gu
     // cap success from skill alone to 1 in 5 (~83% chance)
     roll = std::min( static_cast<double>( chances ), 5.0 ) / 6.0 * 100;
     // focus is either a penalty or bonus of at most +/-10%
-    roll += ( std::min( std::max( get_focus(), 140 ), 60 ) - 100 ) / 4;
+    roll += ( std::clamp( get_focus(), 60, 140 ) - 100 ) / 4;
     // dexterity and intelligence give +/-2% for each point above or below 12
     roll += ( get_dex() - 12 ) * 2;
     roll += ( get_int() - 12 ) * 2;

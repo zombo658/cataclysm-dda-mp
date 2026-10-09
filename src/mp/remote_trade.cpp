@@ -18,6 +18,7 @@
 #include "map.h"
 #include "messages.h"
 #include "mp/net.h"
+#include "mp/protocol.h"
 #include "mp/rc_npc.h"
 #include "mp/remote_prompt.h"
 #include "npc.h"
@@ -99,6 +100,7 @@ std::optional<result> ask( const npc &guy, const Character &other, const int cos
         return std::nullopt;
     }
     result res;
+    const protocol::reading_network reading;
     try {
         const JsonValue value = json_loader::from_string( *line );
         const JsonObject obj = value.get_object();

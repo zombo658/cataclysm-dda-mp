@@ -2,10 +2,9 @@
   {
     "abstract": "frame_abstract",
     "type": "vehicle_part",
-    "name": { "str": "frame" },
     "location": "structure",
     "durability": 400,
-    "description": "A metal framework.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.",
+    "description": "A metal framework part of a unibody vehicle.  Other vehicle components were mounted on it, but it is now deeply integrated with them.",
     "breaks_into": "ig_vp_frame",
     "requirements": {
       "install": { "skills": [ [ "mechanics", 1 ] ], "time": "20 m", "using": [ [ "welding_standard", 10 ] ] },
@@ -71,7 +70,6 @@
     "id": "folding_frame",
     "type": "vehicle_part",
     "copy-from": "frame_abstract",
-    "name": { "str": "foldable light frame" },
     "item": "foldframe",
     "durability": 50,
     "description": "A light metal framework, designed to fold.  Other vehicle components can be mounted on it.  If all the frames and components of a vehicle are foldable, the vehicle can be folding into a small package and picked up as a normal item.",
@@ -91,7 +89,6 @@
     "id": "folding_wooden_frame",
     "type": "vehicle_part",
     "copy-from": "frame_abstract",
-    "name": { "str": "foldable wooden frame" },
     "item": "foldwoodframe",
     "color": "brown",
     "broken_color": "brown",
@@ -126,13 +123,13 @@
         "using": [ [ "vehicle_weld_removal", 1 ], [ "vehicle_wrench_2", 1 ] ]
       },
       "repair": { "skills": [ [ "mechanics", 1 ] ], "time": "9 m", "using": [ [ "repair_welding_lc_steel", 5 ] ] }
-    }
+    },
+    "flags": [ "MOUNTABLE", "INITIAL_PART", "NO_INSTALL_PLAYER" ]
   },
   {
     "id": "frame_wood",
     "type": "vehicle_part",
     "copy-from": "frame_abstract",
-    "name": { "str": "wooden frame" },
     "item": "frame_wood",
     "color": "brown",
     "broken_color": "brown",
@@ -149,7 +146,6 @@
   {
     "id": "frame_wood_deck",
     "type": "vehicle_part",
-    "name": { "str": "skateboard deck" },
     "copy-from": "frame_abstract",
     "item": "frame_wood_deck",
     "looks_like": "frame_wood",
@@ -158,7 +154,7 @@
     "unfolding_time": "0 seconds",
     "categories": [ "hull" ],
     "durability": 100,
-    "description": "A light wooden skateboard deck.  Other skateboard components can be mounted on it.",
+    "description": "A small skateboard frame made of thin layers of wood glued together.  Other skateboard components can be mounted on it.",
     "power": "360 W",
     "muscle_power_factor": 60,
     "fuel_type": "muscle",
@@ -189,12 +185,11 @@
     "id": "frame_wood_light",
     "type": "vehicle_part",
     "copy-from": "frame_abstract",
-    "name": { "str": "light wooden frame" },
     "item": "frame_wood_light",
     "color": "brown",
     "broken_color": "brown",
     "durability": 100,
-    "description": "A light wooden framework.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.  Wood and rope constructions means it can be constructed and added to the vehicle without welding tools or nails.",
+    "description": "A small frame made of a few pieces of wood, held together by rope.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.  Wood and rope constructions means it can be constructed and added to the vehicle without welding tools or nails.",
     "breaks_into": [ { "item": "splinter", "count": [ 3, 5 ] }, { "item": "string_36", "count": [ 10, 15 ] } ],
     "requirements": {
       "install": { "skills": [ [ "fabrication", 0 ] ], "time": "10 m", "using": [ [ "rope_natural_short", 1 ] ] },
@@ -207,11 +202,10 @@
     "id": "hdframe",
     "type": "vehicle_part",
     "copy-from": "frame_abstract",
-    "name": { "str": "heavy-duty frame" },
     "item": "hdframe",
     "color": "dark_gray",
     "durability": 760,
-    "description": "A heavy metal framework.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.  Increased mass makes it more resistant to damage in collisions.",
+    "description": "A large, reinforced steel frame, used in military vehicle construction.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.  Increased mass makes it more resistant to damage in collisions.",
     "breaks_into": "ig_vp_hdframe",
     "//": "doubled weld costs and bolts over standard frames for redundant fail points",
     "requirements": {
@@ -227,16 +221,16 @@
       },
       "repair": { "skills": [ [ "mechanics", 3 ] ], "time": "18 m", "using": [ [ "repair_welding_lc_steel", 10 ] ] }
     },
+    "flags": [ "MOUNTABLE", "INITIAL_PART" ],
     "damage_reduction": { "all": 30 }
   },
   {
     "id": "xlframe",
     "type": "vehicle_part",
     "copy-from": "frame_abstract",
-    "name": { "str": "extra light frame" },
     "item": "xlframe",
     "durability": 150,
-    "description": "A light metal framework.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.",
+    "description": "A small, lightweight frame made from pipework, part of a unibody vehicle.  Other vehicle components were mounted on it, but it is now deeply integrated with them.",
     "breaks_into": [ { "item": "material_aluminium_ingot", "count": [ 1, 4 ] }, { "item": "scrap_aluminum", "count": [ 3, 10 ] } ],
     "//": "assuming about 50 cm square for a frame's welds",
     "requirements": {
@@ -252,16 +246,17 @@
       },
       "repair": { "skills": [ [ "mechanics", 2 ] ], "time": "9 m", "using": [ [ "repair_welding_alloys", 5 ] ] }
     },
+    "flags": [ "MOUNTABLE", "INITIAL_PART", "NO_INSTALL_PLAYER" ],
     "damage_reduction": { "all": 7 }
   },
   {
     "id": "foldxlframe",
     "type": "vehicle_part",
     "copy-from": "frame_abstract",
-    "name": { "str": "foldable extra light frame" },
+    "name": { "str": "foldable extra-light frame" },
     "item": "foldxlframe",
     "durability": 150,
-    "description": "A light metal framework.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.",
+    "description": "A small, lightweight frame made from pipework.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.  If all the frames and components of a vehicle are foldable, the vehicle can be folding into a small package and picked up as a normal item.",
     "folded_volume": "2500 ml",
     "breaks_into": [ { "item": "material_aluminium_ingot", "count": [ 1, 4 ] }, { "item": "scrap_aluminum", "count": [ 3, 10 ] } ],
     "//": "assuming about 50 cm square for a frame's welds",
@@ -284,13 +279,20 @@
     "id": "frame_concrete_mix",
     "type": "vehicle_part",
     "copy-from": "frame_abstract",
-    "name": { "str": "concrete mixer chassis" },
     "item": "frame_concrete_mix",
     "durability": 150,
-    "description": "The chassis of a concrete mixer.",
     "folded_volume": "10 L",
     "breaks_into": [ { "item": "lc_steel_chunk", "count": [ 1, 4 ] }, { "item": "scrap", "count": [ 5, 25 ] } ],
     "extend": { "flags": [ "NO_INSTALL_HIDDEN", "CABLE_PORTS" ] },
     "damage_reduction": { "all": 7 }
+  },
+  {
+    "id": "improvised_frame",
+    "type": "vehicle_part",
+    "copy-from": "frame",
+    "item": "improvised_frame",
+    "description": "A metal framework.  Other vehicle components can be mounted on it, and it can be attached to other frames to increase the vehicle's size.  This one was crudely welded together from structural steel by a survivor, resulting in a massive increase in weight with a mild increase in durability.",
+    "proportional": { "durability": 1.2 },
+    "delete": { "flags": [ "NO_INSTALL_PLAYER" ] }
   }
 ]

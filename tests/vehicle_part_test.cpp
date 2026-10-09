@@ -7,6 +7,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -14,12 +15,17 @@
 #include "cata_catch.h"
 #include "character.h"
 #include "coordinates.h"
-#include "inventory.h"
+#include "crafting.h"
+#include "enums.h"
+#include "game_constants.h"
+#include "inventory_ui.h"
 #include "item.h"
 #include "item_location.h"
 #include "itype.h"
+#include "localized_comparator.h"
 #include "map.h"
 #include "map_helpers.h"
+#include "map_helpers_tests.h"
 #include "player_activity.h"
 #include "player_helpers.h"
 #include "point.h"
@@ -36,30 +42,54 @@
 
 static const activity_id ACT_CRAFT( "ACT_CRAFT" );
 
-static const ammotype ammo_flammable( "flammable" );
+static const ammotype ammo_test_liquid( "test_liquid" );
 static const ammotype ammo_water( "water" );
 
 static const damage_type_id damage_bash( "bash" );
 
 static const itype_id itype_backpack( "backpack" );
+static const itype_id itype_duct_tape( "duct_tape" );
 static const itype_id itype_fridge_test( "fridge_test" );
+static const itype_id itype_gasoline( "gasoline" );
 static const itype_id itype_metal_tank_test( "metal_tank_test" );
+static const itype_id itype_motor( "motor" );
 static const itype_id itype_oatmeal( "oatmeal" );
+static const itype_id itype_test_enchant( "test_enchant" );
+static const itype_id itype_test_multimag_direct_battery( "test_multimag_direct_battery" );
+static const itype_id itype_test_multimag_mixed_battery( "test_multimag_mixed_battery" );
+static const itype_id itype_test_multimag_two_battery( "test_multimag_two_battery" );
+static const itype_id itype_test_multimag_two_fluid( "test_multimag_two_fluid" );
+static const itype_id itype_test_multimag_vehicle_combo( "test_multimag_vehicle_combo" );
+static const itype_id itype_test_multimag_well_fluid( "test_multimag_well_fluid" );
 static const itype_id itype_water_clean( "water_clean" );
 static const itype_id itype_water_faucet( "water_faucet" );
+static const itype_id itype_water_purifier( "water_purifier" );
+static const itype_id itype_wrench( "wrench" );
 
 static const recipe_id recipe_oatmeal_cooked( "oatmeal_cooked" );
 
+static const skill_id skill_mechanics( "mechanics" );
+
 static const trait_id trait_DEBUG_CNF( "DEBUG_CNF" );
+static const trait_id trait_DEBUG_HS( "DEBUG_HS" );
 
 static const vpart_id vpart_ap_fridge_test( "ap_fridge_test" );
+static const vpart_id vpart_engine_electric( "engine_electric" );
+static const vpart_id vpart_frame( "frame" );
 static const vpart_id vpart_halfboard( "halfboard" );
+static const vpart_id vpart_small_storage_battery( "small_storage_battery" );
 static const vpart_id vpart_tank_test( "tank_test" );
+static const vpart_id vpart_test_enchant( "test_enchant" );
+static const vpart_id vpart_water_faucet( "water_faucet" );
+static const vpart_id vpart_wing_mirror( "wing_mirror" );
 
+static const vproto_id vehicle_prototype_none( "none" );
 static const vproto_id vehicle_prototype_test_rv( "test_rv" );
 
 static time_point midnight = calendar::turn_zero;
 static time_point midday = midnight + 12_hours;
+
+class temp_crafting_inventory;
 
 TEST_CASE( "verify_copy_from_gets_damage_reduction", "[vehicle]" )
 {
@@ -97,7 +127,7 @@ TEST_CASE( "vehicle_parts_boardable_openable_parts_have_door_flag", "[vehicle][v
 TEST_CASE( "vehicle_parts_have_at_least_one_category", "[vehicle][vehicle_parts]" )
 {
     // check parts have at least one category
-    const std::vector<vpart_category> categories = vpart_category::all();
+    const std::vector<vpart_category> &categories = vpart_category::all();
     std::set<std::string> all_cat_ids;
     for( const vpart_category &cat : categories ) {
         all_cat_ids.insert( cat.get_id() );
@@ -126,7 +156,7 @@ static void test_craft_via_rig( const std::vector<item> &items, int give_battery
 {
     map &here = get_map();
     clear_avatar();
-    clear_map();
+    clear_map_without_vision();
     clear_vehicles();
     set_time_to_day();
 
@@ -144,12 +174,13 @@ static void test_craft_via_rig( const std::vector<item> &items, int give_battery
     for( const std::pair<const skill_id, int> &req : recipe.required_skills ) {
         character.set_skill_level( req.first, req.second + 1 );
     }
-    for( const recipe_proficiency &prof : recipe.proficiencies ) {
+    for( const recipe_proficiency &prof : recipe.get_proficiencies() ) {
         character.add_proficiency( prof.id );
     }
     character.learn_recipe( &recipe );
 
-    here.add_vehicle( vehicle_prototype_test_rv, test_origin, -90_degrees, 0, 0 );
+    here.add_vehicle( vehicle_prototype_test_rv, test_origin, -90_degrees, 0,
+                      veh_spawn_status::UNDAMAGED );
     const optional_vpart_position ovp = here.veh_at( test_origin );
     REQUIRE( ovp.has_value() );
     vehicle &veh = ovp->vehicle();
@@ -174,10 +205,10 @@ static void test_craft_via_rig( const std::vector<item> &items, int give_battery
     veh.charge_battery( here, give_battery );
 
     character.invalidate_crafting_inventory();
-    const inventory &crafting_inv = character.crafting_inventory();
+    const temp_crafting_inventory &crafting_inv = character.crafting_inventory();
     bool can_craft = recipe
                      .deduped_requirements()
-                     .can_make_with_inventory( crafting_inv, recipe.get_component_filter() );
+                     .can_make_with_inventory( &character, crafting_inv, recipe.get_component_filter() );
 
     if( expect_success ) {
         REQUIRE( can_craft );
@@ -202,10 +233,243 @@ static void test_craft_via_rig( const std::vector<item> &items, int give_battery
     veh.unboard_all( here );
 }
 
+TEST_CASE( "vehicle_prepare_tool_multimag", "[vehicle][multimag]" )
+{
+    clear_avatar();
+    clear_map_without_vision();
+    clear_vehicles();
+    map &here = get_map();
+
+    const tripoint_bub_ms test_origin( 60, 60, 0 );
+    REQUIRE_FALSE( here.veh_at( test_origin ).has_value() );
+    vehicle *veh = here.add_vehicle( vehicle_prototype_none, test_origin, 0_degrees, 0,
+                                     veh_spawn_status::UNDAMAGED );
+    REQUIRE( veh != nullptr );
+    REQUIRE( veh->install_part( here, point_rel_ms::zero, vpart_frame ) != -1 );
+    REQUIRE( veh->install_part( here, point_rel_ms::zero, vpart_small_storage_battery ) != -1 );
+    REQUIRE( veh->install_part( here, point_rel_ms( 1, 0 ), vpart_frame ) != -1 );
+    const int tank_idx = veh->install_part( here, point_rel_ms( 1, 0 ), vpart_tank_test );
+    REQUIRE( tank_idx != -1 );
+    veh->refresh();
+    here.add_vehicle_to_cache( veh );
+
+    veh->charge_battery( here, 1000 );
+    veh->part( tank_idx ).ammo_set( itype_gasoline, 50 );
+
+    SECTION( "prepare_tool populates battery + tank pockets" ) {
+        item welder( itype_test_multimag_vehicle_combo );
+        veh->prepare_tool( here, welder );
+        CHECK( welder.ammo_remaining_in_pocket( "power" ) > 0 );
+        CHECK( welder.ammo_remaining_in_pocket( "fluid" ) > 0 );
+    }
+
+    SECTION( "MAGAZINE_WELL non-battery pocket synthesizes magazine from vehicle tank fluid" ) {
+        // Vehicle tank holds gasoline; tool's fuel pocket is MAGAZINE_WELL
+        // accepting a fluid magazine. Prep must synthesize the magazine and
+        // fill it from the tank, recording a TANK binding so drain_back
+        // bills the same vpart.
+        item tool( itype_test_multimag_well_fluid );
+        const std::map<std::string, multimag_pocket_state> bindings =
+            vehicle::prepare_multimag_pockets( *veh, here, tool );
+        REQUIRE( bindings.count( "fuel" ) );
+        CHECK( bindings.at( "fuel" ).kind == multimag_pocket_state::source_kind::TANK );
+        CHECK( bindings.at( "fuel" ).vpart_index == tank_idx );
+        CHECK( bindings.at( "fuel" ).initial_qty > 0 );
+
+        const int tank_before = veh->part( tank_idx ).ammo_remaining();
+        REQUIRE( tool.consume_tool_uses( 1, here, test_origin, nullptr ) == 1 );
+        vehicle::drain_back_multimag( *veh, here, tool, bindings );
+        // per_use=3 -> tank drained by exactly 3.
+        CHECK( veh->part( tank_idx ).ammo_remaining() == tank_before - 3 );
+    }
+
+    SECTION( "two same-fuel tanks bind each pocket to its own vpart" ) {
+        // Install a second gasoline tank, partially fill both, give the tool
+        // two same-fuel tank pockets. Each pocket must bind to one specific
+        // tank: prep claims per-vpart, drain-back bills per-vpart.
+        REQUIRE( veh->install_part( here, point_rel_ms( 1, 1 ), vpart_frame ) != -1 );
+        const int tank2_idx = veh->install_part( here, point_rel_ms( 1, 1 ), vpart_tank_test );
+        REQUIRE( tank2_idx != -1 );
+        veh->refresh();
+        veh->part( tank_idx ).ammo_set( itype_gasoline, 6 );
+        veh->part( tank2_idx ).ammo_set( itype_gasoline, 6 );
+
+        item tool( itype_test_multimag_two_fluid );
+        const std::map<std::string, multimag_pocket_state> bindings =
+            vehicle::prepare_multimag_pockets( *veh, here, tool );
+        REQUIRE( bindings.count( "left" ) );
+        REQUIRE( bindings.count( "right" ) );
+        // Each pocket must be backed by a distinct vpart_index.
+        CHECK( bindings.at( "left" ).vpart_index != bindings.at( "right" ).vpart_index );
+        // Each pocket gets the per-tank total, not double the global pool.
+        CHECK( bindings.at( "left" ).initial_qty == 6 );
+        CHECK( bindings.at( "right" ).initial_qty == 6 );
+
+        const int tank_a_before = veh->part( tank_idx ).ammo_remaining();
+        const int tank_b_before = veh->part( tank2_idx ).ammo_remaining();
+        REQUIRE( tool.consume_tool_uses( 1, here, test_origin, nullptr ) == 1 );
+        vehicle::drain_back_multimag( *veh, here, tool, bindings );
+        // Drain bills each pocket's bound tank exactly per_use=2.
+        CHECK( veh->part( tank_idx ).ammo_remaining() == tank_a_before - 2 );
+        CHECK( veh->part( tank2_idx ).ammo_remaining() == tank_b_before - 2 );
+    }
+
+    SECTION( "two battery pockets share one network without double-claim" ) {
+        // Two battery wells share one vehicle battery network. Per-use cost
+        // sums to 10, vehicle has 8: load must split, not double-claim, so
+        // feasibility is 0 and pocket totals stay within the network budget.
+        item tool( itype_test_multimag_two_battery );
+        veh->discharge_battery( here, 100000 );
+        veh->charge_battery( here, 8 );
+        REQUIRE( static_cast<int>( veh->battery_left( here ) ) == 8 );
+
+        const std::map<std::string, multimag_pocket_state> bindings =
+            vehicle::prepare_multimag_pockets( *veh, here, tool );
+        const int left = bindings.count( "left" ) ? bindings.at( "left" ).initial_qty : 0;
+        const int right = bindings.count( "right" ) ? bindings.at( "right" ).initial_qty : 0;
+        CHECK( left + right <= 8 );
+        CHECK( tool.feasible_tool_uses( /*external_pool=*/0 ) == 0 );
+    }
+
+    SECTION( "direct MAGAZINE battery pocket caps at pocket capacity, not vehicle pool" ) {
+        // Vehicle pool (1000) >> pocket capacity (40). Prep must cap at the
+        // pocket's own ammo_restriction limit; an uncapped insert would fail.
+        item tool( itype_test_multimag_direct_battery );
+        veh->discharge_battery( here, 100000 );
+        veh->charge_battery( here, 1000 );
+        REQUIRE( static_cast<int>( veh->battery_left( here ) ) == 1000 );
+
+        const std::map<std::string, multimag_pocket_state> bindings =
+            vehicle::prepare_multimag_pockets( *veh, here, tool );
+        REQUIRE( bindings.count( "core" ) );
+        CHECK( bindings.at( "core" ).initial_qty == 40 );
+        CHECK( tool.ammo_remaining_in_pocket( "core" ) == 40 );
+
+        const int batt_after_prep = static_cast<int>( veh->battery_left( here ) );
+        CHECK( batt_after_prep == 1000 );
+
+        REQUIRE( tool.consume_tool_uses( 1, here, test_origin, nullptr ) == 1 );
+        vehicle::drain_back_multimag( *veh, here, tool, bindings );
+        CHECK( static_cast<int>( veh->battery_left( here ) ) == 1000 - 5 );
+    }
+
+    SECTION( "mixed MAGAZINE_WELL + direct MAGAZINE battery pockets account claims correctly" ) {
+        // Vehicle has 350 battery. Well caps at heavy_battery_cell capacity
+        // (259); direct caps at its own 40 ammo_restriction. Sum (299) fits;
+        // direct must NOT be underfilled by a double-subtract bug.
+        item tool( itype_test_multimag_mixed_battery );
+        veh->discharge_battery( here, 100000 );
+        veh->charge_battery( here, 350 );
+        REQUIRE( static_cast<int>( veh->battery_left( here ) ) == 350 );
+
+        const std::map<std::string, multimag_pocket_state> bindings =
+            vehicle::prepare_multimag_pockets( *veh, here, tool );
+        REQUIRE( bindings.count( "well" ) );
+        REQUIRE( bindings.count( "direct" ) );
+        const int well_qty = bindings.at( "well" ).initial_qty;
+        const int direct_qty = bindings.at( "direct" ).initial_qty;
+        CHECK( well_qty == 259 );
+        CHECK( direct_qty == 40 );
+    }
+
+    SECTION( "use_vehicle_tool precheck rejects multimag with no feasible use" ) {
+        // Empty every source: feasible_tool_uses must report 0 and
+        // use_vehicle_tool must refuse without invoking the tool.
+        veh->discharge_battery( here, 100000 );
+        for( const vpart_reference &tvp :
+             veh->get_avail_parts( vpart_bitflags::VPFLAG_FLUIDTANK ) ) {
+            tvp.part().ammo_unset();
+        }
+        REQUIRE( veh->battery_left( here ) == 0 );
+
+        const bool ok = vehicle::use_vehicle_tool( *veh, &here, test_origin,
+                        itype_test_multimag_vehicle_combo, /*no_invoke=*/true );
+        CHECK_FALSE( ok );
+    }
+
+    SECTION( "drain_back_multimag drains battery + tank per pocket" ) {
+        item welder( itype_test_multimag_vehicle_combo );
+        const std::map<std::string, multimag_pocket_state> bindings =
+            vehicle::prepare_multimag_pockets( *veh, here, welder );
+        REQUIRE( bindings.at( "power" ).initial_qty > 0 );
+        REQUIRE( bindings.at( "fluid" ).initial_qty > 0 );
+
+        const int batt_before = static_cast<int>( veh->battery_left( here ) );
+        const int gas_before = static_cast<int>( veh->fuel_left( here, itype_gasoline ) );
+        REQUIRE( batt_before > 0 );
+        REQUIRE( gas_before > 0 );
+
+        // No carrier and no cable, so consume_tool_uses pulls from local pockets only.
+        REQUIRE( welder.consume_tool_uses( 1, here, test_origin, nullptr ) == 1 );
+        vehicle::drain_back_multimag( *veh, here, welder, bindings );
+
+        // Per-use cost: power=5, fluid=2.
+        CHECK( static_cast<int>( veh->battery_left( here ) ) == batt_before - 5 );
+        CHECK( static_cast<int>( veh->fuel_left( here, itype_gasoline ) ) == gas_before - 2 );
+    }
+}
+
+TEST_CASE( "vehicle_run_legacy_charge_tool_uses_water_purifier",
+           "[vehicle][purifier]" )
+{
+    clear_avatar();
+    clear_map_without_vision();
+    clear_vehicles();
+    map &here = get_map();
+
+    const tripoint_bub_ms test_origin( 60, 60, 0 );
+    REQUIRE_FALSE( here.veh_at( test_origin ).has_value() );
+    vehicle *veh = here.add_vehicle( vehicle_prototype_none, test_origin, 0_degrees, 0,
+                                     veh_spawn_status::UNDAMAGED );
+    REQUIRE( veh != nullptr );
+    REQUIRE( veh->install_part( here, point_rel_ms::zero, vpart_frame ) != -1 );
+    REQUIRE( veh->install_part( here, point_rel_ms::zero, vpart_small_storage_battery ) != -1 );
+    veh->refresh();
+    here.add_vehicle_to_cache( veh );
+
+    const int per_use = itype_water_purifier->charges_to_use();
+    REQUIRE( per_use > 0 );
+
+    SECTION( "drains battery exactly per_use * uses on success" ) {
+        veh->discharge_battery( here, 100000 );
+        const int budget = per_use * 3;
+        veh->charge_battery( here, budget );
+        REQUIRE( static_cast<int>( veh->battery_left( here ) ) == budget );
+
+        const int got = veh->run_legacy_charge_tool_uses( here, itype_water_purifier, 3 );
+        CHECK( got == 3 );
+        CHECK( static_cast<int>( veh->battery_left( here ) ) == 0 );
+    }
+
+    SECTION( "caps uses by available battery" ) {
+        veh->discharge_battery( here, 100000 );
+        veh->charge_battery( here, per_use * 2 );
+        const int got = veh->run_legacy_charge_tool_uses( here, itype_water_purifier, 5 );
+        CHECK( got == 2 );
+        CHECK( veh->battery_left( here ) == 0 );
+    }
+
+    SECTION( "zero battery returns zero uses, drains nothing" ) {
+        veh->discharge_battery( here, 100000 );
+        REQUIRE( veh->battery_left( here ) == 0 );
+        const int got = veh->run_legacy_charge_tool_uses( here, itype_water_purifier, 5 );
+        CHECK( got == 0 );
+    }
+
+    SECTION( "menu purify pre-check refuses partial budget without burning power" ) {
+        veh->discharge_battery( here, 100000 );
+        veh->charge_battery( here, per_use * 2 );
+        const int batt_before = static_cast<int>( veh->battery_left( here ) );
+        const int requested = 5;
+        REQUIRE_FALSE( batt_before >= requested * per_use );
+        CHECK( static_cast<int>( veh->battery_left( here ) ) == batt_before );
+    }
+}
+
 TEST_CASE( "faucet_offers_cold_water", "[vehicle][vehicle_parts]" )
 {
     clear_avatar();
-    clear_map();
+    clear_map_without_vision();
     clear_vehicles();
     set_time( midday );
     map &here = get_map();
@@ -215,7 +479,8 @@ TEST_CASE( "faucet_offers_cold_water", "[vehicle][vehicle_parts]" )
     Character &character = get_player_character();
     const item backpack( itype_backpack );
     character.wear_item( backpack );
-    here.add_vehicle( vehicle_prototype_test_rv, test_origin, -90_degrees, 0, 0 );
+    here.add_vehicle( vehicle_prototype_test_rv, test_origin, -90_degrees, 0,
+                      veh_spawn_status::UNDAMAGED );
     const optional_vpart_position ovp = here.veh_at( test_origin );
     REQUIRE( ovp.has_value() );
     vehicle &veh = ovp->vehicle();
@@ -308,9 +573,9 @@ static void check_part_ammo_capacity( vpart_id part_type, itype_id item_type, am
 TEST_CASE( "verify_vehicle_tank_refill", "[vehicle]" )
 {
     check_part_ammo_capacity( vpart_ap_fridge_test, itype_fridge_test, ammo_water, 1600 );
-    check_part_ammo_capacity( vpart_ap_fridge_test, itype_fridge_test, ammo_flammable, 444444 );
+    check_part_ammo_capacity( vpart_ap_fridge_test, itype_fridge_test, ammo_test_liquid, 444444 );
     check_part_ammo_capacity( vpart_tank_test, itype_metal_tank_test, ammo_water, 240 );
-    check_part_ammo_capacity( vpart_tank_test, itype_metal_tank_test, ammo_flammable, 60000 );
+    check_part_ammo_capacity( vpart_tank_test, itype_metal_tank_test, ammo_test_liquid, 60000 );
 }
 
 TEST_CASE( "check_capacity_fueltype_handling", "[vehicle]" )
@@ -325,7 +590,7 @@ TEST_CASE( "check_capacity_fueltype_handling", "[vehicle]" )
             //vp.ammo_capacity( item::find_type( vp.ammo_current() )->ammo->type );
         }
         THEN( "using explicit ammotype for ammo_capacity returns expected value" ) {
-            CHECK( vp.ammo_capacity( ammo_flammable ) == 60000 );
+            CHECK( vp.ammo_capacity( ammo_test_liquid ) == 60000 );
         }
     }
 
@@ -340,6 +605,335 @@ TEST_CASE( "check_capacity_fueltype_handling", "[vehicle]" )
             CHECK( vp.ammo_current() == itype_water_clean );
             CHECK( !!item::find_type( vp.ammo_current() )->ammo );
             CHECK( vp.ammo_capacity( item::find_type( vp.ammo_current() )->ammo->type ) == 240 );
+        }
+    }
+}
+
+TEST_CASE( "consume_inventory_finds_nearby_vehicle_tanks", "[inventory][vehicle][consume]" )
+{
+    clear_avatar();
+    clear_map_without_vision();
+    clear_vehicles();
+    map &here = get_map();
+    Character &character = get_player_character();
+    const tripoint_bub_ms origin( 60, 60, 0 );
+    character.setpos( here, origin );
+
+    const auto add_test_vehicle = [&]( const tripoint_bub_ms & pos, bool faucet,
+    bool appliance = false ) {
+        vehicle *veh = here.add_vehicle( vehicle_prototype_none, pos, 0_degrees, 0,
+                                         veh_spawn_status::UNDAMAGED );
+        REQUIRE( veh != nullptr );
+        REQUIRE( veh->install_part( here, point_rel_ms::zero, vpart_frame ) >= 0 );
+        const int tank_index = veh->install_part( here, point_rel_ms::zero, vpart_tank_test );
+        REQUIRE( tank_index >= 0 );
+        veh->part( tank_index ).ammo_set( itype_water_clean, 10 );
+        if( faucet ) {
+            REQUIRE( veh->install_part( here, point_rel_ms::zero, vpart_water_faucet ) >= 0 );
+        }
+        if( appliance ) {
+            veh->add_tag( "APPLIANCE" );
+        }
+        veh->refresh();
+        here.add_vehicle_to_cache( veh );
+        return veh;
+    };
+
+    SECTION( "nearby vehicle tank and faucet are available" ) {
+        add_test_vehicle( origin + tripoint::east, true );
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 1 );
+    }
+
+    SECTION( "one-tile appliance tank and faucet are available" ) {
+        vehicle *veh = add_test_vehicle( origin + tripoint::east, true, true );
+        REQUIRE( veh->is_appliance() );
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 1 );
+    }
+
+    SECTION( "attached faucet tool exposes nearby appliance tank" ) {
+        vehicle *veh = add_test_vehicle( origin + tripoint::east, false, true );
+        REQUIRE( veh->is_appliance() );
+
+        vehicle_part *tank = nullptr;
+        for( const vpart_reference &vpr : veh->get_all_parts() ) {
+            if( vpr.part().contains_liquid() ) {
+                tank = &vpr.part();
+                break;
+            }
+        }
+        REQUIRE( tank != nullptr );
+        veh->get_tools( *tank ).emplace_back( itype_water_faucet, calendar::turn_zero );
+
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 1 );
+    }
+
+    SECTION( "nearby tank without faucet is unavailable" ) {
+        add_test_vehicle( origin + tripoint::east, false );
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 0 );
+    }
+
+    SECTION( "faucet on another vehicle does not expose tank" ) {
+        add_test_vehicle( origin + tripoint::east, false );
+        add_test_vehicle( origin + tripoint::south, true );
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 1 );
+    }
+
+    SECTION( "nearby appliance with attached faucet is available within pickup range" ) {
+        vehicle *veh = add_test_vehicle( origin + tripoint( PICKUP_RANGE - 1, 0, 0 ), false, true );
+        REQUIRE( veh->is_appliance() );
+
+        vehicle_part *tank = nullptr;
+        for( const vpart_reference &vpr : veh->get_all_parts() ) {
+            if( vpr.part().contains_liquid() ) {
+                tank = &vpr.part();
+                break;
+            }
+        }
+        REQUIRE( tank != nullptr );
+        veh->get_tools( *tank ).emplace_back( itype_water_faucet, calendar::turn_zero );
+
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 1 );
+    }
+
+    SECTION( "nearby tank must itself be within pickup range" ) {
+        add_test_vehicle( origin + tripoint( PICKUP_RANGE + 1, 0, 0 ), true );
+
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 0 );
+    }
+
+    SECTION( "nearby faucet must itself be within pickup range" ) {
+        vehicle *veh = add_test_vehicle( origin + tripoint( PICKUP_RANGE, 0, 0 ), false );
+        REQUIRE( veh->install_part( here, point_rel_ms::east, vpart_frame ) >= 0 );
+        REQUIRE( veh->install_part( here, point_rel_ms::east, vpart_water_faucet ) >= 0 );
+        veh->refresh();
+        here.add_vehicle_to_cache( veh );
+
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 0 );
+    }
+
+    SECTION( "nearby tank behind an obstacle is unavailable" ) {
+        add_test_vehicle( origin + tripoint( 2, 0, 0 ), true );
+        here.ter_set( origin + tripoint::east, ter_id( "t_wall" ) );
+
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 0 );
+    }
+
+    SECTION( "current vehicle keeps access to all tanks through its own nearby faucet" ) {
+        vehicle *veh = add_test_vehicle( origin, true );
+        REQUIRE( veh->install_part( here, point_rel_ms::east, vpart_frame ) >= 0 );
+        REQUIRE( veh->install_part( here, point_rel_ms( 2, 0 ), vpart_frame ) >= 0 );
+        const int far_tank = veh->install_part( here, point_rel_ms( 2, 0 ), vpart_tank_test );
+        REQUIRE( far_tank >= 0 );
+        veh->part( far_tank ).ammo_set( itype_water_clean, 10 );
+        veh->refresh();
+        here.add_vehicle_to_cache( veh );
+
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        CHECK( selector.item_entry_count() == 2 );
+    }
+    SECTION( "vehicle under character still uses its own faucet only" ) {
+        add_test_vehicle( origin, false );
+        add_test_vehicle( origin + tripoint::east, true );
+        inventory_selector selector( character );
+        selector.add_vehicle_tank_items();
+        // The adjacent faucet must not expose the tank under the character.
+        CHECK( selector.item_entry_count() == 1 );
+    }
+}
+
+// "none" vehicle with a frame on each of the first `frames` mounts in a row
+static vehicle *spawn_frames( map &here, int frames )
+{
+    const tripoint_bub_ms origin( 60, 60, 0 );
+    REQUIRE_FALSE( here.veh_at( origin ).has_value() );
+    vehicle *veh = here.add_vehicle( vehicle_prototype_none, origin, 0_degrees, 0,
+                                     veh_spawn_status::UNDAMAGED );
+    REQUIRE( veh != nullptr );
+    for( int x = 0; x < frames; x++ ) {
+        REQUIRE( veh->install_part( here, point_rel_ms( x, 0 ), vpart_frame ) != -1 );
+    }
+    return veh;
+}
+
+static bool offered_in_menu( const vpart_info &vpi )
+{
+    return !vpi.has_flag( "NO_INSTALL_HIDDEN" ) && !vpi.has_flag( VPFLAG_APPLIANCE );
+}
+
+TEST_CASE( "install_candidates_offer_every_eligible_part_once", "[vehicle][veh_utils]" )
+{
+    clear_avatar();
+    clear_map_without_vision();
+    clear_vehicles();
+    map &here = get_map();
+    Character &you = get_player_character();
+    const vehicle &veh = *spawn_frames( here, 1 );
+
+    GIVEN( "empty inventory" ) {
+        you.invalidate_crafting_inventory();
+        const veh_utils::install_candidates list =
+            veh_utils::list_install_candidates( you, you.crafting_inventory(), veh );
+
+        THEN( "every offerable part is listed once" ) {
+            std::set<vpart_id> expected;
+            for( const vpart_info &vpi : vehicles::parts::get_all() ) {
+                if( offered_in_menu( vpi ) ) {
+                    expected.insert( vpi.id );
+                }
+            }
+            std::set<vpart_id> listed;
+            for( const vpart_info *vpi : list.parts ) {
+                listed.insert( vpi->id );
+            }
+            CHECK( listed == expected );
+            CHECK( list.parts.size() == expected.size() );
+        }
+        THEN( "installable parts first, each half sorted by name" ) {
+            for( const vpart_info *vpi : list.installable ) {
+                CHECK( std::find( list.parts.begin(), list.parts.end(), vpi ) != list.parts.end() );
+            }
+            const auto installable = [&list]( const vpart_info * vpi ) {
+                return list.installable.count( vpi ) > 0;
+            };
+            CHECK( std::is_partitioned( list.parts.begin(), list.parts.end(), installable ) );
+            const auto split = std::partition_point( list.parts.begin(), list.parts.end(), installable );
+            const auto by_name = []( const vpart_info * a, const vpart_info * b ) {
+                return localized_compare( a->name(), b->name() );
+            };
+            CHECK( std::is_sorted( list.parts.begin(), split, by_name ) );
+            CHECK( std::is_sorted( split, list.parts.end(), by_name ) );
+            CHECK_FALSE( installable( &*vpart_test_enchant ) );
+        }
+    }
+    GIVEN( "carrying enchant test part's base item" ) {
+        you.i_add( item( itype_test_enchant ) );
+        you.invalidate_crafting_inventory();
+        REQUIRE( vpart_test_enchant->install_requirements().can_make_with_inventory( &you,
+                 you.crafting_inventory(), is_crafting_component, 1, craft_flags::none, false ) );
+        THEN( "part is installable" ) {
+            CHECK( veh_utils::can_install_anywhere( you, you.crafting_inventory(), veh,
+                                                    *vpart_test_enchant ) );
+            const veh_utils::install_candidates list =
+                veh_utils::list_install_candidates( you, you.crafting_inventory(), veh );
+            CHECK( list.installable.count( &*vpart_test_enchant ) == 1 );
+        }
+    }
+}
+
+TEST_CASE( "install_candidates_respect_the_higher_skill_engine_limit", "[vehicle][veh_utils]" )
+{
+    clear_avatar();
+    clear_map_without_vision();
+    clear_vehicles();
+    map &here = get_map();
+    Character &you = get_player_character();
+    vehicle &veh = *spawn_frames( here, 2 );
+    you.i_add( item( itype_motor ) );
+    you.i_add( item( itype_wrench ) );
+    you.invalidate_crafting_inventory();
+    REQUIRE( vpart_engine_electric->install_requirements().can_make_with_inventory( &you,
+             you.crafting_inventory(), is_crafting_component, 1, craft_flags::none, false ) );
+    const auto engine_installable = [&]() {
+        const veh_utils::install_candidates list =
+            veh_utils::list_install_candidates( you, you.crafting_inventory(), veh );
+        for( const vpart_info *vpi : list.parts ) {
+            CHECK( offered_in_menu( *vpi ) );
+        }
+        return list.installable.count( &*vpart_engine_electric ) > 0;
+    };
+
+    WHEN( "vehicle has no higher-skill engine" ) {
+        THEN( "engine is installable" ) {
+            CHECK( engine_installable() );
+        }
+    }
+    WHEN( "vehicle has two higher-skill engines" ) {
+        REQUIRE( veh.install_part( here, point_rel_ms( 0, 0 ), vpart_engine_electric ) != -1 );
+        REQUIRE( veh.install_part( here, point_rel_ms( 1, 0 ), vpart_engine_electric ) != -1 );
+        int engines = 0;
+        for( const vpart_reference &vp : veh.get_avail_parts( "ENGINE" ) ) {
+            engines += vp.has_feature( "E_HIGHER_SKILL" ) ? 1 : 0;
+        }
+        REQUIRE( engines == 2 );
+        THEN( "third one refused despite materials" ) {
+            CHECK_FALSE( engine_installable() );
+        }
+        AND_WHEN( "installer has debug hammerspace" ) {
+            you.set_mutation( trait_DEBUG_HS );
+            THEN( "third is allowed" ) {
+                CHECK( engine_installable() );
+            }
+        }
+    }
+}
+
+TEST_CASE( "most_repairable_part_needs_the_repair_materials", "[vehicle][veh_utils]" )
+{
+    clear_avatar();
+    clear_map_without_vision();
+    clear_vehicles();
+    map &here = get_map();
+    Character &you = get_player_character();
+    you.set_skill_level( skill_mechanics, 1 );
+    vehicle &veh = *spawn_frames( here, 1 );
+    const int mirror_idx = veh.install_part( here, point_rel_ms( 1, 0 ), vpart_wing_mirror );
+    REQUIRE( mirror_idx != -1 );
+    vehicle_part &mirror = veh.part( mirror_idx );
+    item damaged = mirror.get_base();
+    damaged.set_damage( damaged.max_damage() / 2 );
+    mirror.set_base( std::move( damaged ) );
+    REQUIRE( mirror.is_repairable() );
+
+    int tape_needed = 0;
+    const requirement_data reqs = mirror.info().repair_requirements() *
+                                  mirror.get_base().repairable_levels();
+    for( const std::vector<item_comp> &alternatives : reqs.get_components() ) {
+        for( const item_comp &comp : alternatives ) {
+            if( comp.type == itype_duct_tape ) {
+                tape_needed = comp.count;
+            }
+        }
+    }
+    REQUIRE( tape_needed > 0 );
+    const auto most_repairable = [&]() {
+        you.invalidate_crafting_inventory();
+        return veh_utils::most_repairable_part( veh, you );
+    };
+
+    GIVEN( "no tape" ) {
+        THEN( "nothing repairable" ) {
+            CHECK( most_repairable() == nullptr );
+        }
+    }
+    GIVEN( "exactly the tape repair needs" ) {
+        you.i_add( item( itype_duct_tape, calendar::turn, tape_needed ) );
+        THEN( "mirror repairable" ) {
+            CHECK( most_repairable() == &mirror );
+        }
+    }
+    GIVEN( "one tape charge short" ) {
+        you.i_add( item( itype_duct_tape, calendar::turn, tape_needed - 1 ) );
+        THEN( "nothing repairable" ) {
+            CHECK( most_repairable() == nullptr );
         }
     }
 }

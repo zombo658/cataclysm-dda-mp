@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 class JsonObject;
 
@@ -15,10 +16,10 @@ namespace mp::sound_relay
 {
 
 // Host side: the arguments of sfx::play_variant_sound() and friends.
-void variant( const std::string &id, const std::string &variant, const std::string &season,
+void variant( std::string_view id, std::string_view variant, std::string_view season,
               const std::optional<bool> &is_indoors, const std::optional<bool> &is_night,
               int volume, std::optional<double> angle_degrees, double pitch_min, double pitch_max );
-void ambient( const std::string &id, const std::string &variant, const std::string &season,
+void ambient( std::string_view id, std::string_view variant, std::string_view season,
               const std::optional<bool> &is_indoors, const std::optional<bool> &is_night,
               int volume, int channel, int fade_in_duration, double pitch, int loops );
 void fade_channel( int channel, int duration );

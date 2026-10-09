@@ -4,9 +4,21 @@
     "id": "guard",
     "//": "A generic guard for the Free Merchants faction.",
     "name_suffix": "Guard",
+    "portrait_filename": "Generic_NPC_free_merch_guard",
     "class": "NC_FREE_MERCH_GUARD",
     "attitude": 0,
-    "mission": 8,
+    "mission": "GUARD_PATROL",
+    "chat": "TALK_GUARD",
+    "faction": "free_merchants"
+  },
+  {
+    "type": "npc",
+    "id": "night_guard",
+    "//": "Night shift guard for the Free Merchants faction.",
+    "name_suffix": "Guard",
+    "class": "NC_FREE_MERCH_GUARD_NIGHT",
+    "attitude": 0,
+    "mission": "GUARD_PATROL",
     "chat": "TALK_GUARD",
     "faction": "free_merchants"
   },

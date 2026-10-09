@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "assign.h"
 #include "color.h"
 #include "condition.h"
 #include "debug.h"
@@ -22,7 +21,6 @@
 #include "json.h"
 #include "localized_comparator.h"
 #include "magic_enchantment.h"
-#include "make_static.h"
 #include "memory_fast.h"
 #include "npc.h"
 #include "string_formatter.h"
@@ -30,6 +28,10 @@
 #include "translations.h"
 #include "uilist.h"
 #include "weighted_list.h"
+
+static const json_character_flag json_flag_ATTUNEMENT( "ATTUNEMENT" );
+static const json_character_flag json_flag_HERITAGE( "HERITAGE" );
+static const json_character_flag json_flag_PERK( "PERK" );
 
 static const mutation_category_id mutation_category_ANY( "ANY" );
 
@@ -198,11 +200,11 @@ bool mut_transform::load( const JsonObject &jsobj, std::string_view member )
 {
     JsonObject j = jsobj.get_object( member );
 
-    assign( j, "target", target );
-    assign( j, "msg_transform", msg_transform );
-    assign( j, "active", active );
+    optional( j, false, "target", target );
+    optional( j, false, "msg_transform", msg_transform );
+    optional( j, false, "active", active, false );
     optional( j, false, "safe", safe, false );
-    assign( j, "moves", moves );
+    optional( j, false, "moves", moves, 0 );
 
     return true;
 }
@@ -305,7 +307,8 @@ void mutation_branch::load( const JsonObject &jo, std::string_view src )
     optional( jo, was_loaded, "visibility", visibility, 0 );
     optional( jo, was_loaded, "ugliness", ugliness, 0 );
     optional( jo, was_loaded, "starting_trait", startingtrait, false );
-    optional( jo, was_loaded, "random_at_chargen", random_at_chargen, true );
+    optional( jo, was_loaded, "chargen_allow_npc", chargen_allow_npc, true );
+    optional( jo, was_loaded, "random_start_allowed", random_start_allowed, true );
     optional( jo, was_loaded, "mixed_effect", mixed_effect, false );
     optional( jo, was_loaded, "active", activated, false );
     optional( jo, was_loaded, "starts_active", starts_active, false );
@@ -317,6 +320,7 @@ void mutation_branch::load( const JsonObject &jo, std::string_view src )
     optional( jo, was_loaded, "thirst", thirst, false );
     optional( jo, was_loaded, "sleepiness", sleepiness, false );
     optional( jo, was_loaded, "mana", mana, false );
+    optional( jo, was_loaded, "stamina", stamina, false );
     optional( jo, was_loaded, "valid", valid, true );
     optional( jo, was_loaded, "purifiable", purifiable, true );
 
@@ -399,7 +403,7 @@ void mutation_branch::load( const JsonObject &jo, std::string_view src )
     optional( jo, was_loaded, "activation_msg", activation_msg,
               to_translation( "You activate your %s." ) );
 
-    optional( jo, was_loaded, "butchering_quality", butchering_quality, 0 );
+    optional( jo, was_loaded, "provided_qualities", provided_qualities );
 
     optional( jo, was_loaded, "allowed_category", allowed_category );
 
@@ -531,8 +535,8 @@ void mutation_branch::load( const JsonObject &jo, std::string_view src )
             for( const body_part_type &bp : body_part_type::get_all() ) {
                 if( type_string == "ALL" ) {
                     armor[bp.id] += res;
-                } else if( bp.limbtypes.count( io::string_to_enum<body_part_type::type>( type_string ) ) > 0 ) {
-                    armor[bp.id] += res * bp.limbtypes.at( io::string_to_enum<body_part_type::type>( type_string ) );
+                } else if( bp.limbtypes.count( io::string_to_enum<bp_type>( type_string ) ) > 0 ) {
+                    armor[bp.id] += res * bp.limbtypes.at( io::string_to_enum<bp_type>( type_string ) );
                 }
             }
         }
@@ -787,18 +791,20 @@ void mutation_branch::check_consistency()
 
 nc_color mutation_branch::get_display_color() const
 {
-    if( flags.count( STATIC( json_character_flag( "ATTUNEMENT" ) ) ) ) {
+    if( flags.count( json_flag_ATTUNEMENT ) ) {
         return c_green;
+    } else if( flags.count( json_flag_HERITAGE ) || debug ) {
+        return c_light_cyan;
     } else if( threshold || profession ) {
         return c_white;
-    } else if( debug ) {
-        return c_light_cyan;
     } else if( mixed_effect ) {
         return c_pink;
     } else if( points > 0 ) {
         return c_light_green;
     } else if( points < 0 ) {
         return c_light_red;
+    } else if( flags.count( json_flag_PERK ) ) {
+        return c_light_gray;
     } else {
         return c_yellow;
     }

@@ -68,6 +68,8 @@
 static const mod_id MOD_INFORMATION_dda( "dda" );
 static const mod_id MOD_INFORMATION_dda_tutorial( "dda_tutorial" );
 
+namespace
+{
 enum class main_menu_opts : int {
     MOTD = 0,
     NEWCHAR,
@@ -81,6 +83,7 @@ enum class main_menu_opts : int {
     QUIT,
     NUM_MENU_OPTS,
 };
+} // namespace
 
 std::string main_menu::queued_world_to_load;
 std::string main_menu::queued_save_id_to_load;
@@ -358,9 +361,8 @@ void main_menu::print_menu( const catacurses::window &w_open, int iSel, const po
     }
 
     iLine++;
-    center_print( w_open, iLine, c_light_blue,
-                  string_format( _( "Version: 0.I-1 (Ito-1) Stable Release" ),
-                                 getVersionString() ) );
+    center_print( w_open, iLine, c_light_blue, string_format( _( "Version: %s" ),
+                  getVersionString() ) );
 
     int menu_length = 0;
     for( size_t i = 0; i < vMenuItems.size(); ++i ) {
@@ -493,7 +495,7 @@ void main_menu::init_strings()
     }
     vNewGameHints.clear();
     vNewGameHints.emplace_back(
-        _( "Allows you to fully customize points pool, scenario, and character's profession, stats, traits, skills and other parameters." ) );
+        _( "Allows you to fully customize scenario, character's profession, stats, traits, skills and other parameters." ) );
     vNewGameHints.emplace_back( _( "Select from one of previously created character templates." ) );
     vNewGameHints.emplace_back(
         _( "Creates random character, but lets you preview the generated character and the scenario and change character and/or scenario if needed." ) );
@@ -654,13 +656,31 @@ bool main_menu::opening_screen()
     ui.mark_resize();
 
     if( !queued_world_to_load.empty() ) {
-        save_t const &save_to_load = queued_save_id_to_load.empty() ? world_generator->get_world(
-                                         queued_world_to_load )->world_saves.front() : save_t::from_save_id( queued_save_id_to_load );
-        start = main_menu::load_game( queued_world_to_load, save_to_load );
-        queued_world_to_load.clear();
-        queued_save_id_to_load.clear();
-        if( start ) {
-            load_game = true;
+        WORLD *world_to_load{};
+        try {
+            save_t const &save_to_load = [&]() {
+                if( queued_save_id_to_load.empty() ) {
+                    world_to_load = world_generator->get_world( queued_world_to_load );
+                    const std::vector<save_t> &world_saves = world_to_load->world_saves;
+                    if( world_saves.empty() ) {
+                        throw false;
+                    }
+                    return world_saves.front();
+                }
+                return save_t::from_save_id( queued_save_id_to_load );
+            }
+            ();
+            start = main_menu::load_game( queued_world_to_load, save_to_load );
+            queued_world_to_load.clear();
+            queued_save_id_to_load.clear();
+            if( start ) {
+                load_game = true;
+            }
+        } catch( bool has_save ) {
+            load_game = has_save;
+            if( world_to_load ) {
+                popup( _( "%s has no characters to load!" ), world_to_load->world_name );
+            }
         }
     }
 
@@ -827,9 +847,11 @@ bool main_menu::opening_screen()
             }
         } else if( action == "CONFIRM" ) {
             switch( static_cast<main_menu_opts>( sel1 ) ) {
-                case main_menu_opts::HELP:
-                    get_help().display_help();
+                case main_menu_opts::HELP: {
+                    help_window hw;
+                    hw.show();
                     break;
+                }
                 case main_menu_opts::QUIT:
                     return false;
                 case main_menu_opts::TUTORIAL:

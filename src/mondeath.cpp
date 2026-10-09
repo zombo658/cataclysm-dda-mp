@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,7 +17,6 @@
 #include "harvest.h"
 #include "item.h"
 #include "itype.h"
-#include "make_static.h"
 #include "map.h"
 #include "map_iterator.h"
 #include "mattack_actors.h"
@@ -33,6 +33,8 @@
 #include "value_ptr.h"
 
 static const efftype_id effect_no_ammo( "no_ammo" );
+
+static const flag_id json_flag_GIBBED( "GIBBED" );
 
 static const harvest_drop_type_id harvest_drop_bone( "bone" );
 static const harvest_drop_type_id harvest_drop_flesh( "flesh" );
@@ -185,10 +187,11 @@ item_location mdeath::splatter( map *here, monster &z )
         }
         // Set corpse to damage that aligns with being pulped
         corpse.set_damage( 4000 );
-        corpse.set_flag( STATIC( flag_id( "GIBBED" ) ) );
+        corpse.set_flag( json_flag_GIBBED );
         if( z.has_effect( effect_no_ammo ) ) {
             corpse.set_var( "no_ammo", "no_ammo" );
         }
+
         return here->add_item_or_charges_ret_loc( z.pos_bub( *here ), corpse );
     }
     return {};
@@ -235,15 +238,26 @@ void mdeath::broken( map *here, monster &z )
                 for( const std::pair<const std::string, mtype_special_attack> &attack : z.type->special_attacks ) {
                     if( attack.second->id == "gun" ) {
                         item gun = item( dynamic_cast<const gun_actor *>( attack.second.get() )->gun_type );
-                        bool same_ammo = false;
-                        if( gun.typeId()->magazine_default.count( item( ammo_entry.first ).ammo_type() ) ) {
-                            same_ammo = true;
+                        const ammotype at = item( ammo_entry.first ).ammo_type();
+                        // TODO(multimag): picks the first well-default whose mag accepts this
+                        // ammo type. Sibling wells with the same ammotype but different default
+                        // magazines collapse to the first match.
+                        itype_id mag_id;
+                        for( const itype_id &well_default : gun.magazines_default() ) {
+                            if( well_default.is_null() ) {
+                                continue;
+                            }
+                            const std::set<ammotype> &mag_types = well_default->magazine->type;
+                            if( mag_types.find( at ) != mag_types.end() ) {
+                                mag_id = well_default;
+                                break;
+                            }
                         }
-                        if( same_ammo && gun.uses_magazine() ) {
+                        if( !mag_id.is_null() && gun.uses_magazine() ) {
                             std::vector<item> mags;
                             int ammo_count = ammo_entry.second;
                             while( ammo_count > 0 ) {
-                                item mag = item( gun.type->magazine_default.find( item( ammo_entry.first ).ammo_type() )->second );
+                                item mag = item( mag_id );
                                 mag.ammo_set( ammo_entry.first,
                                               std::min( ammo_count, mag.type->magazine->capacity ) );
                                 mags.insert( mags.end(), mag );

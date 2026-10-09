@@ -32,7 +32,7 @@ TEST_CASE( "item_contents" )
 {
     map &here = get_map();
 
-    clear_map();
+    clear_map_without_vision();
     item tool_belt( itype_test_tool_belt );
 
     const units::volume tool_belt_vol = tool_belt.volume();
@@ -91,18 +91,20 @@ TEST_CASE( "item_contents" )
     // overflow should only spill items if they can't fit
     CHECK( tool_belt.num_item_stacks() == 4 );
 
-    tool_belt.remove_items_with( []( const item & it ) {
+    item_location tool_belt_loc( map_cursor( tripoint_bub_ms::zero ),
+                                 &here.add_item( tripoint_bub_ms::zero, tool_belt ) );
+    tool_belt_loc.remove_items_with( []( const item & it ) {
         return it.typeId() == itype_crowbar_pocket_test;
     } );
     // check to see that removing an item works
-    CHECK( tool_belt.num_item_stacks() == 3 );
-    tool_belt.spill_contents( tripoint_bub_ms::zero );
-    CHECK( tool_belt.empty() );
+    CHECK( tool_belt_loc->num_item_stacks() == 3 );
+    tool_belt_loc->spill_contents( tripoint_bub_ms::zero );
+    CHECK( tool_belt_loc->empty() );
 }
 
 TEST_CASE( "overflow_on_combine", "[item]" )
 {
-    clear_map();
+    clear_map_without_vision();
     tripoint_bub_ms origin{ 60, 60, 0 };
     item purse( itype_purse );
     item log( itype_log );
@@ -119,7 +121,7 @@ TEST_CASE( "overflow_on_combine", "[item]" )
 
 TEST_CASE( "overflow_test", "[item]" )
 {
-    clear_map();
+    clear_map_without_vision();
     tripoint_bub_ms origin{ 60, 60, 0 };
     item purse( itype_purse );
     item log( itype_log );
@@ -133,7 +135,7 @@ TEST_CASE( "overflow_test_into_parent_item", "[item]" )
 {
     map &here = get_map();
 
-    clear_map();
+    clear_map_without_vision();
     tripoint_bub_ms origin{ 60, 60, 0 };
     item jar( itype_jar_glass_sealed );
     item pickle( itype_pickle );

@@ -15,6 +15,7 @@
 #include "item_location.h"
 #include "map.h"
 #include "map_helpers.h"
+#include "map_helpers_tests.h"
 #include "morale.h"
 #include "npc.h"
 #include "pimpl.h"
@@ -264,7 +265,7 @@ TEST_CASE( "player_morale_kills_hostile_bandit", "[player_morale]" )
 TEST_CASE( "player_morale_ranged_kill_of_unaware_hostile_bandit", "[player_morale]" )
 {
     map &here = get_map();
-
+    clear_map();
     clear_avatar();
     avatar &player = get_avatar();
     // Set the time to midnight to ensure the bandit doesn't notice the player.

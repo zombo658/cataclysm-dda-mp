@@ -12,11 +12,15 @@
 
 #include "coords_fwd.h"
 #include "ret_val.h"
+#include "translation.h"
 #include "type_id.h"
 
 class Character;
 class JsonObject;
 class item;
+class item_location;
+class map;
+class npc;
 class time_point;
 class vpart_reference;
 struct itype;
@@ -25,6 +29,7 @@ using seed_tuple = std::tuple<itype_id, std::string, int>;
 
 struct iexamine_actor {
     const std::string type;
+    translation name;
 
     explicit iexamine_actor( const std::string &type ) : type( type ) {}
 
@@ -35,6 +40,10 @@ struct iexamine_actor {
     virtual std::unique_ptr<iexamine_actor> clone() const = 0;
 
     virtual ~iexamine_actor() = default;
+
+    std::string get_name() const {
+        return name.translated();
+    }
 };
 
 enum fuel_station_fuel_type {
@@ -62,6 +71,7 @@ bool harvestable_now( const tripoint_bub_ms &examp );
 void gaspump( Character &you, const tripoint_bub_ms &examp );
 void atm( Character &you, const tripoint_bub_ms &examp );
 void vending( Character &you, const tripoint_bub_ms &examp );
+void iso_recycler( Character &you, const tripoint_bub_ms &examp );
 void elevator( Character &you, const tripoint_bub_ms &examp );
 void genemill( Character &you, const tripoint_bub_ms &examp );
 void nanofab( Character &you, const tripoint_bub_ms &examp );
@@ -71,7 +81,6 @@ void cardreader_robofac( Character &you, const tripoint_bub_ms &examp );
 void cardreader_foodplace( Character &you, const tripoint_bub_ms &examp );
 void intercom( Character &you, const tripoint_bub_ms &examp );
 void intercom_balthazar( Character &you, const tripoint_bub_ms &examp );
-void cvdmachine( Character &you, const tripoint_bub_ms &examp );
 void change_appearance( Character &you, const tripoint_bub_ms &examp );
 void rubble( Character &you, const tripoint_bub_ms &examp );
 void chainfence( Character &you, const tripoint_bub_ms &examp );
@@ -80,6 +89,7 @@ void deployed_furniture( Character &you, const tripoint_bub_ms &pos );
 void portable_structure( Character &you, const tripoint_bub_ms &examp );
 void pit( Character &you, const tripoint_bub_ms &examp );
 void pit_covered( Character &you, const tripoint_bub_ms &examp );
+void thin_ice( Character &you, const tripoint_bub_ms &examp );
 void safe( Character &you, const tripoint_bub_ms &examp );
 void gunsafe_el( Character &you, const tripoint_bub_ms &examp );
 void harvest_furn_nectar( Character &you, const tripoint_bub_ms &examp );
@@ -137,9 +147,9 @@ void ledge( Character &you, const tripoint_bub_ms &examp );
 void autodoc( Character &you, const tripoint_bub_ms &examp );
 void attunement_altar( Character &you, const tripoint_bub_ms &examp );
 void translocator( Character &you, const tripoint_bub_ms &examp );
-void on_smoke_out( const tripoint_bub_ms &examp,
+void on_smoke_out( map &here, const tripoint_bub_ms &examp,
                    const time_point &start_time ); //activates end of smoking effects
-void mill_finalize( Character &, const tripoint_bub_ms &examp );
+void mill_finalize( Character &, map &here, const tripoint_bub_ms &examp );
 void quern_examine( Character &you, const tripoint_bub_ms &examp );
 void smoker_options( Character &you, const tripoint_bub_ms &examp );
 bool smoker_prep( Character &you, const tripoint_bub_ms &examp );
@@ -163,7 +173,7 @@ std::list<item> get_harvest_items( const itype &type, int plant_count,
                                    int seed_count, bool byproducts );
 
 // Planting functions
-std::vector<seed_tuple> get_seed_entries( const std::vector<item *> &seed_inv );
+std::vector<seed_tuple> get_seed_entries( const std::vector<item_location> &seed_inv );
 int query_seed( const std::vector<seed_tuple> &seed_entries );
 void plant_seed( Character &you, const tripoint_bub_ms &examp, const itype_id &seed_id );
 void clear_overgrown( Character &you, const tripoint_bub_ms &examp );
@@ -188,10 +198,21 @@ void handle_harvest( Character &you, const itype_id &itemid, bool force_drop );
 using iexamine_examine_function = void ( * )( Character &, const tripoint_bub_ms & );
 using iexamine_can_examine_function = bool ( * )( const tripoint_bub_ms & );
 struct iexamine_functions {
-    iexamine_can_examine_function can_examine;
-    iexamine_examine_function examine;
+    iexamine_can_examine_function can_examine = nullptr;
+    iexamine_examine_function examine = nullptr;
+    translation examine_name;
+
+    std::string get_name() const {
+        return examine_name.translated();
+    };
 };
 
 iexamine_functions iexamine_functions_from_string( const std::string &function_name );
+
+// Find the best available intercom operator for a faction.
+// Prefers on-shift, awake operators. Falls back to any awake operator.
+// Returns nullptr if no operator is found.
+npc *find_intercom_operator( const trait_id &marker_trait,
+                             const faction_id &fac_id );
 
 #endif // CATA_SRC_IEXAMINE_H

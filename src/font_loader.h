@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "cata_utility.h"
@@ -24,7 +25,7 @@ struct font_config {
     // Path to the font file.
     std::string path;
     // The type of hinting to apply.
-    std::optional<ImGuiFreeTypeBuilderFlags> hinting = std::nullopt;
+    std::optional<ImGuiFreeTypeLoaderFlags> hinting = std::nullopt;
     // In practice, antialiasing will be ignored when hinting is set to FontHint::Bitmap.
     bool antialiasing = true;
 
@@ -32,9 +33,9 @@ struct font_config {
 
     explicit font_config( std::string path ) : path( std::move( path ) ) {}
     font_config( std::string path,
-                 const std::optional<ImGuiFreeTypeBuilderFlags> hinting ) : path( std::move( path ) ),
+                 const std::optional<ImGuiFreeTypeLoaderFlags> hinting ) : path( std::move( path ) ),
         hinting( hinting ) {}
-    font_config( std::string path, const std::optional<ImGuiFreeTypeBuilderFlags> hinting,
+    font_config( std::string path, const std::optional<ImGuiFreeTypeLoaderFlags> hinting,
                  const bool antialiasing ) : path( std::move( path ) ), hinting( hinting ),
         antialiasing( antialiasing ) {}
 
@@ -48,6 +49,8 @@ struct font_config {
 extern void ensure_unifont_loaded( std::vector<font_config> &font_list );
 extern void ensure_unifont_loaded( std::vector<std::string> &font_list );
 
+// whether typeface path is a bitmap sheet, which only draws at its own cell size
+bool is_bitmap_typeface( std::string_view path );
 
 class font_loader
 {

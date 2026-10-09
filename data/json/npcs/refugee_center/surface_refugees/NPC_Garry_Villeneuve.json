@@ -5,9 +5,10 @@
     "name_unique": "Garry Villeneuve",
     "gender": "male",
     "name_suffix": "Refugee",
+    "portrait_filename": "Named_NPC_gary_villeneuve",
     "class": "NC_REFUGEE_Garry",
     "attitude": 0,
-    "mission": 7,
+    "mission": "GUARD",
     "chat": "TALK_REFUGEE_Garry_1",
     "faction": "free_merchants"
   },
@@ -57,7 +58,7 @@
     "type": "item_group",
     "id": "REFUGEE_Garry_carried",
     "subtype": "collection",
-    "entries": [ { "group": "duct_tape_roll_part" }, { "group": "superglue" } ]
+    "entries": [ { "group": "duct_tape_roll_part" }, { "group": "glue_strong_domestic" }, { "group": "glue_weak_domestic" } ]
   },
   {
     "type": "item_group",

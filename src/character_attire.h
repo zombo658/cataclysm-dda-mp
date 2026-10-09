@@ -19,6 +19,7 @@
 #include "color.h"
 #include "item.h"
 #include "item_location.h"
+#include "item_pocket.h"
 #include "ret_val.h"
 #include "subbodypart.h"
 #include "type_id.h"
@@ -32,7 +33,6 @@ class advanced_inv_area;
 class advanced_inv_listitem;
 class advanced_inventory_pane;
 class avatar;
-class item_pocket;
 class npc;
 class player_morale;
 struct bodygraph_info;
@@ -125,26 +125,22 @@ class outfit
         bool natural_attack_restricted_on( const sub_bodypart_id &bp ) const;
         units::mass weight_carried_with_tweaks( const std::map<const item *, int> &without ) const;
         units::mass weight() const;
-        units::volume holster_volume() const;
-        int used_holsters() const;
-        int total_holsters() const;
-        units::volume free_holster_volume() const;
-        units::volume contents_volume_with_tweaks( const std::map<const item *, int> &without ) const;
-        units::volume volume_capacity_with_tweaks( const std::map<const item *, int> &without ) const;
-        units::volume free_space() const;
+        units::volume remaining_volume_recursive( const std::function<bool( const item_pocket & )>
+                &include_pocket,
+                const std::function<bool( const item_pocket & )> &check_pocket_tree ) const;
         units::mass free_weight_capacity() const;
         units::volume max_single_item_volume() const;
         units::length max_single_item_length() const;
-        // total volume
-        units::volume volume_capacity() const;
-        // volume of pockets under the threshold
-        units::volume small_pocket_volume( const units::volume &threshold )  const;
-        int empty_holsters() const;
+        // total volume_capacity of pockets on items the character is directly wearing
+        units::volume volume_capacity( const std::function<bool( const item_pocket & )> &include_pocket =
+                                           item_pocket::ok_default_containers ) const;
         int pocket_warmth() const;
         int hood_warmth() const;
         int collar_warmth() const;
         /** Returns warmth provided by armor, etc. */
         std::map<bodypart_id, int> warmth( const Character &guy ) const;
+        /** Returns wind resistance provided by worn items. */
+        std::map<bodypart_id, int> wind_resistance( const Character &guy ) const;
         int get_env_resist( bodypart_id bp ) const;
         int sum_filthy_cover( bool ranged, bool melee, bodypart_id bp ) const;
         ret_val<void> power_armor_conflicts( const item &clothing ) const;
@@ -162,7 +158,7 @@ class outfit
         int worn_guns() const;
         int clatter_sound() const;
         bool adjust_worn( npc &guy );
-        float clothing_wetness_mult( const bodypart_id &bp ) const;
+        float clothing_wetness_mult( const bodypart_id &bp, bool permeability_check = false ) const;
         void damage_mitigate( const bodypart_id &bp, damage_unit &dam ) const;
         float damage_resist( const damage_type_id &dt, const bodypart_id &bp, bool to_self = false ) const;
         // sums the coverage of items that do not have the listed flags
@@ -179,7 +175,7 @@ class outfit
         bool check_item_encumbrance_flag( bool update_required );
         // creates a list of items dependent upon @it
         void add_dependent_item( std::list<item *> &dependent, const item &it );
-        std::list<item> remove_worn_items_with( const std::function<bool( item & )> &filter,
+        std::list<item> remove_worn_items_with( const std::function<bool( const item & )> &filter,
                                                 Character &guy );
         // takeoff item from character
         // return true mean takeoff item successfully
@@ -258,11 +254,12 @@ class outfit
         // finds the top level item at the position in the list. DEPRECATE ME!
         const item &i_at( int position ) const;
 
-        VisitResponse visit_items( const std::function<VisitResponse( item *, item * )> &func ) const;
+        VisitResponse visit_items( const Character &wearer,
+                                   const std::function<VisitResponse( const item_location & )> &func ) const;
         std::list<item> remove_items_with( Character &guy,
                                            const std::function<bool( const item & )> &filter, int &count );
 
-        void organize_items_menu();
+        void organize_items_menu( Character &guy );
 
         void serialize( JsonOut &json ) const;
         void deserialize( const JsonObject &jo );

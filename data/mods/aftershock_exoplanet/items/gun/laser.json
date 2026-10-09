@@ -45,9 +45,9 @@
     "id": "afs_light_cannon_mon",
     "type": "ITEM",
     "subtypes": [ "GUN" ],
-    "copy-from": "afs_v29",
+    "copy-from": "afs_av22",
     "name": { "str": "light cannon" },
-    "ranged_damage": { "damage_type": "afs_laser", "amount": 25 },
+    "ranged_damage": { "damage_type": "afs_laser", "amount": 15 },
     "energy_drain": "0 kJ",
     "flags": [ "NEVER_JAMS", "NO_UNLOAD", "NON_FOULING", "NEEDS_NO_LUBE", "NO_TURRET" ]
   },
@@ -153,11 +153,12 @@
     "range": 15,
     "modes": [ [ "DEFAULT", "pulse", 1 ], [ "BURST", "2s sequence", 2 ], [ "AUTO", "3s sequence", 3 ] ],
     "extend": { "flags": [ "NO_TURRET" ] },
-    "delete": { "flags": [ "NO_UNLOAD", "NO_RELOAD", "USE_UPS" ] },
+    "delete": { "flags": [ "NO_UNLOAD", "USE_UPS" ] },
     "ammo_to_fire": 0,
     "energy_drain": "10 kJ",
     "valid_mod_locations": [ [ "emitter", 1 ], [ "grip", 1 ], [ "lens", 1 ], [ "rail", 1 ], [ "sights", 1 ], [ "stock", 1 ], [ "underbarrel", 1 ] ],
     "default_mods": [ "red_dot_sight" ],
+    "ammo_effects": [ "LASER" ],
     "pocket_data": [
       {
         "pocket_type": "MAGAZINE_WELL",
@@ -218,7 +219,7 @@
     "ammo_to_fire": 0,
     "ammo_effects": [ "IGNITE", "DAZZLE_BEAM", "PLASMA_BUBBLE" ],
     "extend": { "flags": [ "NO_TURRET" ] },
-    "delete": { "flags": [ "NO_UNLOAD", "NO_RELOAD", "USE_UPS" ] },
+    "delete": { "flags": [ "NO_UNLOAD", "USE_UPS" ] },
     "energy_drain": "30 kJ",
     "built_in_mods": [ "afs_holo_aim_assist" ],
     "valid_mod_locations": [ [ "emitter", 1 ], [ "grip", 1 ], [ "lens", 1 ], [ "rail", 1 ], [ "sights", 1 ], [ "stock", 1 ], [ "underbarrel", 1 ] ],
@@ -312,7 +313,8 @@
     "range": 15,
     "ammo_to_fire": 0,
     "extend": { "flags": [ "NO_TURRET" ] },
-    "delete": { "flags": [ "NO_UNLOAD", "NO_RELOAD", "USE_UPS" ] },
+    "delete": { "flags": [ "NO_UNLOAD", "USE_UPS" ] },
+    "ammo_effects": [ "LASER" ],
     "energy_drain": "5 kJ",
     "valid_mod_locations": [ [ "emitter", 1 ], [ "grip", 1 ], [ "lens", 1 ], [ "rail", 1 ], [ "sights", 1 ], [ "stock", 1 ], [ "underbarrel", 1 ] ],
     "pocket_data": [
@@ -338,7 +340,8 @@
     "ammo": [ "battery" ],
     "ammo_to_fire": 0,
     "extend": { "flags": [ "NO_TURRET" ] },
-    "delete": { "flags": [ "NO_UNLOAD", "NO_RELOAD", "USE_UPS" ] },
+    "delete": { "flags": [ "NO_UNLOAD", "USE_UPS" ] },
+    "ammo_effects": [ "LASER" ],
     "energy_drain": "120 kJ",
     "modes": [ [ "DEFAULT", "pulse", 1 ], [ "BURST", "2s sequence", 2 ] ],
     "ranged_damage": { "damage_type": "afs_laser", "amount": 25, "armor_penetration": 4 },
@@ -400,7 +403,7 @@
     "ammo": [ "battery" ],
     "ammo_to_fire": 0,
     "extend": { "flags": [ "NO_TURRET" ] },
-    "delete": { "flags": [ "NO_UNLOAD", "NO_RELOAD", "USE_UPS" ] },
+    "delete": { "flags": [ "NO_UNLOAD", "USE_UPS" ] },
     "energy_drain": "75 kJ",
     "pocket_data": [
       {

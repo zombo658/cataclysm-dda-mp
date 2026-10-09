@@ -173,7 +173,6 @@
       "O": [ "f_oven", "f_gas_oven_microwave_combo" ],
       "P": "f_filing_cabinet",
       "Q": "f_rack_wood",
-      "R": "f_bookcase",
       "S": "f_sink",
       "T": "f_floor_lamp",
       "U": "f_utility_shelf",
@@ -198,7 +197,8 @@
       "≠": "f_chest",
       "Ø": "f_pinball_machine",
       "Æ": "f_arcade_machine",
-      "ʭ": "f_ladder"
+      "ʭ": "f_ladder",
+      "ɱ": "f_console_broken"
     },
     "terrain": {
       "Ŧ": { "param": "house_fence_type", "fallback": "t_fence" },
@@ -242,6 +242,29 @@
       ],
       "<": "t_wood_stairs_up",
       ">": "t_wood_stairs_down"
+    },
+    "nested": {
+      "R": {
+        "chunks": [
+          [ "domestic_bookcase_nest_fiction", 1750 ],
+          [ "domestic_bookcase_nest_fiction_and_nonfiction", 850 ],
+          [ "domestic_bookcase_nest_plant", 850 ],
+          [ "domestic_bookcase_nest_literature_enthusiast", 500 ],
+          [ "domestic_bookcase_nest_table_book", 500 ],
+          [ "domestic_bookcase_nest_cookbooks", 350 ],
+          [ "domestic_bookcase_nest_manga", 100 ],
+          [ "domestic_bookcase_nest_tailoring", 100 ],
+          [ "domestic_bookcase_nest_computers", 100 ],
+          [ "domestic_bookcase_nest_electronics", 50 ],
+          [ "domestic_bookcase_nest_board_games", 50 ],
+          [ "domestic_bookcase_nest_eclectic", 50 ],
+          [ "domestic_bookcase_nest_martial_arts", 25 ],
+          [ "domestic_bookcase_nest_medical", 25 ],
+          [ "domestic_bookcase_nest_esoterica", 25 ],
+          [ "domestic_bookcase_nest_judaica", 10 ],
+          [ "domestic_bookcase_nest_european_comics", 10 ]
+        ]
+      }
     }
   },
   {
@@ -329,7 +352,6 @@
         { "item": "cleaning", "chance": 30, "repeat": [ 1, 2 ] },
         { "item": "bed", "chance": 30, "repeat": [ 1, 2 ] }
       ],
-      "R": [ { "item": "homebooks", "chance": 40, "repeat": [ 1, 4 ] }, { "item": "games", "chance": 20, "repeat": [ 1, 2 ] } ],
       "S": [ { "item": "SUS_bathroom_sink", "chance": 80 }, { "item": "SUS_bathroom_medicine", "chance": 60 } ],
       "U": [
         { "item": "home_hw", "chance": 20, "repeat": [ 1, 2 ] },
@@ -343,7 +365,7 @@
       "3": [ { "item": "SUS_utensils", "chance": 50 }, { "item": "SUS_knife_drawer", "chance": 50 } ],
       "4": { "item": "SUS_junk_drawer", "chance": 100 },
       "5": { "item": "SUS_kitchen_sink", "chance": 100 },
-      "6": [ { "item": "SUS_pantry", "chance": 25 }, { "item": "cannedfood", "chance": 20, "repeat": [ 1, 2 ] } ],
+      "6": [ { "item": "SUS_pantry", "chance": 80 }, { "item": "cannedfood", "chance": 20, "repeat": [ 1, 2 ] } ],
       "7": [
         { "item": "SUS_breakfast_cupboard", "chance": 30 },
         { "item": "SUS_coffee_cupboard", "chance": 50 },
@@ -351,7 +373,7 @@
       ],
       "8": [
         { "item": "SUS_hair_drawer", "chance": 30 },
-        { "item": "SUS_bathroom_cabinet", "chance": 30 },
+        { "item": "SUS_bathroom_cabinet", "chance": 30, "repeat": [ 1, 4 ] },
         { "item": "SUS_bathroom_medicine", "chance": 40 },
         { "item": "harddrugs_residential", "chance": 2 }
       ],
@@ -833,9 +855,7 @@
         { "item": "SUS_trash_hardware", "chance": 33, "repeat": [ 2, 5 ] }
       ],
       "R": [
-        { "item": "novels", "chance": 40, "repeat": [ 1, 3 ] },
-        { "item": "homebooks", "chance": 30, "repeat": [ 2, 4 ] },
-        { "item": "literature", "chance": 30, "repeat": [ 1, 2 ] },
+        { "item": "homebooks", "chance": 3, "repeat": [ 1, 2 ] },
         { "item": "games", "chance": 20, "repeat": [ 2, 3 ] },
         { "item": "mail", "chance": 25, "repeat": [ 1, 3 ] }
       ],
@@ -883,7 +903,7 @@
       ],
       "8": [
         { "item": "SUS_hair_drawer", "chance": 30 },
-        { "item": "SUS_bathroom_cabinet", "chance": 30 },
+        { "item": "SUS_bathroom_cabinet", "chance": 60, "repeat": [ 1, 4 ] },
         { "item": "SUS_bathroom_medicine", "chance": 40 },
         { "item": "harddrugs_residential", "chance": 2 }
       ],
@@ -951,9 +971,7 @@
         { "item": "SUS_trash_hardware", "chance": 33, "repeat": [ 2, 5 ] }
       ],
       "R": [
-        { "item": "novels", "chance": 40, "repeat": [ 1, 3 ] },
-        { "item": "homebooks", "chance": 30, "repeat": [ 2, 4 ] },
-        { "item": "literature", "chance": 30, "repeat": [ 1, 2 ] },
+        { "item": "homebooks", "chance": 3, "repeat": [ 1, 2 ] },
         { "item": "games", "chance": 20, "repeat": [ 2, 3 ] },
         { "item": "mail", "chance": 25, "repeat": [ 1, 3 ] }
       ],
@@ -1001,7 +1019,7 @@
       ],
       "8": [
         { "item": "SUS_hair_drawer", "chance": 30 },
-        { "item": "SUS_bathroom_cabinet", "chance": 30 },
+        { "item": "SUS_bathroom_cabinet", "chance": 60, "repeat": [ 1, 4 ] },
         { "item": "SUS_bathroom_medicine", "chance": 40 },
         { "item": "harddrugs_residential", "chance": 2 }
       ],

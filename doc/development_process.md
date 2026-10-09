@@ -1,3 +1,34 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+*Contents*
+
+- [The DDA Development Process](#the-dda-development-process)
+  - [The basic concept](#the-basic-concept)
+    - [Experimental/Stable](#experimentalstable)
+      - [Why this format?](#why-this-format)
+    - [Mainline, in-repo mods, third party mods, and forks](#mainline-in-repo-mods-third-party-mods-and-forks)
+    - [Project roles](#project-roles)
+  - [FAQ for prospective contributors](#faq-for-prospective-contributors)
+    - [How can I make sure my contribution will be accepted?](#how-can-i-make-sure-my-contribution-will-be-accepted)
+      - [What if different people have different opinions of my idea?](#what-if-different-people-have-different-opinions-of-my-idea)
+      - [My idea was rejected, changed beyond recognition, or requires a lot more than I expected.](#my-idea-was-rejected-changed-beyond-recognition-or-requires-a-lot-more-than-i-expected)
+      - [Do a lot of things get merged to the project, then reverted?](#do-a-lot-of-things-get-merged-to-the-project-then-reverted)
+      - [How do I deal with a ton of comments and suggestions to my idea?](#how-do-i-deal-with-a-ton-of-comments-and-suggestions-to-my-idea)
+      - [Am I allowed to do what I want with an existing NPC/faction/feature?](#am-i-allowed-to-do-what-i-want-with-an-existing-npcfactionfeature)
+    - [Is the Discord strict?](#is-the-discord-strict)
+    - [How does player feedback affect the project's development?](#how-does-player-feedback-affect-the-projects-development)
+      - [Do we care about the players?](#do-we-care-about-the-players)
+        - [So wait, it sounds like you're just going to do whatever you want and you don't care what the players say.](#so-wait-it-sounds-like-youre-just-going-to-do-whatever-you-want-and-you-dont-care-what-the-players-say)
+  - [Supplemental Material](#supplemental-material)
+    - [A Very Brief History of DDA](#a-very-brief-history-of-dda)
+      - [Why did Maya do this to me?](#why-did-maya-do-this-to-me)
+    - [Realism as a design goal](#realism-as-a-design-goal)
+    - [Why did X system get worked on while the more important Y system didn't?](#why-did-x-system-get-worked-on-while-the-more-important-y-system-didnt)
+      - [Why did X system get implemented with Y, but not Z?](#why-did-x-system-get-implemented-with-y-but-not-z)
+  - [The Bottom Line](#the-bottom-line)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # The DDA Development Process
 
 **A guide for new and prospective contributors, or just for people curious about how the devs understand the project to work.**
@@ -6,33 +37,9 @@ This guide is intended to describe how the Cataclysm: Dark Days Ahead project is
 
 This document assumes you have a basic understanding how GitHub works.  Please see the [guide for new contributors](https://github.com/CleverRaven/Cataclysm-DDA/wiki/Guide-to-adding-new-content-to-CDDA-for-first-time-contributors) for more info there.  You might also find helpful information in the [Frequently Made Suggestions doc](FREQUENTLY_MADE_SUGGESTIONS.md).  [This guide from GitHub](https://opensource.guide/how-to-contribute/#anatomy-of-an-open-source-project) also gives a decent run-down of the structure of any open source project.
 
-## Table of Contents
-
-* [The basic structure](#The-basic-structure)
-* * [Experimental/Stable](#experimentalstable)
-* * * [Why this format?](#Why-this-format)
-* * [Mainline, in-repo mods, third party mods, and forks](#mainline-in-repo-mods-third-party-mods-and-forks)
-* * [Project roles](#Project-roles)
-* [FAQ for prospective contributors](#FAQ-for-prospective-contributors)
-* * [How can I make sure my contribution will be accepted?](#How-can-I-make-sure-my-contribution-will-be-accepted)
-* * * [What if different people have different opinions of my idea?](#What-if-different-people-have-different-opinions-of-my-idea)
-* * * [How do I deal with a ton of comments and suggestions to my idea?](#How-do-I-deal-with-a-ton-of-comments-and-suggestions-to-my-idea)
-* * * [Do a lot of things get merged to the project, then reverted?](#Do-a-lot-of-things-get-merged-to-the-project-then-reverted)
-* * * [Am I allowed to do what I want with an existing NPC/faction/feature?](#Am-I-allowed-to-do-what-I-want-with-an-existing-NPCfactionfeature)
-* * [Is the Discord strict?](#Is-the-Discord-strict)
-* * [How does player feedback affect the project's development?](#How-does-player-feedback-affect-the-projects-development)
-* * * [Do we care about the players?](#Do-we-care-about-the-players)
-* [Supplemental Material](#Supplemental-Material)
-* * [A Very Brief History of DDA](#A-Very-Brief-History-of-DDA)
-* * * [Why did Kevin do this to me?](#Why-did-Kevin-do-this-to-me)
-* * [Realism as a design goal](#Realism-as-a-design-goal)
-* * [Why did X system get worked on while the more important Y system didn't](#Why-did-X-system-get-worked-on-while-the-more-important-Y-system-didnt)
-* * * [Why did X system get implemented with Y, but not Z](#Why-did-X-system-get-implemented-with-Y-but-not-Z)
-* [The Bottom Line](#The-Bottom-Line)
-
 ## The basic concept 
 
-At its core, CDDA is a survival simulation game.  [The design doc outlines what we mean by this](./design-balance-lore/design-doc.md).  The project is led by Kevin Granade, who owns CleverRaven and therefore this fork of the code.  As lead developer, Kevin's main job in the project is to be the *last word* if one is needed.  Most of the time, we don't need his final arbitration to know if something is going to fit or not.[^code]  The rest of the project's structure is organized chaos, and understanding it is daunting at first.
+At its core, CDDA is a survival simulation game.  [The design doc outlines what we mean by this](./design-balance-lore/design-doc.md).  The project is led by Maya Granade, who owns CleverRaven and therefore this fork of the code.  As lead developer, Maya's main job in the project is to be the *last word* if one is needed.  Most of the time, we don't need her final arbitration to know if something is going to fit or not.[^code]  The rest of the project's structure is organized chaos, and understanding it is daunting at first.
 
 ### Experimental/Stable
 
@@ -64,13 +71,13 @@ Cataclysm: DDA is one version of the 'Cataclysm' source code.  There are many ot
 
 This is a quick summary of the different terms we use for different groups within the project.  Almost all of these terms are quite fuzzy and imprecise.
 
-* **CleverRaven** is the github organization that owns this fork of CDDA.  That might sound precise, but it's actually a little hard to define who is or is not part of CleverRaven and whether or not they have any official authority.  Not all CleverRaven members are lead developers with merge permissions, but anyone who is a member of CleverRaven has some trust and experience with the project.
-* The **Project Lead** is Kevin Granade.  He mainly serves as the final voice in what can go into the project, and arbitrates disputes between other members of the team.
+* **CleverRaven** is the GitHub organization that owns this fork of CDDA.  That might sound precise, but it's actually a little hard to define who is or is not part of CleverRaven and whether or not they have any official authority.  Not all CleverRaven members are lead developers with merge permissions, but anyone who is a member of CleverRaven has some trust and experience with the project.
+* The **Project Lead** is Maya Granade.  She mainly serves as the final voice in what can go into the project, and arbitrates disputes between other members of the team.
 * **Senior developers** have merge permissions with CleverRaven and have been around a long time.  This is a very fuzzy role, none of us know exactly what makes a person a "senior" developer versus any other kind of "developer".  It just kind of happens, usually because they're doing leadership things and not being told to stop.[^erk]  Some of the senior devs have gold names on Discord, but because we love confusion, most do not.
 * **Developers** are members of CleverRaven with merge permissions, aka "mergers".  These folks are trusted enough to be allowed to merge to the main project branch.  They are the main workforce of the game's management team.  Developers usually have green or gold names on Discord.
 * **Collaborators** are contributors that have been around a while, and shown that they "get" the direction of the project.  We mark their names blue on Discord to indicate this; the purpose of the role is to help newer users to identify if the feedback they're getting is from a fellow new person, or from someone with a bit more experience.  Collaborators don't speak for CleverRaven necessarily, but most of the time they know what they're talking about.
 * **The dev team** is a vague term that means, roughly, "the developers and sometimes the collaborators too".
-* **Contributors** are people who have added something to the game, anything.  Code, art, translations, writing, are all included.  While this is the most numerous group, we also think it's the most important one.  Everyone from Kevin onward is a contributor.  Contributors have purple names on Discord.
+* **Contributors** are people who have added something to the game, anything.  Code, art, translations, writing, are all included.  While this is the most numerous group, we also think it's the most important one.  Everyone from Maya onward is a contributor.  Contributors have purple names on Discord.
 * **Core contributors** is another vague term that we use sometimes, meaning "the developers, the collaborators, and a bunch of the contributors that have been around a lot".
 * **Players** are the people whose lives we try to ruin, who somehow keep coming back for more.  What is their deal?  We may never know.
 
@@ -93,7 +100,7 @@ If you've created an issue or a discourse post and aren't getting much feedback,
 
 #### What if different people have different opinions of my idea?
 
-The ultimate authority is Kevin Granade, as project lead.  After him, the developers (green and gold names on discord) are pretty likely to know what's what.  After them, the collaborators and moderators (people with blue or magenta names on discord) usually have a very good concept of the project direction.  Anyone else can of course offer an opinion, and often have great information, but take it with a grain of salt, especially if it conflicts with the above.  We often get well-meaning people speaking with confidence about elements of the project they don't fully understand yet.
+The ultimate authority is Maya Granade, as project lead.  After her, the developers (green and gold names on discord) are pretty likely to know what's what.  After them, the collaborators and moderators (people with blue or magenta names on discord) usually have a very good concept of the project direction.  Anyone else can of course offer an opinion, and often have great information, but take it with a grain of salt, especially if it conflicts with the above.  We often get well-meaning people speaking with confidence about elements of the project they don't fully understand yet.
 
 On GitHub it can be a little harder to tell who is who, and we don't really have a way around that.  If you see somebody merging PRs, closing issue posts, or adding labels to issues and PRs though, that's a person who probably has a higher level of trust in the project.  There's also a "member" badge on the upper right of github posts, like this:
 ![image](https://github.com/I-am-Erk/Cataclysm-DDA/assets/45136638/6106b80f-274e-43c7-a937-58f601f035e6)  
@@ -119,7 +126,7 @@ The best way to protect yourself from getting something reverted, or rejected be
 
 If you're feeling overwhelmed by the amount of work being piled on you, first, we recommend making sure the suggestions are coming from someone with some authority on the matter.  When in doubt, these issues are easiest to sort out on Discord, where it's easier to tell who has some authority.  On GitHub we're doing our best to make sure that project members get a user badge, like this:
 ![image](https://github.com/I-am-Erk/Cataclysm-DDA/assets/45136638/6106b80f-274e-43c7-a937-58f601f035e6)  
-A "member" badge means this person has permissions with CleverRaven and so has a better chance of being correct, but if they say they're not an authority in this area, that means you shouldn't overvalue them either.  As a last resort, consider pinging kevingranade or I-am-Erk on github to come in and clarify, although we'd very much prefer you to come ask in Discord.  It can also help to check if the suggested changes are in line with any of the official guides and documentation.
+A "member" badge means this person has permissions with CleverRaven and so has a better chance of being correct, but if they say they're not an authority in this area, that means you shouldn't overvalue them either.  As a last resort, consider pinging kevingranade or I-am-Erk on GitHub to come in and clarify, although we'd very much prefer you to come ask in Discord.  It can also help to check if the suggested changes are in line with any of the official guides and documentation.
 
 If the requested changes are coming from a trusted source, and it's more than you feel you can handle, it's all right to say as much.  We might not mean that we expect *you* to do whatever is being suggested.  Other times, the thing you're trying to do is just not going to be as easy as it looked.  In that case, we'd prefer you to do it if you can, but it's all right to decide that we're asking for too much.  These problems can *usually* be avoided with a well-discussed GitHub/Discourse post or Discord conversation.  If you're extremely averse to having this happen, try to be patient and persistent and make sure you've got the go-ahead from a developer before beginning, but we want to emphasize that *most of the time, this doesn't happen*.  The bigger your contribution is, the more important it becomes to get clearance.
 
@@ -131,7 +138,7 @@ As a general rule, in fact, we would prefer it if new contributors would feel we
 
 ### Is the Discord strict?
 
-We don't think so, but obviously we're biased.  First, make sure you're looking at [the developer discord](https://discord.gg/hqWgHC8TKY) and not the fan discord or the old one that was subjected to a nazi takeover (seriously).
+We don't think so, but obviously we're biased.  First, make sure you're looking at [the developer discord](https://discord.gg/hqWgHC8TKY) and not the fan discord or the old one that was subjected to a Nazi takeover (seriously).
 
 If you're on the developer discord to talk about development, it's very difficult to get banned or kicked out, and you'll always get warnings first[^spam].  If you're worried about getting in trouble for your memes or fun chat times, we suggest just going to [the community discord](https://discord.gg/byxwnAU
 ), where the rules are much more lax.  It's still fine to chat on the developer discord, but we intentionally run it mainly for very focused discussion of the game.   It's also the place to go to see the devs talking like normal people instead of giving dry technical responses on GH.
@@ -164,22 +171,22 @@ This section isn't necessary to read, but contains (we hope) some useful fact-ch
 
 ### A Very Brief History of DDA
 
-CDDA is a fork of a game called Cataclysm, developed by Whales.  Cataclysm was a grab-bag apocalypse roguelike set in a vague near-future setting.  Dark Days Ahead was forked by a group of people (Kevin Granade, TheDarklingWolf, and GlyphGryph) to be a more gritty, realistic zombie apocalypse game made from the same general concept.
+CDDA is a fork of a game called Cataclysm, developed by Whales.  Cataclysm was a grab-bag apocalypse roguelike set in a vague near-future setting.  Dark Days Ahead was forked by a group of people (Maya Granade, TheDarklingWolf, and GlyphGryph) to be a more gritty, realistic zombie apocalypse game made from the same general concept.
 
 We firmly believe that the reason CDDA has persevered and improved steadily since 2013 is that it has a consistent project direction.  We're also aware that many people claim the project direction changed at some point in the past.  [This interview from 2013](https://web.archive.org/web/20140211144953/http://www.jacehallshow.com/news/gaming/preview/20130626/ascii-goodness-living-breathing-3d-world-cataclysm-dark-days/) and [this one from about the same time](http://www.roguelikeradio.com/2013/07/episode-75-cataclysm-dark-days-ahead.html?m=1) show that the original developer team had much the same goals as we currently lay out in the design doc.  A lot of the misconception comes down to changes that were left to ride from the original Cataclysm before the DDA fork, and were changed around 2018-2020.
 
 To clear up a few common rumours that circulate in certain channels:
-- Kevin has always been in charge of the repo in his current capacity, even in the original oligarchy days, and there was never any sort of takeover.  The other original devs just left, for various reasons.  There was no falling out or hard feelings.
+- Maya has always been in charge of the repo in her current capacity, even in the original oligarchy days, and there was never any sort of takeover.  The other original devs just left, for various reasons.  There was no falling out or hard feelings.
 - Over the years we've lost a lot of developers.  The reason is not as dramatic as you might think: by and large, people get bored and move on to other places.  The number of major fallings-out can be counted on one hand, in over a decade of development.
 - We didn't start a developer discord because of some secret community drama.  We just needed a place we could moderate for a focused discussion.
 - That's also the same reason we started a developer subreddit.  It wasn't closed because of any internal strife, it was closed because we all used apps to moderate it, and Reddit shut down 3rd party apps.
 - We don't have any animosity to the other major forks of the game.  Mostly, we are glad they exist, even though we know how some of them talk about us.  It's our opinion that it's a *good thing* if someone who doesn't like our way of managing the project has a different place to go.  We don't want to be dictators of our tiny corner of the internet, we want to make a neat game with as little drama as possible.
 
-#### Why did Kevin do this to me?
+#### Why did Maya do this to me?
 
-This merits its own section because it's such a frequent by-line in various Cataclysm communities.  Kevin is mostly hands-off, although he is quite present and involved in a lot of discussion, but for some reason he is attributed as the primary source of all changes in Cataclysm (usually unpopular ones).  We know this is usually meant as a joke, but it obscures credit from our broad base of contributors.  In particular, it's helpful to understand that neither the devs, nor Kevin, have any "additive" influence.  Unless we put something in ourselves, the only way to get it added is to ask nicely.  At any given time there are around 50-100 different contributors of various levels working on the project, including both regulars and new faces.  If something was changed, it's most likely one of these people changed it, and Kevin simply didn't say 'no'.
+This merits its own section because it's such a frequent by-line in various Cataclysm communities.  Maya is mostly hands-off, although she is quite present and involved in a lot of discussion, but for some reason she is attributed as the primary source of all changes in Cataclysm (usually unpopular ones).  We know this is usually meant as a joke, but it obscures credit from our broad base of contributors.  In particular, it's helpful to understand that neither the devs, nor Maya, have any "additive" influence.  Unless we put something in ourselves, the only way to get it added is to ask nicely.  At any given time there are around 50-100 different contributors of various levels working on the project, including both regulars and new faces.  If something was changed, it's most likely one of these people changed it, and Maya simply didn't say 'no'.
 
-As a classic example, when we first added the mod inclusion criteria and set a bunch of mods to obsolete, Kevin had very little involvement in the process.  It was a collaboration by around two dozen devs and contributors who were collectively tired of bugfixing mods none of us used.  Years down the road, we continue to see this cited as an example of Kevin exerting authority on the project, when his main involvement was to agree it was our call to make as the ones doing most of the work.[^controversy]  Similar situations have happened dozens of times.
+As a classic example, when we first added the mod inclusion criteria and set a bunch of mods to obsolete, Maya had very little involvement in the process.  It was a collaboration by around two dozen devs and contributors who were collectively tired of bugfixing mods none of us used.  Years down the road, we continue to see this cited as an example of Maya exerting authority on the project, when her main involvement was to agree it was our call to make as the ones doing most of the work.[^controversy]  Similar situations have happened dozens of times.
 
 ### Realism as a design goal
 
@@ -208,7 +215,7 @@ In the end, we hope you'll share our passion for this project and decide to come
 ---
 **Footnotes**
 
-[^code]: Kevin is also much more likely to have strong opinions about code maintainability and architecture than he is about lore stuff, as a general rule.
+[^code]: Maya is also much more likely to have strong opinions about code maintainability and architecture than she is about lore stuff, as a general rule.
 [^fun]: At least by certain definitions of fun, which may or may not involve being eaten by a mi-go.
 [^whytheory]: There's a tendency for theory crafting to be louder than playtests, and we've had severe lost work hours when devs have tried to solve a problem that turned out to not actually be happening in game.
 [^bows]: A good example of this is that we tried to sort out bow balance for many years back and forth until finally adding weak points, because ultimately the issue was that arrows shouldn't be able to get through a lot of things bullets can, but almost all armours and defenses have gaps an archer can target.
@@ -220,5 +227,5 @@ In the end, we hope you'll share our passion for this project and decide to come
 [^feedback]: Also, if *you* want to listen to player feedback on your additions to the game, you're welcome to do it however you like!
 [^massappeal]: In fact, in some ways, the more popular DDA gets the more trouble it causes from a project management standpoint: we get more drama and have to handle more top-heavy admin work than we would with a smaller project.  "Growing our audience" is something that has happened organically, and we love new people trying out the game, but at the same time it's definitely not a *goal*.
 [^venera]: The general design is quite flexible.  For example when Venera3 started contributing, we were considering removing giant insects from the lore entirely.  Now we all have to deal with those infuriating giant wasps and it's all his fault.
-[^controversy]: At time of writing this is still the most disliked PR in the entire project, and it's kind of interesting to note how little Kevin had to do with it.
+[^controversy]: At time of writing this is still the most disliked PR in the entire project, and it's kind of interesting to note how little Maya had to do with it.
 [^movies]: To make matters worse, there are a lot of ways we expect things to work that turn out to not be really as clear as they seem, either due to popular "movie logic" misunderstandings, or because reality is rarely simple.  Hunger is a fun example of this.

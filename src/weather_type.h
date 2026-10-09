@@ -13,8 +13,11 @@
 #include "calendar.h"
 #include "catacharset.h"
 #include "color.h"
+#include "field_type.h"
+#include "lightmap.h"
 #include "translation.h"
 #include "type_id.h"
+#include "units.h"
 
 class JsonObject;
 struct const_dialogue;
@@ -68,6 +71,8 @@ struct weather_animation_t {
     std::string get_symbol() const {
         return utf32_to_utf8( symbol );
     }
+
+    void deserialize( const JsonObject &jo );
 };
 
 struct weather_type {
@@ -84,12 +89,16 @@ struct weather_type {
         nc_color map_color = c_white;
         // Map glyph of weather type.
         uint32_t symbol = PERCENT_SIGN_UNICODE;
+        // Sun glyph of weather type.
+        uint32_t sun_symbol = NULL_UNICODE;
         // Penalty to ranged attacks.
         int ranged_penalty = 0;
         // Penalty to per-square visibility, applied in transparency map.
         float sight_penalty = 0.0f;
         // Modification to ambient light.
         int light_modifier = 0;
+        // Increases or decreases average temperature when this weather is active
+        units::temperature_delta temperature_modifier = 0_K_delta;
         // Multiplier to ambient light.
         float light_multiplier = 1.f;
         // Multiplier to radiation from Sun.
@@ -117,11 +126,21 @@ struct weather_type {
         time_duration duration_max = 0_turns;
         std::optional<std::string> debug_cause_eoc;
         std::optional<std::string> debug_leave_eoc;
+        // what effects are applied to you when you visit this dimension
+        // and what protection you may use to counter it
+        std::vector<field_effect> passive_effect;
+        // light color tint applied when weather is active.
+        // defaults to no color.
+        light_color_rgb tint_color{};
+        float tint_strength = 0.0f;
         void load( const JsonObject &jo, std::string_view src );
         void finalize();
         void check() const;
         std::string get_symbol() const {
             return utf32_to_utf8( symbol );
+        }
+        std::string get_sun_symbol() const {
+            return utf32_to_utf8( sun_symbol );
         }
         weather_type() = default;
 };

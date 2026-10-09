@@ -102,7 +102,6 @@ std::string smash( npc &guy, tripoint_bub_ms smashp )
 {
     map &here = get_map();
     const int move_cost = !guy.is_armed() ? 80 : guy.get_wielded_item()->attack_time( guy ) * 0.8;
-    const int smashskill = guy.smash_ability();
     bool smash_floor = false;
     if( smashp.z() != guy.posz() ) {
         if( smashp.z() > guy.posz() ) {
@@ -113,15 +112,17 @@ std::string smash( npc &guy, tripoint_bub_ms smashp )
     }
     get_event_bus().send<event_type::character_smashes_tile>(
         guy.getID(), here.ter( smashp ).id(), here.furn( smashp ).id() );
+    const std::map<damage_type_id, int> smash_damage = guy.smash_ability();
     for( std::pair<const field_type_id, field_entry> &fd_to_smsh : here.field_at( smashp ) ) {
         const std::optional<map_fd_bash_info> &bash_info = fd_to_smsh.first->bash_info;
         if( !bash_info ) {
             continue;
         }
-        if( ( smashskill < bash_info->str_min && one_in( 10 ) ) || fd_to_smsh.first->indestructible ) {
+        const int damage = bash_info->damage_to( smash_damage );
+        if( ( damage <= 0 && one_in( 10 ) ) || fd_to_smsh.first->indestructible ) {
             guy.add_msg_if_player( m_neutral, _( "You don't seem to be damaging the %s." ),
                                    fd_to_smsh.first->get_name() );
-        } else if( smashskill >= rng( bash_info->str_min, bash_info->str_max ) ) {
+        } else if( damage > 0 && x_in_y( damage, bash_info->hp() ) ) {
             sounds::sound( smashp, bash_info->sound_vol, sounds::sound_t::combat, bash_info->sound, true,
                            "smash", "field" );
             here.remove_field( smashp, fd_to_smsh.first );
@@ -129,11 +130,14 @@ std::string smash( npc &guy, tripoint_bub_ms smashp )
             if( !bash_info->destroyed_field.first.is_null() ) {
                 here.add_field( smashp, bash_info->destroyed_field.first, bash_info->destroyed_field.second );
             }
-            guy.mod_moves( - bash_info->fd_bash_move_cost );
+            guy.mod_moves( -bash_info->fd_bash_move_cost );
             guy.add_msg_if_player( m_info, bash_info->field_bash_msg_success.translated() );
         } else {
             sounds::sound( smashp, bash_info->sound_fail_vol, sounds::sound_t::combat, bash_info->sound_fail,
                            true, "smash", "field" );
+        }
+        if( !bash_info->hit_field.first.is_null() ) {
+            here.add_field( smashp, bash_info->hit_field.first, bash_info->hit_field.second );
         }
         return std::string();
     }
@@ -160,12 +164,12 @@ std::string smash( npc &guy, tripoint_bub_ms smashp )
             if( !best_part_to_smash.first->smash_message.empty() ) {
                 guy.add_msg_if_player( best_part_to_smash.first->smash_message, name_to_bash );
             } else {
-                guy.add_msg_if_player( _( "You use your %s to smash the %s." ),
+                guy.add_msg_if_player( _( "You use your %1$s to smash the %2$s." ),
                                        body_part_name_accusative( best_part_to_smash.first ), name_to_bash );
             }
         }
     }
-    const bash_params bash_result = here.bash( smashp, smashskill, false, false, smash_floor );
+    const bash_params bash_result = here.bash( smashp, smash_damage, false, false, smash_floor );
     if( !bash_result.did_bash ) {
         return _( "There's nothing there to smash!" );
     }
@@ -181,10 +185,9 @@ std::string smash( npc &guy, tripoint_bub_ms smashp )
     if( bash_result.success ) {
         return std::string();
     }
-    const int resistance = here.bash_resistance( smashp );
-    if( smashskill >= resistance ) {
+    if( bash_result.can_bash ) {
         // handle_action.cpp smash(): keep at it.
-        if( resistance > 0 && query_yn( _( "Keep smashing until destroyed?" ) ) ) {
+        if( query_yn( _( "Keep smashing until destroyed?" ) ) ) {
             guy.assign_activity( bash_activity_actor( smashp ) );
         }
     } else if( one_in( 10 ) ) {
@@ -243,15 +246,7 @@ std::string act( npc &guy, const std::string &action, const tripoint_rel_ms &dir
     if( action == "open" ) {
         return open( guy, p );
     } else if( action == "close" ) {
-        map &here = get_map();
-        const std::string before = here.name( p );
-        const ter_id ter_before = here.ter( p );
-        const furn_id furn_before = here.furn( p );
-        doors::close_door( here, guy, p );
-        // close_door() tells only the avatar.
-        if( here.ter( p ) != ter_before || here.furn( p ) != furn_before ) {
-            add_msg( _( "%1$s closes the %2$s." ), guy.get_name(), before );
-        }
+        guy.assign_activity( close_tile_activity_actor( p ) );
         return std::string();
     } else if( action == "up" || action == "down" ) {
         // npc::move_to() takes a z-level step as a climb of the stairs.

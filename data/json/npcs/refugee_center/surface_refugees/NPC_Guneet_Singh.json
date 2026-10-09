@@ -5,9 +5,10 @@
     "name_unique": "Guneet Singh",
     "gender": "male",
     "name_suffix": "Refugee",
+    "portrait_filename": "Named_NPC_guneet_singh",
     "class": "NC_REFUGEE_Guneet",
     "attitude": 0,
-    "mission": 7,
+    "mission": "GUARD",
     "chat": "TALK_REFUGEE_Guneet_1",
     "faction": "free_merchants"
   },

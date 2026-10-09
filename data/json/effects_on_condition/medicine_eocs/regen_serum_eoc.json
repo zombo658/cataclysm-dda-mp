@@ -4,7 +4,7 @@
     "id": "spent_to_ingested_ratio",
     "//": "return ratio between calories you spent yesterday and calories you ingested yesterday. if bigger than 1, you consumed more calories than you ingested",
     "num_args": 0,
-    "return": "max( get_calories_daily('type':'spent', 'day':'1'), 1 ) / max( get_calories_daily('type':'ingested', 'day':'1'), 1 )"
+    "return": "max( get_calories_daily('type':'spent', 'day':1), 1 ) / max( get_calories_daily('type':'ingested', 'day':1), 1 )"
   },
   {
     "type": "effect_on_condition",
@@ -12,9 +12,9 @@
     "effect": [
       { "u_consume_item": { "context_val": "id" } },
       { "math": [ "_serum_duration = rng(time('1 d'), time('2 d'))" ] },
+      { "math": [ "_serum_duration *= serum_duration_adjustments()" ] },
       { "u_add_effect": "regen_serum_main", "duration": { "context_val": "serum_duration" } },
       { "u_add_effect": "regen_serum_crash_cardio", "duration": { "math": [ "_serum_duration * rng(1.5, 2.5)" ] } },
-      { "run_eocs": "EOC_APPLY_REGEN_SERUM_CRASH", "time_in_future": { "context_val": "serum_duration" } },
       { "run_eocs": "EOC_REGEN_SERUM_PAIN_SPIKE", "time_in_future": [ "1 h", "6 h" ] },
       { "run_eocs": "EOC_REGEN_SERUM_MUT_REJECTION", "time_in_future": [ "1 h", "6 h" ] }
     ]
@@ -22,6 +22,15 @@
   {
     "type": "effect_on_condition",
     "id": "EOC_APPLY_REGEN_SERUM_CRASH",
+    "eoc_type": "EVENT",
+    "required_event": "character_loses_effect",
+    "condition": { "and": [ { "compare_string": [ "regen_serum_main", { "context_val": "effect" } ] } ] },
+    "effect": [ { "run_eocs": "EOC_APPLY_REGEN_SERUM_CRASH_2", "time_in_future": 1 } ]
+  },
+  {
+    "type": "effect_on_condition",
+    "id": "EOC_APPLY_REGEN_SERUM_CRASH_2",
+    "//": "This is necessary because character_loses_effect triggers before the effect is actually removed",
     "effect": [ { "u_add_effect": "regen_serum_crash_fatigue", "duration": [ "5 d", "10 d" ] } ]
   },
   {
@@ -31,7 +40,7 @@
     "//": "todo: move message to snippet?",
     "effect": [
       { "u_message": "You feel an immense pain, when something within your bloodstream moves eerily.", "type": "bad" },
-      { "math": [ "u_pain('type': 'perceived')", "+=", "rng(15, 55)" ] },
+      { "math": [ "u_pain('type': 'perceived') += rng(15, 55)" ] },
       { "run_eocs": "EOC_REGEN_SERUM_PAIN_SPIKE", "time_in_future": [ "1 h", "6 h" ] }
     ]
   },
@@ -58,6 +67,8 @@
     "remove_message": "You feel your rapid regeneration fade away, but you still feel sick.",
     "rating": "mixed",
     "flags": [ "MEND_ALL" ],
+    "removes_effects": [ "regen_serum_crash_fatigue" ],
+    "dur_add_perc": 33,
     "enchantments": [
       {
         "values": [

@@ -36,6 +36,7 @@
       [ "stock mount", 1 ],
       [ "underbarrel mount", 1 ]
     ],
+    "extend": { "flags": [ "LEVER_ACTION" ] },
     "pocket_data": [ { "pocket_type": "MAGAZINE_WELL", "item_restriction": [ "blrmag" ] } ]
   },
   {
@@ -66,7 +67,6 @@
       [ "barrel", 1 ],
       [ "bayonet lug", 1 ],
       [ "bore", 1 ],
-      [ "loading port", 1 ],
       [ "mechanism", 2 ],
       [ "rail mount", 1 ],
       [ "sights mount", 1 ],
@@ -114,6 +114,7 @@
       [ "stock accessory", 1 ],
       [ "stock mount", 1 ]
     ],
+    "extend": { "flags": [ "BOLT_ACTION" ] },
     "pocket_data": [
       { "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "3006": 5 }, "allowed_speedloaders": [ "3006_clip" ] }
     ]
@@ -184,6 +185,7 @@
       [ "stock mount", 1 ],
       [ "underbarrel mount", 1 ]
     ],
+    "extend": { "flags": [ "BOLT_ACTION" ] },
     "clip_size": 4,
     "barrel_volume": "750 ml",
     "pocket_data": [ { "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "3006": 4 } } ]
@@ -224,6 +226,7 @@
       [ "stock mount", 1 ],
       [ "underbarrel mount", 1 ]
     ],
+    "extend": { "flags": [ "BOLT_ACTION" ] },
     "pocket_data": [ { "pocket_type": "MAGAZINE", "rigid": true, "ammo_restriction": { "3006": 4 } } ]
   }
 ]

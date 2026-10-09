@@ -2,7 +2,7 @@
   {
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
-    "result": "sauerkraut_ferment",
+    "result": "sauerkraut_ferment_active",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_VEGGI",
     "skill_used": "cooking",
@@ -27,7 +27,7 @@
   {
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
-    "result": "pickles_ferment",
+    "result": "pickles_ferment_active",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_VEGGI",
     "skill_used": "cooking",
@@ -49,7 +49,7 @@
   {
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
-    "result": "eggs_ferment",
+    "result": "eggs_ferment_active",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_OTHER",
     "skill_used": "cooking",
@@ -170,7 +170,7 @@
   {
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
-    "result": "brew_sake_koji",
+    "result": "brew_sake_koji_active",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_BREW",
     "skill_used": "cooking",
@@ -281,7 +281,7 @@
     "proficiencies": [ { "proficiency": "prof_food_prep" }, { "proficiency": "prof_fermenting" } ],
     "qualities": [ { "id": "BOIL", "level": 2 } ],
     "tools": [ [ [ "surface_heat", 2, "LIST" ] ] ],
-    "components": [ [ [ "water_clean", 3 ] ], [ [ "molasses", 2 ], [ "sugar_beet", 5 ] ], [ [ "yeast", 1 ] ] ],
+    "components": [ [ [ "water_clean", 3 ] ], [ [ "molasses", 2 ], [ "sugar_beet", 1 ] ], [ [ "yeast", 1 ] ] ],
     "//1": "Using 3x250ml of water, this should give us ~750ml of product. For brew_rum it is 7 charges per 250ml.",
     "//2": "Hence 3x7=21 charges",
     "charges": 21
@@ -568,7 +568,7 @@
   {
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
-    "result": "malting_grain",
+    "result": "malting_grain_active",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_BREW",
     "skill_used": "cooking",
@@ -587,7 +587,7 @@
   {
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
-    "result": "soaking_dandelion",
+    "result": "soaking_dandelion_active",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_BREW",
     "skill_used": "cooking",
@@ -637,7 +637,7 @@
   {
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
-    "result": "fermenting_yogurt",
+    "result": "fermenting_yogurt_active",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_BREW",
     "skill_used": "cooking",

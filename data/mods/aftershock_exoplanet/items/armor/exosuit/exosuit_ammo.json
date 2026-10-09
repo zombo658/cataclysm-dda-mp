@@ -1,11 +1,5 @@
 [
   {
-    "type": "ammunition_type",
-    "id": "exo_connector",
-    "name": "exosuit interface fitting",
-    "default": "exo_connector"
-  },
-  {
     "id": "mining_rod",
     "copy-from": "rebar_rail",
     "type": "ITEM",
@@ -16,7 +10,7 @@
     "ammo_type": "metal_rail",
     "color": "light_gray",
     "dispersion": 0,
-    "effects": [ "NEVER_MISFIRES", "NON_FOULING", "SEISMIC_MAPPING" ],
+    "effects": [ "NON_FOULING", "SEISMIC_MAPPING" ],
     "damage": { "damage_type": "bullet", "amount": 80, "armor_penetration": 40 }
   }
 ]

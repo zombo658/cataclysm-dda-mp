@@ -21,6 +21,7 @@
 class JsonObject;
 class item;
 template <typename T> class generic_factory;
+template <typename E> struct enum_traits;
 
 namespace faults
 {
@@ -38,6 +39,19 @@ const fault_id &random_of_type( const std::string &type );
 const fault_id &random_of_type_item_has( const item &it, const std::string &type );
 } // namespace faults
 
+enum class fault_severity : int {
+    none,
+    minor,
+    major,
+    critical,
+    last
+};
+
+template<>
+struct enum_traits<fault_severity> {
+    static constexpr fault_severity last = fault_severity::last;
+};
+
 class fault_fix
 {
     public:
@@ -46,7 +60,7 @@ class fault_fix
         translation success_msg; // message to print on applying successfully
         time_duration time = 0_seconds;
         std::map<std::string, diag_value> set_variables; // item vars applied to item
-        // item vars adjustment(s) applied to item via multiplication; // item vars adjustment(s) applied to item via multiplication
+        // item vars adjustment(s) applied to item via multiplication;
         std::map<std::string, double> adjust_variables_multiply;
         std::map<skill_id, int> skills; // map of skill_id to required level
         std::set<fault_id> faults_removed; // which faults are removed on applying
@@ -80,9 +94,13 @@ class fault
         std::string item_prefix() const;
         std::string item_suffix() const;
         std::string message() const;
+        std::string color() const;
+        fault_severity severity() const;
         double price_mod() const;
         // having this faults adds this much of temporary (will be removed when fault is fixed) degradation
         int degradation_mod() const;
+        // Damage applied when fault is applied.
+        int instant_damage() const;
         // int is additive (default 0), float is multiplier (default 1)
         std::vector<std::tuple<int, float, damage_type_id>> melee_damage_mod() const;
         // int is additive (default 0), float is multiplier (default 1)
@@ -90,6 +108,9 @@ class fault
         bool affected_by_degradation() const;
         double encumb_mod_flat() const;
         double encumb_mod_mult() const;
+        float contact_area_mod() const;
+        float rolling_resistance_mod() const;
+        int vehicle_move_penalty_mod() const;
         bool has_flag( const std::string &flag ) const;
         const std::set<fault_id> &get_block_faults() const;
 
@@ -107,11 +128,17 @@ class fault
         translation item_prefix_; // prefix added to affected item's name
         translation item_suffix_;
         translation message_;
+        std::string color_;
+        fault_severity severity_ = fault_severity::none;
         std::set<fault_fix_id> fixes;
         std::set<std::string> flags;
         std::set<fault_id> block_faults;
         double price_modifier = 1.0;
         int degradation_mod_ = 0;
+        int instant_damage_ = 0;
+        float contact_area_mod_ = 1.f;
+        float rolling_resistance_mod_ = 1.f;
+        int vehicle_move_penalty_mod_ = 1.f;
         std::vector<std::tuple<int, float, damage_type_id>> melee_damage_mod_;
         std::vector<std::tuple<int, float, damage_type_id>> armor_mod_;
         int encumbrance_mod_flat_ = 0;

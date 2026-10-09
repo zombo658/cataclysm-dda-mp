@@ -1,16 +1,15 @@
 #include <algorithm>
-#include <climits>
 #include <cstddef>
 #include <functional>
 #include <iterator>
 #include <list>
-#include <memory>
 #include <optional>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "avatar.h"
 #include "body_part_set.h"
 #include "bodypart.h"
 #include "catacharset.h"
@@ -32,19 +31,16 @@
 #include "item_location.h"
 #include "itype.h"
 #include "output.h"
-#include "pimpl.h"
-#include "player_activity.h"
 #include "point.h"
 #include "string_formatter.h"
 #include "translation.h"
 #include "translations.h"
 #include "type_id.h"
 #include "uilist.h"
+#include "uistate.h"
 #include "ui_manager.h"
 #include "units.h"
 #include "units_utility.h"
-
-static const activity_id ACT_ARMOR_LAYERS( "ACT_ARMOR_LAYERS" );
 
 static const flag_id json_flag_HIDDEN( "HIDDEN" );
 
@@ -687,16 +683,17 @@ void outfit::sort_armor( Character &guy )
     ctxt.register_action( "EQUIP_ARMOR" );
     ctxt.register_action( "EQUIP_ARMOR_HERE" );
     ctxt.register_action( "REMOVE_ARMOR" );
+    ctxt.register_action( "TOGGLE_FAVORITE" );
     ctxt.register_action( "USAGE_HELP" );
     ctxt.register_action( "HELP_KEYBINDINGS" );
     ctxt.register_action( "SCROLL_ITEM_INFO_UP" );
     ctxt.register_action( "SCROLL_ITEM_INFO_DOWN" );
 
     Character &player_character = get_player_character();
-    auto do_return_entry = [&player_character]() {
-        player_character.assign_activity( ACT_ARMOR_LAYERS, 0 );
-        player_character.activity.auto_resume = true;
-        player_character.activity.moves_left = INT_MAX;
+    auto do_return_entry = [this, guy_ptr = &guy]() {
+        uistate.open_menu = [this, guy_ptr]() {
+            sort_armor( *guy_ptr );
+        };
     };
 
     int leftListSize = 0;
@@ -783,7 +780,7 @@ void outfit::sort_armor( Character &guy )
 
             std::string worn_armor_name = tmp_worn[itemindex]->tname();
             // Get storage capacity in user's preferred units
-            units::volume worn_armor_capacity = tmp_worn[itemindex]->get_total_capacity();
+            units::volume worn_armor_capacity = tmp_worn[itemindex]->get_volume_capacity();
             double worn_armor_storage = convert_volume( units::to_milliliter( worn_armor_capacity ) );
             std::string storage_string = string_format( "%.2f", worn_armor_storage );
             const int current_character_allowance = worn_armor_storage > 0 ? utf8_width( storage_string ) : 0;
@@ -1138,15 +1135,13 @@ void outfit::sort_armor( Character &guy )
 
                     // remove the item, asking to drop it if necessary
                     guy.takeoff( loc_for_takeoff );
-                    if( !player_character.has_activity( ACT_ARMOR_LAYERS ) ) {
-                        // An activity has been created to take off the item;
-                        // we must surrender control until it is done.
-                        return;
-                    }
-                    player_character.cancel_activity();
-                    selected = -1;
-                    leftListIndex = std::max( 0, leftListIndex - 1 );
+                    return;
                 }
+            }
+        } else if( action == "TOGGLE_FAVORITE" ) {
+            if( leftListIndex < leftListSize ) {
+                item &item_to_toggle = *tmp_worn[leftListIndex];
+                item_to_toggle.set_favorite( !item_to_toggle.is_favorite );
             }
         } else if( action == "ASSIGN_INVLETS" ) {
             // prompt first before doing this (yes, yes, more popups...)
@@ -1159,10 +1154,12 @@ void outfit::sort_armor( Character &guy )
                     item &w = *witer;
                     if( invlet == w.invlet ) {
                         ++witer;
-                    } else if( guy.invlet_to_item( invlet ) != nullptr ) {
+                    } else if( guy.invlet_to_item( invlet ).where() != item_location::type::invalid ) {
                         ++iiter;
                     } else {
-                        guy.inv->reassign_item( w, invlet );
+                        if( guy.is_avatar() ) {
+                            guy.as_avatar()->reassign_item_cache( w, invlet, true );
+                        }
                         ++witer;
                         ++iiter;
                     }
@@ -1203,6 +1200,8 @@ void outfit::sort_armor( Character &guy )
                                ctxt.get_desc( "EQUIP_ARMOR_HERE" ) ),
                 string_format( _( "[<color_yellow>%s</color>] to remove selected item.\n" ),
                                ctxt.get_desc( "REMOVE_ARMOR" ) ),
+                string_format( _( "[<color_yellow>%s</color>] to toggle item as favorite.\n" ),
+                               ctxt.get_desc( "TOGGLE_FAVORITE" ) ),
                 "\n",
                 _( "Encumbrance explanation:\n" ),
                 _( "<color_light_gray>The first number is the summed encumbrance from all clothing on that bodypart."
@@ -1226,4 +1225,5 @@ void outfit::sort_armor( Character &guy )
             exit = true;
         }
     }
+    uistate.open_menu.reset();
 }

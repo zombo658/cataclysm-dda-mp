@@ -168,7 +168,8 @@ std::string do_item_action( npc &guy, item_location loc, const int key, const Js
             if( !ammo ) {
                 return _( "no ammo chosen" );
             }
-            item::reload_option opt( &guy, loc, ammo );
+            item::reload_option opt( &guy, loc, ammo,
+                                     request.get_int( "pocket", item::reload_option::POCKET_FALLBACK ) );
             if( request.has_int( "qty" ) ) {
                 opt.qty( request.get_int( "qty" ) );
             }
@@ -186,7 +187,7 @@ std::string do_item_action( npc &guy, item_location loc, const int key, const Js
             break;
         case '<':
         case '>':
-            for( item_pocket *pocket : loc->get_all_standard_pockets() ) {
+            for( item_pocket *pocket : loc->get_standard_pockets() ) {
                 pocket->settings.set_collapse( key == '>' );
             }
             break;
@@ -194,19 +195,18 @@ std::string do_item_action( npc &guy, item_location loc, const int key, const Js
             // avatar::reassign_item(): the letter goes to this item only.
             const int invlet = request.get_int( "invlet", 0 );
             if( invlet != 0 ) {
-                guy.visit_items( [&]( item * it, item * ) {
-                    if( it != loc.get_item() && it->invlet == invlet ) {
+                for( item_location &it : guy.all_items_loc() ) {
+                    if( it.get_item() != loc.get_item() && it->invlet == invlet ) {
                         it->invlet = 0;
                     }
-                    return VisitResponse::NEXT;
-                } );
+                }
             }
             loc->invlet = invlet;
             break;
         }
         case 'v': {
             // The pocket settings chosen on the client, pocket by pocket.
-            std::vector<item_pocket *> pockets = loc->get_all_standard_pockets();
+            std::vector<item_pocket *> pockets = loc->get_standard_pockets();
             size_t i = 0;
             for( JsonObject settings : request.get_array( "pockets" ) ) {
                 if( i < pockets.size() ) {
@@ -301,6 +301,7 @@ void send_item( const int key, const item_location &loc, const std::optional<std
         if( reload ) {
             json.member( "ammo", reload->ammo );
             json.member( "qty", reload->qty() );
+            json.member( "pocket", reload->pocket_index );
         }
     } );
 }
@@ -628,7 +629,6 @@ bool runs_host_code( const action_id act )
         case ACTION_SHIFT_SW:
         case ACTION_SHIFT_W:
         case ACTION_SHIFT_NW:
-        case ACTION_TOGGLE_MAP_MEMORY:
         case ACTION_PEEK:
         case ACTION_LIST_ITEMS:
         case ACTION_MORALE:
@@ -671,9 +671,9 @@ void movement_mode_menu( avatar &you )
     as_m.query();
     if( as_m.ret != UILIST_CANCEL ) {
         if( as_m.ret == cycle ) {
-            you.cycle_move_mode();
+            you.cycle_desired_move_mode();
         } else if( as_m.ret >= 0 && static_cast<size_t>( as_m.ret ) < modes.size() ) {
-            you.set_movement_mode( modes[as_m.ret] );
+            you.set_desired_movement_mode( modes[as_m.ret] );
         }
     }
 }
@@ -767,7 +767,7 @@ void run( const action_id act )
         case ACTION_PICKUP:
             // game::pickup()
             if( const std::optional<tripoint_bub_ms> where = choose_adjacent( _( "Pick up items where?" ) ) ) {
-                send_items( 'g', game_menus::inv::pickup( where ) );
+                send_items( 'g', game_menus::inv::pickup( { *where } ) );
             }
             break;
         case ACTION_PICKUP_ALL:
@@ -948,25 +948,25 @@ void run( const action_id act )
         case ACTION_RESET_MOVE:
         case ACTION_OPEN_MOVEMENT: {
             // The avatar's own toggles on the copy, then the result to the host.
-            const move_mode_id before = you.current_movement_mode();
+            const move_mode_id before = you.get_desired_move_mode();
             if( act == ACTION_TOGGLE_RUN ) {
-                you.toggle_run_mode();
+                you.toggle_run_mode_desired();
             } else if( act == ACTION_TOGGLE_CROUCH ) {
-                you.toggle_crouch_mode();
+                you.toggle_crouch_mode_desired();
             } else if( act == ACTION_TOGGLE_PRONE ) {
-                you.toggle_prone_mode();
+                you.toggle_prone_mode_desired();
             } else if( act == ACTION_CYCLE_MOVE ) {
-                you.cycle_move_mode();
+                you.cycle_desired_move_mode();
             } else if( act == ACTION_CYCLE_MOVE_REVERSE ) {
-                you.cycle_move_mode_reverse();
+                you.cycle_desired_move_mode_reverse();
             } else if( act == ACTION_RESET_MOVE ) {
                 you.reset_move_mode();
             } else {
                 movement_mode_menu( you );
             }
-            if( you.current_movement_mode() != before ) {
+            if( you.get_desired_move_mode() != before ) {
                 send( "move_mode", [&]( JsonOut & json ) {
-                    json.member( "mode", you.current_movement_mode().str() );
+                    json.member( "mode", you.get_desired_move_mode().str() );
                 } );
             }
             break;
@@ -1140,7 +1140,7 @@ bool forward_item_action( const item_location &loc, const int key )
         case 'E':
             if( loc->is_container() ) {
                 // The host asks what to eat from the container.
-                const item_location inside = game_menus::inv::consume( loc );
+                const item_location inside = game_menus::inv::consume( std::string(), loc );
                 if( !inside ) {
                     return true;
                 }
@@ -1177,13 +1177,13 @@ bool forward_item_action( const item_location &loc, const int key )
                 return false;
             }
             item_location target = loc;
-            target->favorite_settings_menu();
+            target->favorite_settings_menu( target );
             send( "item_action", [&]( JsonOut & json ) {
                 json.member( "key", key );
                 json.member( "item", loc );
                 json.member( "pockets" );
                 json.start_array();
-                for( const item_pocket *pocket : target->get_all_standard_pockets() ) {
+                for( const item_pocket *pocket : target->get_standard_pockets() ) {
                     pocket->settings.serialize( json );
                 }
                 json.end_array();

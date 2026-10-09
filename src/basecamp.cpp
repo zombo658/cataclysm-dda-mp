@@ -25,9 +25,8 @@
 #include "faction.h"
 #include "faction_camp.h"
 #include "game.h"
-#include "inventory.h"
+#include "input_popup.h"
 #include "item.h"
-#include "make_static.h"
 #include "map.h"
 #include "map_iterator.h"
 #include "map_scale_constants.h"
@@ -42,9 +41,11 @@
 #include "recipe_groups.h"
 #include "requirements.h"
 #include "string_formatter.h"
-#include "string_input_popup.h"
+#include "temp_crafting_inventory.h"
 #include "translations.h"
 #include "type_id.h"
+
+static const flag_id json_flag_PSEUDO( "PSEUDO" );
 
 static const zone_type_id zone_type_CAMP_STORAGE( "CAMP_STORAGE" );
 
@@ -123,6 +124,8 @@ basecamp::basecamp() = default;
 
 basecamp_map::basecamp_map( const basecamp_map & ) {}
 
+// rhs is intentionally ignored; assignment resets the cached map.
+// NOLINTNEXTLINE(bugprone-unhandled-self-assignment,cert-oop54-cpp)
 basecamp_map &basecamp_map::operator=( const basecamp_map & )
 {
     map_.reset();
@@ -246,14 +249,15 @@ std::string basecamp::om_upgrade_description( const std::string &bldg, const map
         skills = &bld_reqs.skills;
     } else {
         reqs = &making.simple_requirements();
-        base_time = making.batch_duration( get_player_character() );
+        base_time = making.batch_duration( get_player_character(),
+                                           crafting_cost_context::for_recipe( get_player_character(), making ) );
         skills = &making.required_skills;
     }
 
     std::vector<std::string> component_print_buffer;
     const int pane = FULL_SCREEN_WIDTH;
-    const auto tools = reqs->get_folded_tools_list( pane, c_white, _inv, 1 );
-    const auto comps = reqs->get_folded_components_list( pane, c_white, _inv,
+    const auto tools = reqs->get_folded_tools_list( nullptr, pane, c_white, _inv, 1 );
+    const auto comps = reqs->get_folded_components_list( nullptr, pane, c_white, _inv,
                        making.get_component_filter(), 1 );
     component_print_buffer.insert( component_print_buffer.end(), tools.begin(), tools.end() );
     component_print_buffer.insert( component_print_buffer.end(), comps.begin(), comps.end() );
@@ -406,7 +410,8 @@ std::vector<basecamp_upgrade> basecamp::available_upgrades( const point_rel_omt 
                 const mapgen_arguments &args = args_and_reqs.first;
                 const requirement_data &reqs = args_and_reqs.second.consolidated_reqs;
                 bool can_make =
-                    reqs.can_make_with_inventory( _inv, recp.get_component_filter(), 1, craft_flags::none, false );
+                    reqs.can_make_with_inventory( nullptr, _inv, recp.get_component_filter(), 1, craft_flags::none,
+                                                  false );
                 ret_data.push_back( { bldg, args, recp.blueprint_name(), can_make, in_progress } );
             }
         }
@@ -669,15 +674,15 @@ comp_list basecamp::get_mission_workers( const mission_id &miss_id, bool contain
 
 void basecamp::query_new_name( bool force )
 {
-    string_input_popup input_popup;
+    string_input_popup_imgui input_popup( 40 );
     bool done = false;
     bool need_input = true;
+    std::string text;
     do {
-        input_popup.title( _( "Name this camp" ) )
-        .width( 40 )
-        .max_length( 25 )
-        .query();
-        if( input_popup.canceled() || input_popup.text().empty() ) {
+        input_popup.set_description( _( "Name this camp" ) );
+        input_popup.set_max_input_length( 25 );
+        text = input_popup.query();
+        if( input_popup.cancelled() || text.empty() ) {
             if( name.empty() || force ) {
                 popup( _( "You need to input the base camp name." ) );
             } else {
@@ -688,7 +693,7 @@ void basecamp::query_new_name( bool force )
         }
     } while( !done && need_input );
     if( done ) {
-        name = input_popup.text();
+        name = text;
     }
 }
 
@@ -773,7 +778,7 @@ void basecamp::form_crafting_inventory( map &target_map )
         mgr.cache_vzones();
     }
     if( !src_set.empty() ) {
-        _inv.form_from_zone( target_map, src_set, nullptr, false );
+        _inv.form_from_zone( target_map, src_set, nullptr );
     }
     /*
      * something of a hack: add the resources we know the camp has
@@ -808,7 +813,7 @@ void basecamp::form_crafting_inventory( map &target_map )
     for( basecamp_resource &bcp_r : resources ) {
         bcp_r.consumed = 0;
         item camp_item( bcp_r.fake_id, calendar::turn_zero );
-        camp_item.set_flag( STATIC( flag_id( "PSEUDO" ) ) );
+        camp_item.set_flag( json_flag_PSEUDO );
         if( !bcp_r.ammo_id.is_null() ) {
             for( basecamp_fuel &bcp_f : fuels ) {
                 if( bcp_f.ammo_id == bcp_r.ammo_id ) {
@@ -820,7 +825,7 @@ void basecamp::form_crafting_inventory( map &target_map )
                 }
             }
         }
-        _inv.add_item( camp_item );
+        _inv.add_item_copy( camp_item );
     }
 
     //  We're potentially adding the same item multiple times if present in multiple expansions,
@@ -841,7 +846,7 @@ void basecamp::form_crafting_inventory( map &target_map )
                 }
             }
 
-            _inv.add_item( camp_item );
+            _inv.add_item_copy( camp_item );
         }
     }
 }
@@ -885,7 +890,7 @@ void basecamp::handle_takeover_by( faction_id new_owner, bool violent_takeover )
     camp_workers.clear();
 
     add_msg_debug( debugmode::DF_CAMPS, "Camp %s owned by %s is being taken over by %s!",
-                   name, fac()->name, new_owner->name );
+                   name, fac()->id.c_str(), new_owner->id.c_str() );
 
     if( !violent_takeover ) {
         set_owner( new_owner );
@@ -912,7 +917,8 @@ void basecamp::handle_takeover_by( faction_id new_owner, bool violent_takeover )
         if( checked_camp->get_owner() == get_owner() ) {
             add_msg_debug( debugmode::DF_CAMPS,
                            "Camp %s at %s is owned by %s, adding it to plunder calculations.",
-                           checked_camp->camp_name(), checked_camp->camp_omt_pos().to_string_writable(), get_owner()->name );
+                           checked_camp->camp_name(), checked_camp->camp_omt_pos().to_string_writable(),
+                           get_owner()->id.c_str() );
             num_of_owned_camps++;
         }
     }
@@ -932,7 +938,7 @@ void basecamp::handle_takeover_by( faction_id new_owner, bool violent_takeover )
     camp_food_supply( taken_from_camp );
     add_msg_debug( debugmode::DF_CAMPS,
                    "Food supplies of %s plundered by %d kilocalories!  Total food supply reduced to %d kilocalories after losing %.1f%% of their camps.",
-                   fac()->name, captured_with_camp.kcal(), fac()->food_supply().kcal(),
+                   fac()->id.c_str(), captured_with_camp.kcal(), fac()->food_supply().kcal(),
                    1.0 / static_cast<double>( num_of_owned_camps ) * 100.0 );
     set_owner( new_owner );
     int previous_days_of_food = camp_food_supply_days( MODERATE_EXERCISE );
@@ -942,7 +948,7 @@ void basecamp::handle_takeover_by( faction_id new_owner, bool violent_takeover )
     fac()->add_to_food_supply( added );
     add_msg_debug( debugmode::DF_CAMPS,
                    "Food supply of new owner %s has increased to %d kilocalories due to takeover of camp %s!",
-                   fac()->name, new_owner->food_supply().kcal(), name );
+                   fac()->id.c_str(), new_owner->food_supply().kcal(), name );
     if( new_owner == get_player_character().get_faction()->id ) {
         popup( _( "Through your looting of %s you found %d days worth of food and other resources." ),
                name, camp_food_supply_days( MODERATE_EXERCISE ) - previous_days_of_food );
@@ -969,7 +975,8 @@ std::string basecamp::expansion_tab( const point_rel_omt &dir ) const
         recipe_id id( base_camps::faction_encode_abs( e->second, 0 ) );
         const auto e_type = expansion_types.find( id );
         if( e_type != expansion_types.end() ) {
-            return e_type->second + _( "Expansion" );
+            //~ A particular faction camp / basecamp expansion
+            return string_format( _( "%s Expansion" ), e_type->second );
         }
     }
     return _( "Empty Expansion" );
@@ -1002,6 +1009,13 @@ basecamp_action_components::basecamp_action_components(
 
 bool basecamp_action_components::choose_components()
 {
+    // Basecamp crafting selects and consumes tools whole-recipe; the per-step
+    // tool model is not wired through this path, so step recipes are excluded
+    // here rather than risk mis-metering their tools.
+    if( making_.has_steps() ) {
+        debugmsg( "step recipe %s cannot be crafted at a basecamp yet", making_.ident().str() );
+        return false;
+    }
     const auto filter = is_crafting_component;
     avatar &player_character = get_avatar();
     const requirement_data *req;
@@ -1057,8 +1071,11 @@ void basecamp_action_components::consume_components()
         src.emplace_back( target_map.get_bub( p ) );
     }
     for( const comp_selection<item_comp> &sel : item_selections_ ) {
-        std::list<item> empty_consumed = player_character.consume_items( target_map, sel, batch_size_,
-                                         is_crafting_component, src );
+        std::list<item> consumed = player_character.consume_items( target_map, sel, batch_size_,
+                                   is_crafting_component, src );
+        for( item &comp : consumed ) {
+            consumed_components_.add( comp );
+        }
     }
     // this may consume pseudo-resources from fake items
     for( const comp_selection<tool_comp> &sel : tool_selections_ ) {

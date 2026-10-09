@@ -30,131 +30,81 @@
     "type": "snippet",
     "category": "lab_postit_bio",
     "text": [
-      { "name": "green postit 1", "id": "lab_postit_bio_1", "text": "Subject amortization too high.  Lower dosage?" },
-      {
-        "name": "green postit 2",
-        "id": "lab_postit_bio_2",
-        "text": "Enrichment makes for better data.  Coloring book?"
-      },
-      {
-        "name": "green postit 3",
-        "id": "lab_postit_bio_3",
-        "text": "Reduce caloric intake.  Stress potentiates the process."
-      },
-      { "name": "green postit 4", "id": "lab_postit_bio_4", "text": "WHEN IN DOUBT, INCINERATE" },
-      {
-        "name": "green postit 5",
-        "id": "lab_postit_bio_5",
-        "text": "Requisition more subjects when half have been processed."
-      },
-      { "name": "green postit 6", "id": "lab_postit_bio_6", "text": "Droppings caustic, handle with care" },
-      {
-        "name": "green postit 7",
-        "id": "lab_postit_bio_7",
-        "text": "DON'T remove from cage between 10-12 PM (it knows)"
-      },
-      { "name": "green postit 8", "id": "lab_postit_bio_8", "text": "Can walk on ceiling" },
-      { "name": "green postit 9", "id": "lab_postit_bio_9", "text": "More eggs, keeps eating them" },
-      { "name": "green postit 10", "id": "lab_postit_bio_10", "text": "DON'T LICK" }
+      { "id": "lab_postit_bio_1", "text": "Subject amortization too high.  Lower dosage?" },
+      { "id": "lab_postit_bio_2", "text": "Enrichment makes for better data.  Coloring book?" },
+      { "id": "lab_postit_bio_3", "text": "Reduce caloric intake.  Stress potentiates the process." },
+      { "id": "lab_postit_bio_4", "text": "WHEN IN DOUBT, INCINERATE" },
+      { "id": "lab_postit_bio_5", "text": "Requisition more subjects when half have been processed." },
+      { "id": "lab_postit_bio_6", "text": "Droppings caustic, handle with care" },
+      { "id": "lab_postit_bio_7", "text": "DON'T remove from cage between 10-12 PM (it knows)" },
+      { "id": "lab_postit_bio_8", "text": "Can walk on ceiling" },
+      { "id": "lab_postit_bio_9", "text": "More eggs, keeps eating them" },
+      { "id": "lab_postit_bio_10", "text": "DON'T LICK" }
     ]
   },
   {
     "type": "snippet",
     "category": "lab_postit_blob",
     "text": [
-      { "name": "gray postit 1", "id": "lab_postit_blob_1", "text": "Dismember within 15 minutes" },
-      { "name": "gray postit 2", "id": "lab_postit_blob_2", "text": "No weight difference - superpositional?" },
-      { "name": "gray postit 3", "id": "lab_postit_blob_3", "text": "TODO: terminate subject within a week" },
-      { "name": "gray postit 4", "id": "lab_postit_blob_4", "text": "Need more bodies - Mass General?" },
-      { "name": "gray postit 5", "id": "lab_postit_blob_5", "text": "Reinforce doors" },
-      { "name": "gray postit 6", "id": "lab_postit_blob_6", "text": "Where does the energy come from?" },
-      {
-        "name": "gray postit 7",
-        "id": "lab_postit_blob_7",
-        "text": "Anaerobic conditions without change in activity <-> temperature?!"
-      },
-      { "name": "gray postit 8", "id": "lab_postit_blob_8", "text": "Ashes still contaminated" },
-      {
-        "name": "gray postit 9",
-        "id": "lab_postit_blob_9",
-        "text": "Removed parts fuse preferentially to original host"
-      },
-      { "name": "gray postit 10", "id": "lab_postit_blob_10", "text": "Never dead" }
+      { "id": "lab_postit_blob_1", "text": "Dismember within 15 minutes" },
+      { "id": "lab_postit_blob_2", "text": "No weight difference - superpositional?" },
+      { "id": "lab_postit_blob_3", "text": "TODO: terminate subject within a week" },
+      { "id": "lab_postit_blob_4", "text": "Need more bodies - Mass General?" },
+      { "id": "lab_postit_blob_5", "text": "Reinforce doors" },
+      { "id": "lab_postit_blob_6", "text": "Where does the energy come from?" },
+      { "id": "lab_postit_blob_7", "text": "Anaerobic conditions without change in activity <-> temperature?!" },
+      { "id": "lab_postit_blob_8", "text": "Ashes still contaminated" },
+      { "id": "lab_postit_blob_9", "text": "Removed parts fuse preferentially to original host" },
+      { "id": "lab_postit_blob_10", "text": "Never dead" }
     ]
   },
   {
     "type": "snippet",
     "category": "lab_postit_migo",
     "text": [
-      { "name": "pink postit 1", "id": "lab_postit_migo_1", "text": "Don't listen" },
-      { "name": "pink postit 2", "id": "lab_postit_migo_2", "text": "Damage -> Resin\nArmor?\nBlood?\nBribe?" },
-      { "name": "pink postit 3", "id": "lab_postit_migo_3", "text": "Stay quiet.  They can hear you." },
+      { "id": "lab_postit_migo_1", "text": "Don't listen" },
+      { "id": "lab_postit_migo_2", "text": "Damage -> Resin\nArmor?\nBlood?\nBribe?" },
+      { "id": "lab_postit_migo_3", "text": "Stay quiet.  They can hear you." },
       {
-        "name": "pink postit 4",
         "id": "lab_postit_migo_4",
         "text": "Resin return: 0.45 on vegetable matter, 0.51 on meat, 0.66 on nonsedated live meal (vertebrate preference)"
       },
-      { "name": "pink postit 5", "id": "lab_postit_migo_5", "text": "How can they see me up here?" },
+      { "id": "lab_postit_migo_5", "text": "How can they see me up here?" },
+      { "id": "lab_postit_migo_6", "text": "Only post-mortems on the big ones from now on -- equipment's expensive" },
+      { "id": "lab_postit_migo_7", "text": "Dim lights before feeding for lightshow" },
       {
-        "name": "pink postit 6",
-        "id": "lab_postit_migo_6",
-        "text": "Only post-mortems on the big ones from now on -- equipment's expensive"
-      },
-      { "name": "pink postit 7", "id": "lab_postit_migo_7", "text": "Dim lights before feeding for lightshow" },
-      {
-        "name": "pink postit 8",
         "id": "lab_postit_migo_8",
         "text": "Prefers prey capable of vocalization -- implanted speakers work but no repeats"
       },
-      { "name": "pink postit 9", "id": "lab_postit_migo_9", "text": "Blast with white noise as a deterrent?" },
-      { "name": "pink postit 10", "id": "lab_postit_migo_10", "text": "Likes it warm, not bothered by cold" }
+      { "id": "lab_postit_migo_9", "text": "Blast with white noise as a deterrent?" },
+      { "id": "lab_postit_migo_10", "text": "Likes it warm, not bothered by cold" }
     ]
   },
   {
     "type": "snippet",
     "category": "lab_postit_portal",
     "text": [
-      {
-        "name": "orange postit 1",
-        "id": "lab_postit_portal_1",
-        "text": "Increase frequencies in odd steps - local discontinuity!"
-      },
-      { "name": "orange postit 2", "id": "lab_postit_portal_2", "text": "Limit time spent in-phase to 29.1 minutes" },
-      {
-        "name": "orange postit 3",
-        "id": "lab_postit_portal_3",
-        "text": "Sub-plane 117RA likes prime-numbered calibration pings"
-      },
-      {
-        "name": "orange postit 4",
-        "id": "lab_postit_portal_4",
-        "text": "First the candle, then the blood, NOT THE OTHER WAY AROUND"
-      },
-      { "name": "orange postit 5", "id": "lab_postit_portal_5", "text": "Remember Jake?  Me neither." },
-      { "name": "orange postit 6", "id": "lab_postit_portal_6", "text": "Keep line of sight minimal" },
-      { "name": "orange postit 7", "id": "lab_postit_portal_7", "text": "Calibrate on 013TQ for manned transfers" },
-      {
-        "name": "orange postit 8",
-        "id": "lab_postit_portal_8",
-        "text": "No touching returning probes, even if they beg you to"
-      },
-      { "name": "orange postit 9", "id": "lab_postit_portal_9", "text": "Remember to forget.  Forget to remember." },
-      {
-        "name": "orange postit 10",
-        "id": "lab_postit_portal_10",
-        "text": "Scream at Maintenance for a replacement again"
-      }
+      { "id": "lab_postit_portal_1", "text": "Increase frequencies in odd steps - local discontinuity!" },
+      { "id": "lab_postit_portal_2", "text": "Limit time spent in-phase to 29.1 minutes" },
+      { "id": "lab_postit_portal_3", "text": "Sub-plane 117RA likes prime-numbered calibration pings" },
+      { "id": "lab_postit_portal_4", "text": "First the candle, then the blood, NOT THE OTHER WAY AROUND" },
+      { "id": "lab_postit_portal_5", "text": "Remember Jake?  Me neither." },
+      { "id": "lab_postit_portal_6", "text": "Keep line of sight minimal" },
+      { "id": "lab_postit_portal_7", "text": "Calibrate on 013TQ for manned transfers" },
+      { "id": "lab_postit_portal_8", "text": "No touching returning probes, even if they beg you to" },
+      { "id": "lab_postit_portal_9", "text": "Remember to forget.  Forget to remember." },
+      { "id": "lab_postit_portal_10", "text": "Scream at Maintenance for a replacement again" }
     ]
   },
   {
     "type": "snippet",
     "category": "lab_postit_tech",
     "text": [
-      { "name": "red postit 1", "id": "lab_postit_tech_1", "text": "Don't release switch before discharge" },
-      { "name": "red postit 2", "id": "lab_postit_tech_2", "text": "Shielding corrodes too fast\n\nMount on drone?" },
-      { "name": "red postit 3", "id": "lab_postit_tech_3", "text": "Meltdown after 3 shots" },
-      { "name": "red postit 4", "id": "lab_postit_tech_4", "text": "Need more power" },
-      { "name": "red postit 5", "id": "lab_postit_tech_5", "text": "Ho lasers stabilize the compound long enough" }
+      { "id": "lab_postit_tech_1", "text": "Don't release switch before discharge" },
+      { "id": "lab_postit_tech_2", "text": "Shielding corrodes too fast\n\nMount on drone?" },
+      { "id": "lab_postit_tech_3", "text": "Meltdown after 3 shots" },
+      { "id": "lab_postit_tech_4", "text": "Need more power" },
+      { "id": "lab_postit_tech_5", "text": "Ho lasers stabilize the compound long enough" }
     ]
   },
   {
@@ -196,7 +146,7 @@
     "text": [
       {
         "id": "test_1",
-        "text": "Subject: Canis familiaris, 35 kg\n\nPE012 priming: Yes\n\nCompound: PE012\n\nObjective: Establish PE012's phenotypic range for subject species\n\nProtocol:  50 mL oral dose, 3 hour observation before dissection\n\nLive observation: Dosage without incident, after 7.3 minutes sudden distress with subject scratching their flank furiously, scratching ceases after successfully removing fur from the reachable body surface.  Subject keeps vocalizing distress, voice range audibly shifting as the facial structure rearranges itself to make room for 2 large, curved fangs.  After a brief period of trashing subject falls prone rolled into a ball and stops vocalizing.  IR observation reveals falling core temperatures, equalizing to the ambient temperature 2.1 hours after initial dosing.  Presuming subject expiration automatic retrieval drone enters the observation enclosure and approaches the subject's body.  IR observation detects a sudden increase in core temperature coinciding with the enclosure's opening, after consulting the Chief Investigator retrieval attempt proceeds.  On approach of the retrieval drone subject's body shifts slightly, and at ~1.2 m distance the subject grabs the drone with  its elongated tail and proceeds to attack it, successfully piercing its armor plating in multiple spots.  Drone is rendered inoperable after a series  of targeted strikes against its wheel joints and successfully flipping the drone on its back.  Subject termination using standard HCN insufflation, second retrieval attempt uneventful.\n\nDissection findings: Cutis easily removed, subcutis replaced by brittle, sharp scales of keratin.  Neurocranium and brain without macroscopic deviation, major restructuring of the snout, the accessory fangs are revealed to be bone spikes growing from the os zygomaticus, connected to swollen salivary glands pocked by local necrotic lesions - samples taken for toxicology.  Lungs and heart without macroscopic deviation, liver loaded with 3-5 mm large cysts, intestines and pancreas with greenish discoloration.  Superfluous kidneys of variable size (3-18 cm) scattered across the mesenterium secreting a mucous liquid without obvious function."
+        "text": "Subject: Canis familiaris, 35 kg\n\nPE012 priming: Yes\n\nCompound: PE012\n\nObjective: Establish PE012's phenotypic range for subject species\n\nProtocol:  50 mL oral dose, 3 hour observation before dissection\n\nLive observation: Dosage without incident, after 7.3 minutes sudden distress with subject scratching their flank furiously, scratching ceases after successfully removing fur from the reachable body surface.  Subject keeps vocalizing distress, voice range audibly shifting as the facial structure rearranges itself to make room for 2 large, curved fangs.  After a brief period of trashing subject falls prone rolled into a ball and stops vocalizing.  IR observation reveals falling core temperatures, equalizing to the ambient temperature 2.1 hours after initial dosing.  Presuming subject expiration automatic retrieval drone enters the observation enclosure and approaches the subject's body.  IR observation detects a sudden increase in core temperature coinciding with the enclosure's opening, after consulting the Chief Investigator retrieval attempt proceeds.  On approach of the retrieval drone subject's body shifts slightly, and at ~1.2 m distance the subject grabs the drone with its elongated tail and proceeds to attack it, successfully piercing its armor plating in multiple spots.  Drone is rendered inoperable after a series of targeted strikes against its wheel joints and successfully flipping the drone on its back.  Subject termination using standard HCN insufflation, second retrieval attempt uneventful.\n\nDissection findings: Cutis easily removed, subcutis replaced by brittle, sharp scales of keratin.  Neurocranium and brain without macroscopic deviation, major restructuring of the snout, the accessory fangs are revealed to be bone spikes growing from the os zygomaticus, connected to swollen salivary glands pocked by local necrotic lesions - samples taken for toxicology.  Lungs and heart without macroscopic deviation, liver loaded with 3-5 mm large cysts, intestines and pancreas with greenish discoloration.  Superfluous kidneys of variable size (3-18 cm) scattered across the mesenterium secreting a mucous liquid without obvious function."
       },
       {
         "id": "test_2",
@@ -362,7 +312,52 @@
     "text": [
       {
         "id": "serum_testing_regen_1",
-        "text": "Inject subject with 10 ml of 48x-\"Locutus\" compound\nObserve for 6 hours\nNote: subject has left arm amputated and bald.\nResults: Subject suffered from heavy vomiting, physical weakness, sleepiness, and sudden spiked of pain.  Subject arm was regenerated, with no functional loss, which was confirmed in future tests.  Subject hair grow showed an exceptional rate, with approximately 1 cm in 6 hours.\nLong term results: approximately 24 hours after the injection the regeneration speed returned to normal rate.  In two weeks, most of negative effects were rounded off.  Full body inspection revealed mostly positive changes, healing of previously damaged internal organs, notably liver, thyroid gland and spine.  Subject cataract were not cured, for some reason."
+        "text": "Inject subject with 10 ml of 48x-\"Locutus\" compound\nObserve for 6 hours\nNote: subject has left arm amputated and bald.\nResults: Subject suffered from heavy vomiting, physical weakness, sleepiness, and sudden spiked of pain.  Subject arm was regenerated, with no functional loss, which was confirmed in future tests.  Subject hair grow showed an exceptional rate, with approximately 1 cm in 6 hours.\nLong term results: approximately 24 hours after the injection the regeneration speed returned to normal rate.  In two weeks, most of negative effects had ceased.  Full body inspection revealed mostly positive changes, healing of previously damaged internal organs, notably liver, thyroid gland and spine.  Subject's cataract were not cured; investigation is ongoing."
+      }
+    ]
+  },
+  {
+    "type": "snippet",
+    "category": "<serum_testing_super_soldier>",
+    "text": [
+      {
+        "id": "serum_testing_super_soldier_1",
+        "text": "Inject subject with 10 ml of 29x-\"Noonien\" compound\nPhysical activity regimen: standard US Armed Forces Army Fitness Test\nResults: Subject, previously in the 60% percentile for AFT results, placed in the 99% percentile on three consecutive days of taking the test.  On the fourth day, subject complained of muscle soreness and was placed under observation and ordered to perform only light activity the following day.  On the fifth day, subject expressed eagerness to try again and once again scored in the 99% percentile.  However, a physical examination following the testing period revealed a sprained ankle; the subject repeatedly expressed a wish to continue trying and that there was no need for medical treatment.  Subject was placed on light activity for the remainder of the observation period.\nLong term effects: on the first day the subject did not eat at all.  Following a continued disinterest in eating they were placed on a standard diet on following days, modified to a high-calorie diet when they continually left meals unfinished.  Recipients of 29x-\"Noonien\" will require strict dietary instructions in order to obtain proper nutrition.  Seven days after initial application of 29x-\"Noonien\", subject complained of serious ankle pain and requested painkillers, which were provided."
+      }
+    ]
+  },
+  {
+    "type": "snippet",
+    "category": "<serum_testing_resilience>",
+    "text": [ { "id": "serum_testing_resilience_1", "text": "Inject subject with 10 ml of 16x-\"Armus\" compound\n" } ]
+  },
+  {
+    "type": "snippet",
+    "category": "<serum_testing_learning>",
+    "text": [
+      {
+        "id": "serum_testing_learning_1",
+        "text": "Inject subject with 10 ml of 7x-\"Lore\" compound\nSubject was provided with a set of reference textbooks and the latest version of the ACT test (sans writing section) and instructed to complete it as quickly as possible while freely referencing the provided textbooks.  Despite having to occasionally reference the textbooks, subject completed each section in full before the allotted time expired (English in 27 minutes, 12 seconds; math in 40 minutes, 4 seconds; reading in 33 minutes, 56 seconds; and science in 32 minutes, 1 second).  The final score was 27, in the 88th percentile (admittedly, of high school students).\nDuring the testing period, researchers carefully observed the subject's behavior, particularly for any evidence of fidgeting or loss of concentration.  Fidgeting was observed within normal parameters (e.g. drumming fingers on table while thinking), but the subject did not lose concentration or cease working on the test for longer than ten seconds during any testing section.\nFollowing the ACT test administration, the subject was immediately given a series of logic puzzles to complete, and did so without taking a break or losing concentration.\nFollowing expiration of compound, subject reported to infirmary two hours after experiment ended, complaining of severe eye pain following a walk outside.  Further research necessary to counteract photosensitive effects."
+      }
+    ]
+  },
+  {
+    "type": "snippet",
+    "category": "<serum_testing_speed>",
+    "text": [
+      {
+        "id": "serum_testing_speed_1",
+        "text": "Inject subject with 10 ml of 51x-\"Landru\" compound\nSubject was first asked to run distances of 100m, 400m, and 1 km; times were compared to previously-set reference times taken the previous day.  While the subject measureably improved their performance, finishing an average of 7% faster, the difference was still within normative athletic performance for subject's age and sex.\nFollowing period of rest, subject was asked to perform a target-shooting demonstration using a standard-issue sidearm at 50m and completed it less than ten seconds.  Observers at the time stated the that the subject barely appeared to aim at all; playback of recorded video shows subject making extremely-rapid small adjustments to aim at a greatly-increased speed.\nFollowing demonstration, subject was leaving the room when they accidentally struck the table with their knee.  They collapsed on the ground, grabbing their knee, but a subsequent examination showed no serious or lasting injury.  Subject would only say that it, \"hurt like absolute hell\" and refused further treatment.\nOver the course of the observation period, subject ate approximately 25% more food than normal without an appreciable gain in body mass (measured at the beginning and end of the week-long period).  Recipients of 51x-\"Landru\" should be sure to follow proper dietary protocols."
+      }
+    ]
+  },
+  {
+    "type": "snippet",
+    "category": "<serum_testing_night_ops>",
+    "text": [
+      {
+        "id": "serum_testing_night_ops_1",
+        "text": "Inject subject with 10 ml of 09x-\"Anaximander\" compound\nSubject was provided with a standard glowstick and ordered to navigate a three-dimensional maze.  Subject found the exit in three minutes and ten seconds, compared to control who found the exit in ten minutes and forty-five seconds (lacking effective amnestics, we cannot test the subject both with and without Anaximander in the same maze).\nSubject was released into the forest nearby and given a ten minute headstart before a team of five trained search-and-rescue personnel were dispatched to locate them.  Subject remained undetected for the full fifteen minutes of the trial and was only found when they returned to base.  When asked how they had evaded the searchers, the subject was unable to answer.  Further testing indicated that the subject had completely lost their voice.\nSubject was asked to walk a mile through the woods to a predetermined point, reaching it in twenty-five minutes.  When asked to write down the reason for the slower time, the subject indicated that they had stopped to take frequent rest breaks due to fatigue.\nWhen the serum wore off after approximately nine hours, the subject reported great sensitivity to light, as well as that they had \"sweated like a pig in heat.\"  They underwent a full medical examination the next day, which showed no lasting ill effects."
       }
     ]
   },

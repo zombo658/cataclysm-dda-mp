@@ -29,6 +29,7 @@ std::string enum_to_string<event_type>( event_type data )
         case event_type::character_consumes_item: return "character_consumes_item";
         case event_type::character_dies: return "character_dies";
         case event_type::character_eats_item: return "character_eats_item";
+        case event_type::character_effect_intensity_changed: return "character_effect_intensity_changed";
         case event_type::character_casts_spell: return "character_casts_spell";
         case event_type::character_finished_activity: return "character_finished_activity";
         case event_type::character_forgets_spell: return "character_forgets_spell";
@@ -77,6 +78,7 @@ std::string enum_to_string<event_type>( event_type data )
         case event_type::dies_of_starvation: return "dies_of_starvation";
         case event_type::dies_of_thirst: return "dies_of_thirst";
         case event_type::digs_into_lava: return "digs_into_lava";
+        case event_type::dimension_travel: return "dimension_travel";
         case event_type::disarms_nuke: return "disarms_nuke";
         case event_type::eats_sewage: return "eats_sewage";
         case event_type::evolves_mutation: return "evolves_mutation";
@@ -105,6 +107,7 @@ std::string enum_to_string<event_type>( event_type data )
         case event_type::opens_portal: return "opens_portal";
         case event_type::opens_spellbook: return "opens_spellbook";
         case event_type::opens_temple: return "opens_temple";
+        case event_type::phase_move: return "phase_move";
         case event_type::player_fails_conduct: return "player_fails_conduct";
         case event_type::player_gets_achievement: return "player_gets_achievement";
         case event_type::player_levels_spell: return "player_levels_spell";
@@ -139,20 +142,19 @@ namespace event_detail
 {
 
 #define DEFINE_EVENT_HELPER_FIELDS(type) \
-    constexpr std::array<std::pair<const char *, cata_variant_type>, \
-    type::fields.size()> type::fields;
+    constexpr std::array<event_field, type::fields.size()> type::fields;
 
 DEFINE_EVENT_HELPER_FIELDS( event_spec_empty )
 DEFINE_EVENT_HELPER_FIELDS( event_spec_character )
 DEFINE_EVENT_HELPER_FIELDS( event_spec_character_item )
 
-static_assert( static_cast<int>( event_type::num_event_types ) == 107,
+static_assert( static_cast<int>( event_type::num_event_types ) == 110,
                "This static_assert is a reminder to add a definition below when you add a new "
                "event_type.  If your event_spec specialization inherits from another struct for "
                "its fields definition then you probably don't need a definition here." );
 
 #define DEFINE_EVENT_FIELDS(type) \
-    constexpr std::array<std::pair<const char *, cata_variant_type>, \
+    constexpr std::array<event_field, \
     event_spec<event_type::type>::fields.size()> \
     event_spec<event_type::type>::fields;
 
@@ -168,6 +170,7 @@ DEFINE_EVENT_FIELDS( character_finished_activity )
 DEFINE_EVENT_FIELDS( character_forgets_spell )
 DEFINE_EVENT_FIELDS( character_casts_spell )
 DEFINE_EVENT_FIELDS( character_dies )
+DEFINE_EVENT_FIELDS( character_effect_intensity_changed )
 DEFINE_EVENT_FIELDS( character_gains_effect )
 DEFINE_EVENT_FIELDS( character_heals_damage )
 DEFINE_EVENT_FIELDS( character_kills_character )
@@ -221,6 +224,8 @@ DEFINE_EVENT_FIELDS( uses_debug_menu )
 DEFINE_EVENT_FIELDS( u_var_changed )
 DEFINE_EVENT_FIELDS( vehicle_moves )
 DEFINE_EVENT_FIELDS( character_butchered_corpse )
+DEFINE_EVENT_FIELDS( dimension_travel )
+DEFINE_EVENT_FIELDS( phase_move )
 
 } // namespace event_detail
 

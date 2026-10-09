@@ -1,6 +1,17 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+*Contents*
+
+- [JSON Style Guide](#json-style-guide)
+  - [JSON Example](#json-example)
+  - [Formatting tool](#formatting-tool)
+    - [Visual Studio Code](#visual-studio-code)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # JSON Style Guide
 
-Like in [CODE_STYLE.md](CODE_STYLE.md), the JSON styling policy is to update JSON as it is added or edited, and in relatively small chunks otherwise in order to prevent undue disruption to development.
+Like in [CODE_STYLE.md](/doc/c++/CODE_STYLE.md), the JSON styling policy is to update JSON as it is added or edited, and in relatively small chunks otherwise in order to prevent undue disruption to development.
 
 We haven't been able to find a decent JSON styling tool, so we wrote our own.  It lives in tools/format/format.cpp and it leverages src/json.cpp to parse and emit JSON.
 `json_formatter.cgi` can be found in any released build and is already compiled, see [Formatting tool](#Formatting tool).
@@ -47,6 +58,10 @@ Line breaks occur after open brackets, close brackets, or entries.
 
 The formatting tool can be found alongside the releases as `json_formatter.exe` or `json_formatter.cgi`, built via `make style-json`, or accessed at <http://dev.narc.ro/cataclysm/format.html>.  It is recommended to add the formatting tool's location to your `PATH` or (if not already present) put it in your Cataclysm-DDA root directory.
 
+You can run path/to/json_formatter.cgi/exe path/to/file/to/format in terminal to format a file. For ease of use, you can move json_formatter.cgi/exe to a static location and add an abbreviation for it so you can easily run it while your terminal is in any folder.
+
+For windows, you can also drag and drop json_formatter.exe to the file you want to format, to format a file.
+
 Using `make style-json` will format all files included in the JSON validation test, alternatively:
 ```sh
 # Using git to filter JSON files with uncommitted changes (provided there are no spaces in the file or directory names).
@@ -92,4 +107,4 @@ position of your command in the list (e.g. `Tools.ExternalCommand1` if it's the
 top item in the list) and then assign shortcut keys to it.
 
 ### Visual Studio Code
-If you install the recommended extensions you should have access to the the cdda-toys.cdda-json-formatter which will auto format your json.
+If you install the recommended extensions you should have access to the cdda-toys.cdda-json-formatter which will auto format your json.

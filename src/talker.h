@@ -157,6 +157,12 @@ class const_talker
             return false;
         }
         // stats, skills, traits, bionics, and magic
+        virtual int get_artifact_resonance() const {
+            return 0;
+        }
+        virtual int get_trauma() const {
+            return 0;
+        }
         virtual int str_cur() const {
             return 0;
         }
@@ -329,6 +335,9 @@ class const_talker
         virtual effect get_effect( const efftype_id &, const bodypart_id & ) const {
             return effect::null_effect;
         }
+        virtual float get_limb_score( const limb_score_id & /*score*/, const bp_type & /*bp*/ ) const {
+            return 0.0;
+        }
         virtual bool is_deaf() const {
             return false;
         }
@@ -398,6 +407,10 @@ class const_talker
         }
         virtual int cash_to_favor( int ) const {
             return 0;
+        }
+        virtual bool has_software( const itype_id &, int = 0,
+                                   const itype_id & = itype_id::NULL_ID() ) const {
+            return false;
         }
 
         // missions
@@ -471,6 +484,12 @@ class const_talker
             return 0;
         }
         virtual int get_instant_thirst() const {
+            return 0;
+        }
+        virtual int get_oxygen() const {
+            return 0;
+        }
+        virtual int get_oxygen_max() const {
             return 0;
         }
         virtual int get_stored_kcal() const {
@@ -559,7 +578,7 @@ class const_talker
         virtual int mana_max() const {
             return 0;
         }
-        virtual int morale_cur() const {
+        virtual int morale_cur( bool ) const {
             return 0;
         }
         virtual int focus_cur() const {
@@ -572,6 +591,9 @@ class const_talker
             return 0;
         }
         virtual int get_stamina() const {
+            return 0;
+        }
+        virtual int get_stamina_max() const {
             return 0;
         }
         virtual int get_sleep_deprivation() const {
@@ -629,6 +651,9 @@ class const_talker
             return 0;
         }
         virtual int get_health() const {
+            return 0;
+        }
+        virtual int get_daily_health() const {
             return 0;
         }
         virtual units::temperature get_body_temp() const {
@@ -716,6 +741,15 @@ class const_talker
         virtual bool is_passenger( Character & ) const {
             return false;
         }
+        virtual bool is_in_vehicle() const {
+            return false;
+        }
+        virtual int get_price() const {
+            return 0;
+        }
+        virtual int get_price_postapoc() const {
+            return 0;
+        }
 };
 
 class talker: virtual public const_talker
@@ -759,6 +793,7 @@ class talker: virtual public const_talker
         virtual void set_pos( tripoint_bub_ms ) {}
         virtual void set_pos( tripoint_abs_ms ) {}
         virtual void update_missions( const std::vector<mission *> & ) {}
+        virtual void set_trauma( int ) {}
         virtual void set_str_max( int ) {}
         virtual void set_dex_max( int ) {}
         virtual void set_int_max( int ) {}
@@ -809,6 +844,7 @@ class talker: virtual public const_talker
         virtual std::list<item> use_amount( const itype_id &, int ) {
             return {};
         }
+        virtual void ensure_portrait_valid() {}
         virtual void add_debt( int ) {}
         virtual void i_add( const item & ) {}
         virtual void i_add_or_drop( item &, bool = false ) {}
@@ -859,6 +895,7 @@ class talker: virtual public const_talker
         virtual void set_friendly( int ) {}
         virtual void add_morale( const morale_type &, int, int, time_duration, time_duration, bool ) {}
         virtual void remove_morale( const morale_type & ) {}
+        virtual void set_oxygen( int ) {}
         virtual void set_kill_xp( int ) {}
         virtual void set_age( int ) {}
         virtual void set_height( int ) {}
@@ -869,10 +906,11 @@ class talker: virtual public const_talker
         virtual void set_all_parts_hp_cur( int ) {}
         virtual void set_degradation( int ) {}
         virtual void die( map * ) {}
-        virtual void set_fault( const fault_id &, bool, bool ) {};
-        virtual void set_random_fault_of_type( const std::string &, bool, bool ) {};
+        virtual void set_fault( const fault_id &, bool, const Character * ) {};
+        virtual void set_random_fault_of_type( const std::string &, bool, const Character * ) {};
         virtual void set_mana_cur( int ) {}
         virtual void mod_daily_health( int, int ) {}
+        virtual void set_hunger( int ) {}
         virtual void mod_livestyle( int ) {}
         virtual void mod_focus( int ) {}
         virtual void set_pkill( int ) {}

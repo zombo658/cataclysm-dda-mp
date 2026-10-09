@@ -85,17 +85,18 @@
     ]
   },
   {
-    "id": "EOC_WARG_FOOD_ISNT_REAL",
-    "//": "Are you a goblin? If not are you holding Warg food? No you aren't, that's regular meat.",
     "type": "effect_on_condition",
-    "recurrence": [ "3 seconds", "5 seconds" ],
-    "condition": { "and": [ { "not": { "u_has_trait": "THRESH_SPECIES_GOBLIN" } }, { "u_has_item": "warg_food" } ] },
-    "global": true,
-    "run_for_npcs": true,
+    "id": "EOC_HYBRASIL_ENCHANTMENT",
     "effect": [
-      { "u_remove_item_with": "warg_food" },
-      { "npc_remove_item_with": "warg_food" },
-      { "u_spawn_item": "meat", "suppress_message": true }
+      {
+        "switch": { "math": [ "u_hp('torso')" ] },
+        "cases": [
+          { "case": 0, "effect": { "u_cast_spell": { "id": "druid_summon_brambles_arc" }, "targeted": true } },
+          { "case": 25, "effect": { "u_cast_spell": { "id": "pain_split", "hit_self": true } } },
+          { "case": 50, "effect": { "u_cast_spell": { "id": "recover_stamina", "hit_self": true } } },
+          { "case": 75, "effect": { "u_cast_spell": { "id": "druid_thorn_skin", "hit_self": true } } }
+        ]
+      }
     ]
   }
 ]

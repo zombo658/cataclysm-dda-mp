@@ -36,6 +36,8 @@ struct enum_traits<based_on_type> {
 class activity_type
 {
     private:
+        bool was_loaded = false;
+
         activity_id id_;
         bool rooted_ = false;
         translation verb_ = to_translation( "THIS IS A BUG" );
@@ -44,8 +46,10 @@ class activity_type
         based_on_type based_on_ = based_on_type::SPEED;
         bool can_resume_ = true;
         bool multi_activity_ = false;
+        bool fetch_items_to_zone_ = true;
         bool refuel_fires = false;
         bool auto_needs = false;
+        bool mute_npc_completion = false;
         float activity_level = NO_EXERCISE;
         std::set<distraction_type> default_ignored_distractions_;
     public:
@@ -80,6 +84,9 @@ class activity_type
         bool multi_activity() const {
             return multi_activity_;
         }
+        bool fetch_items_to_zone() const {
+            return fetch_items_to_zone_;
+        }
         /**
          * If true, player will refuel one adjacent fire if there is firewood spot adjacent.
          */
@@ -92,6 +99,10 @@ class activity_type
         bool valid_auto_needs() const {
             return auto_needs;
         }
+        // If true, no message will be given when the npc completes the activity
+        bool mute_npc_completion_message() const {
+            return mute_npc_completion;
+        }
         float exertion_level() const {
             return activity_level;
         }
@@ -100,7 +111,8 @@ class activity_type
         bool call_finish( player_activity *, Character * ) const;
 
         /** JSON stuff */
-        static void load( const JsonObject &jo );
+        void load( const JsonObject &jo );
+        static void load_all( const JsonObject &jo );
         static void check_consistency();
         static void reset();
 };

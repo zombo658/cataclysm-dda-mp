@@ -67,7 +67,7 @@
         "R": [
           { "item": "military_patrol_food", "chance": 40, "repeat": [ 5, 7 ] },
           { "item": "foodintincan", "chance": 40, "repeat": [ 2, 4 ] },
-          { "item": "softdrinks_canned", "chance": 40, "repeat": [ 3, 6 ] },
+          { "item": "soda_in_small_container", "chance": 40, "repeat": [ 3, 6 ] },
           { "item": "salty_snacks", "chance": 40, "repeat": [ 3, 6 ] },
           { "item": "alcohol_bottled_canned", "chance": 40, "repeat": [ 3, 6 ] }
         ],
@@ -103,6 +103,7 @@
           "chat_topics": [ "LIXA_presentation_computer_main" ]
         }
       },
+      "traps": { "_": "tr_lixa_fall_down" },
       "place_item": [ { "item": "microwave", "x": 41, "y": 33, "chance": 1 }, { "item": "id_LIXA", "x": 14, "y": 14, "chance": 1 } ],
       "place_monster": [
         { "monster": "mon_zombie_soldier_lixa_police", "x": [ 1, 13 ], "y": [ 14, 23 ], "chance": 50 },
@@ -345,7 +346,8 @@
         "                                                ",
         "                                                "
       ],
-      "terrain": { "<": "t_stairs_up", ">": "t_stairs_down", "/": "t_lixa_wall", "_": "t_open_air" }
+      "terrain": { "<": "t_stairs_up", ">": "t_stairs_down", "/": "t_lixa_wall", "_": "t_infinite_shaft_no_roof" },
+      "traps": { "_": "tr_lixa_climbing_fall_down" }
     }
   },
   {
@@ -579,8 +581,19 @@
         ],
         "q": [ { "item": "adderall", "amount": [ 2, 5 ] } ],
         "E": [ { "item": "television", "amount": 1 } ],
-        "R": [ { "item": "rm13_armor", "amount": 1 }, { "item": "id_LIXA_mil", "amount": 1 } ],
-        "O": [ { "item": "phase_immersion_suit", "amount": 1 } ]
+        "R": [
+          { "item": "xedra_artifact_cleansuit", "amount": 1 },
+          { "item": "xedra_enviro_suit", "amount": 1 },
+          { "item": "military_papr_mask", "amount": 1 },
+          { "item": "military_papr_blower_off", "amount": 1 },
+          { "item": "id_LIXA_mil", "amount": 1 }
+        ],
+        "O": [
+          { "item": "xedra_artifact_cleansuit", "amount": 1 },
+          { "item": "xedra_enviro_suit", "amount": 1 },
+          { "item": "papr_half_mask", "amount": 1 },
+          { "item": "basic_papr_belt_off", "amount": 1 }
+        ]
       },
       "place_item": [
         { "item": "heroin", "x": 11, "y": 11, "amount": [ 3, 7 ] },

@@ -11,6 +11,7 @@
 #include "item_location.h"
 #include "map.h"
 #include "map_helpers.h"
+#include "map_helpers_tests.h"
 #include "player_helpers.h"
 #include "recipe.h"
 #include "recipe_dictionary.h"
@@ -37,7 +38,7 @@ static Character &setup_uncraft_character()
 {
     Character &they = get_player_character();
     clear_avatar();
-    clear_map();
+    clear_map_without_vision();
     set_time( midday );
     // Backpack for storage, and multi-tool for qualities
     they.worn.wear_item( they, item( itype_debug_backpack ), false, false );
@@ -66,7 +67,7 @@ static std::map<itype_id, int> repeat_uncraft( Character &they, const itype_id &
         it_dis_loc = they.create_in_progress_disassembly( it );
 
         // Clear away bits
-        clear_map();
+        clear_map_without_vision();
         // Get lit
         set_time( midday );
         // Disassemble it

@@ -13,10 +13,13 @@
 
 #include "activity_actor_definitions.h"
 #include "auto_pickup.h"
+#include "calendar.h"
 #include "character.h"
+#include "crafting.h"
 #include "contents_change_handler.h"
 #include "debug.h"
 #include "enums.h"
+#include "faction.h"
 #include "flexbuffer_json.h"
 #include "game.h"
 #include "game_constants.h"
@@ -35,6 +38,7 @@
 #include "messages.h"
 #include "overmapbuffer.h"
 #include "options.h"
+#include "pimpl.h"
 #include "player_activity.h"
 #include "point.h"
 #include "popup.h"
@@ -67,6 +71,8 @@ static void show_pickup_message( const PickupMap &mapPickup )
     }
 }
 
+namespace
+{
 struct pickup_count {
     bool pick = false;
     //count is 0 if the whole stack is being picked up, nonzero otherwise.
@@ -80,6 +86,7 @@ enum pickup_answer : int {
     STASH,
     NUM_ANSWERS
 };
+} // namespace
 
 static pickup_answer handle_problematic_pickup( const item &it, const std::string &explain,
         Character &u )
@@ -109,19 +116,32 @@ static pickup_answer handle_problematic_pickup( const item &it, const std::strin
     return static_cast<pickup_answer>( choice );
 }
 
-bool Pickup::query_thief()
+bool Pickup::query_thief( item &it )
 {
-    Character &u = get_player_character();
+    if( it.has_var( "Forfeited_at" ) ) {
+        const time_point forfeit_time = time_point::from_turn( it.get_var( "Forfeited_at", 0.0 ) );
+        const time_duration time_since_forfeit = calendar::turn - forfeit_time;
+        it.erase_var( "Forfeited_at" );
+        // FIXME: Blind assumption that the character picking up is player. Not safe!
+        if( time_since_forfeit < 1_hours &&
+            it.get_old_owner() == get_player_character().get_faction_id() ) {
+            it.set_owner( get_player_character().get_faction_id() );
+            return true;
+        }
+    }
     const bool force_uc = get_option<bool>( "FORCE_CAPITAL_YN" );
     const auto &allow_key = force_uc ? input_context::disallow_lower_case_or_non_modified_letters
                             : input_context::allow_all_keys;
+    const std::string stealing_prompt = string_format(
+                                            _( "Picking up %s will be considered stealing from %s, continue?" ), it.display_name(),
+                                            it.get_owner_name() );
     std::string answer = query_popup()
                          .preferred_keyboard_mode( keyboard_mode::keycode )
                          .allow_cancel( false )
                          .context( "YES_NO_ALWAYS_NEVER" )
                          .message( "%s", force_uc && !is_keycode_mode_supported()
-                                   ? _( "Picking up this item will be considered stealing, continue?  (Case sensitive)" )
-                                   : _( "Picking up this item will be considered stealing, continue?" ) )
+                                   ? stealing_prompt + _( "  (Case sensitive)" )
+                                   : stealing_prompt )
                          .option( "YES", allow_key ) // yes, steal all items in this location that is selected
                          .option( "NO", allow_key ) // no, pick up only what is free
                          .option( "ALWAYS", allow_key ) // Yes, steal all items and stop asking me this question
@@ -129,21 +149,28 @@ bool Pickup::query_thief()
                          .cursor( 1 ) // default to the second option `NO`
                          .query()
                          .action; // retrieve the input action
+    // Get faction info for item so we can set steal persist
+    const faction_id owner = it.get_owner();
+    faction *owner_fac = g->faction_manager_ptr->get( owner, false );
     if( answer == "YES" ) {
-        u.set_value( "THIEF_MODE", "THIEF_STEAL" );
-        u.set_value( "THIEF_MODE_KEEP", "NO" );
+        if( owner_fac ) {
+            owner_fac->steal_persist = std::nullopt;
+        }
         return true;
     } else if( answer == "NO" ) {
-        u.set_value( "THIEF_MODE", "THIEF_HONEST" );
-        u.set_value( "THIEF_MODE_KEEP", "NO" );
+        if( owner_fac ) {
+            owner_fac->steal_persist = std::nullopt;
+        }
         return false;
     } else if( answer == "ALWAYS" ) {
-        u.set_value( "THIEF_MODE", "THIEF_STEAL" );
-        u.set_value( "THIEF_MODE_KEEP", "YES" );
+        if( owner_fac ) {
+            owner_fac->steal_persist = true;
+        }
         return true;
     } else if( answer == "NEVER" ) {
-        u.set_value( "THIEF_MODE", "THIEF_HONEST" );
-        u.set_value( "THIEF_MODE_KEEP", "YES" );
+        if( owner_fac ) {
+            owner_fac->steal_persist = false;
+        }
         return false;
     } else {
         // error
@@ -182,6 +209,7 @@ static bool pick_one_up( item_location &loc, int quantity, bool &got_water, bool
                          PickupMap &mapPickup, bool autopickup, bool &stash_successful, bool &got_frozen_liquid,
                          Pickup::pick_info &info, Character &player_character )
 {
+    const map &here = get_map();
     bool picked_up = false;
     bool crushed = false;
     Pickup::pick_info pre_info( info );
@@ -201,18 +229,25 @@ static bool pick_one_up( item_location &loc, int quantity, bool &got_water, bool
         it.erase_var( "activity_var" );
         newit.erase_var( "activity_var" );
     }
-
     if( !newit.is_owned_by( player_character, true ) ) {
-        // Has the player given input on if stealing is ok?
-        if( player_character.get_value( "THIEF_MODE" ).str() == "THIEF_ASK" ) {
-            Pickup::query_thief();
-        }
-        if( player_character.get_value( "THIEF_MODE" ).str() == "THIEF_HONEST" ) {
-            return true; // Since we are honest, return no problem before picking up
+        const std::string thief_mode = player_character.get_value( "THIEF_MODE" ).str();
+        if( thief_mode == "THIEF_HONEST" ) {
+            return true;
+        } else if( thief_mode != "THIEF_STEAL" ) {
+            // Default (THIEF_ASK) - check faction steal_persist
+            faction *owner_fac = g->faction_manager_ptr->get( newit.get_owner(), false );
+            if( owner_fac && owner_fac->steal_persist.has_value() ) {
+                if( !*owner_fac->steal_persist ) {
+                    return true; // NEVER
+                }
+                // ALWAYS
+            } else if( !Pickup::query_thief( newit ) ) {
+                return true;
+            }
         }
     }
     if( newit.invlet != '\0' &&
-        player_character.invlet_to_item( newit.invlet ) != nullptr ) {
+        player_character.invlet_to_item( newit.invlet ).valid() ) {
         // Existing invlet is not re-usable, remove it and let the code in player.cpp/inventory.cpp
         // add a new invlet, otherwise keep the (usable) invlet.
         newit.invlet = '\0';
@@ -223,6 +258,12 @@ static bool pick_one_up( item_location &loc, int quantity, bool &got_water, bool
         if( newit.charges > quantity ) {
             newit.charges = quantity;
         }
+    }
+
+    if( ( info.max_volume != -1_ml && newit.volume() + info.picked_up_volume > info.max_volume ) ||
+        ( info.max_mass != -1_gram && newit.weight() + info.picked_up_mass > info.max_mass ) ) {
+        stash_successful = false;
+        return false;
     }
 
     bool did_prompt = false;
@@ -290,9 +331,11 @@ static bool pick_one_up( item_location &loc, int quantity, bool &got_water, bool
                                          /*allow_drop=*/false, /*allow_wield=*/false, false );
             item_location added_it = ret.value();
             if( ret.success() ) {
+                craft_relocated( added_it );
                 if( added_it == item_location::nowhere ) {
                     newit.charges = last_charges - newit.charges;
-                    newit.on_pickup( player_character );
+                    // Don't call on_pickup on this local copy -- the real items
+                    // already got it via add_stash -> fill_with (#85439).
                     if( newit.charges != 0 ) {
                         auto &entry = mapPickup[newit.tname()];
                         entry.second += newit.charges;
@@ -321,13 +364,18 @@ static bool pick_one_up( item_location &loc, int quantity, bool &got_water, bool
     if( picked_up ) {
         info.set_src( loc );
         info.total_bulk_volume += loc->volume( false, false, quantity );
+        int distance = square_dist( player_character.pos_bub(), loc.pos_bub( here ) );
+        info.picked_up_volume += newit.volume();
+        info.picked_up_mass += newit.weight();
         if( !is_bulk_load( pre_info, info ) ) {
             // Cost to take an item from a container or map
-            player_character.mod_moves( -loc.obtain_cost( player_character, quantity ) );
+            player_character.mod_moves( -( loc.obtain_cost( player_character,
+                                           quantity ) + ( distance * info.extra_moves_per_distance ) ) );
         } else {
             // Pure cost to handling item excluding overhead.
-            player_character.mod_moves( -std::max( player_character.item_handling_cost( *loc, true, 0, quantity,
-                                                   true ), 1 ) );
+            player_character.mod_moves( ( -std::max( player_character.item_handling_cost( *loc, true, 0,
+                                          quantity,
+                                          true ), 1 ) + ( distance * info.extra_moves_per_distance ) ) );
         }
         contents_change_handler handler;
         handler.unseal_pocket_containing( loc );
@@ -421,7 +469,7 @@ void Pickup::autopickup( const tripoint_bub_ms &p )
     }
     // which items are we grabbing?
     std::vector<item_stack::iterator> here;
-    const map_stack mapitems = local.i_at( p );
+    map_stack mapitems = local.i_at( p );
     here.reserve( mapitems.size() );
     for( item_stack::iterator it = mapitems.begin(); it != mapitems.end(); ++it ) {
         here.push_back( it );
@@ -458,8 +506,14 @@ void Pickup::autopickup( const tripoint_bub_ms &p )
     quantities.reserve( selected_items.size() );
     for( drop_location selected : selected_items ) {
         item *it = selected.first.get_item();
-        target_items.push_back( selected.first );
-        quantities.push_back( it->count_by_charges() ? it->charges : 0 );
+        if( player.can_pickWeight_partial( *it, false ) &&
+            player.can_stash_partial( *it, false ) ) {
+            target_items.push_back( selected.first );
+            quantities.push_back( it->count_by_charges() ? it->charges : 0 );
+        }
+    }
+    if( target_items.empty() ) {
+        return;
     }
     pickup_activity_actor actor( target_items, quantities, player.pos_bub(), true );
     player.assign_activity( actor );
@@ -492,6 +546,12 @@ void Pickup::pick_info::serialize( JsonOut &jsout ) const
     jsout.member( "src_pos", src_pos );
     jsout.member( "src_container", src_container );
     jsout.member( "dst", dst );
+    jsout.member( "highlight", highlight );
+    jsout.member( "extra_moves_per_distance", extra_moves_per_distance );
+    jsout.member( "picked_up_volume", picked_up_volume );
+    jsout.member( "max_volume", max_volume );
+    jsout.member( "picked_up_mass", picked_up_mass );
+    jsout.member( "max_mass", max_mass );
     jsout.end_object();
 }
 
@@ -504,6 +564,12 @@ void Pickup::pick_info::deserialize( const JsonObject &jsobj )
     jsobj.read( "src_pos", src_pos );
     jsobj.read( "src_container", src_container );
     jsobj.read( "dst", dst );
+    jsobj.read( "highlight", highlight );
+    jsobj.read( "extra_moves_per_distance", extra_moves_per_distance );
+    jsobj.read( "picked_up_volume", picked_up_volume );
+    jsobj.read( "max_volume", max_volume );
+    jsobj.read( "picked_up_mass", picked_up_mass );
+    jsobj.read( "max_mass", max_mass );
 }
 
 void Pickup::pick_info::set_src( const item_location &src_ )

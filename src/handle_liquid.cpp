@@ -40,6 +40,7 @@
 #include "veh_interact.h"
 #include "vehicle.h"
 #include "vehicle_selector.h"
+#include "visitable.h"
 #include "vpart_position.h"
 #include "vpart_range.h"
 
@@ -156,11 +157,14 @@ void handle_npc_liquid( item liquid, Character &who )
             }
         }
     }
-    for( item_location &item_loc : who.all_items_loc() ) {
+    who.visit_items(
+    [&container_locs]( const item_location & item_loc ) {
         if( item_loc->is_watertight_container() ) {
             container_locs.push_back( item_loc );
         }
+        return VisitResponse::NEXT;
     }
+    );
     for( item_location &container_loc : container_locs ) {
         const bool is_carried = container_loc.carrier() != nullptr;
         const bool allow_buckets = container_loc.where() == item_location::type::map;
@@ -222,6 +226,15 @@ void handle_npc_liquid( item liquid, Character &who )
         capacities[best_idx] = 0;
     }
     who.invalidate_weight_carried_cache();
+}
+
+void handle_all_or_npc_liquid( Character &p, item &newit, int radius, const item *avoid )
+{
+    if( p.is_avatar() ) {
+        liquid_handler::handle_all_liquid( newit, radius, avoid );
+    } else {
+        liquid_handler::handle_npc_liquid( newit, p );
+    }
 }
 
 bool consume_liquid( item &liquid, const int radius, const item *const avoid )
@@ -324,7 +337,7 @@ static bool get_liquid_target( item &liquid, const item *const source, const int
         }
         // Sometimes the cont parameter is omitted, but the liquid is still within a container that counts
         // as valid target for the liquid. So check for that.
-        if( cont == source || ( !cont->empty() && cont->has_item( liquid ) ) ) {
+        if( cont == source || ( !cont->empty() && target.item_loc.has_item( liquid ) ) ) {
             add_msg( m_info, _( "That's the same container!" ) );
             return; // The user has intended to do something, but mistyped.
         }
@@ -484,11 +497,13 @@ static bool handle_item_target( Character &player_character, item &liquid, liqui
     // not on ground or similar. TODO: implement storing arbitrary container locations.
     if( target.item_loc && create_activity() ) {
         serialize_liquid_target( player_character.activity, target.item_loc );
+        return true;
     } else if( player_character.pour_into( target.item_loc, liquid, true, silent ) ) {
         target.item_loc.make_active();
         player_character.mod_moves( -100 );
+        return true;
     }
-    return true;
+    return false;
 }
 
 static bool handle_vehicle_target( Character &player_character, item &liquid,

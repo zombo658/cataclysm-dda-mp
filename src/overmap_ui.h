@@ -11,18 +11,19 @@
 #include <tuple>
 #include <vector>
 
+#include "cata_imgui.h"
 #include "city.h"
+#include "color.h"
 #include "coordinates.h"
-#include "input_context.h"
 #include "map_scale_constants.h"
 #include "point.h"
 #include "string_id.h"
 
 class ui_adaptor;
+class input_context;
 
 constexpr int RANDOM_CITY_ENTRY = INT_MIN;
 
-class nc_color;
 class uilist;
 struct weather_type;
 
@@ -134,8 +135,8 @@ struct overmap_draw_data_t {
     bool debug_info = false;
     // darken explored tiles
     bool show_explored = true;
-    // currently fast traveling
-    bool fast_traveling = false;
+    // currently auto traveling with overmap-only mode on
+    bool overmap_only_auto_travel = false;
     // message to display while using the map
     std::string message;
     // if there is a distance limit to pick the OMT
@@ -156,11 +157,8 @@ struct overmap_draw_data_t {
     tripoint_abs_omt cursor_pos = tripoint_abs_omt( -1, -1, -1 );
     //the UI adaptor for the overmap; this can keep the overmap displayed while turns are processed
     std::shared_ptr<ui_adaptor> ui;
-    input_context ictxt;
 
-    overmap_draw_data_t() {
-        ictxt = input_context( "OVERMAP" );
-    }
+    overmap_draw_data_t() = default;
 };
 
 #if defined(TILES)
@@ -171,9 +169,46 @@ struct tiles_redraw_info {
 extern tiles_redraw_info redraw_info;
 #endif
 
+// what an overmap loop pass can change without input
+struct map_view_state {
+    tripoint_abs_omt cursor;
+    bool show_overlays = false;
+};
+// whether the overmap map area must be redrawn after a pass: any action but
+// TIMEOUT may have changed what the draw reads
+bool map_redraw_needed( const std::string &action, const map_view_state &drawn,
+                        const map_view_state &now, bool animated_tiles );
+
 weather_type_id get_weather_at_point( const tripoint_abs_omt &pos );
 std::tuple<char, nc_color, size_t> get_note_display_info( std::string_view note );
 bool is_generated_omt( const point_abs_omt &omp );
 
 } // namespace overmap_ui
 #endif // CATA_SRC_OVERMAP_UI_H
+
+class overmap_sidebar : public cataimgui::window
+{
+        overmap_ui::overmap_draw_data_t &draw_data;
+        const input_context &ictxt;
+        //uses input context to print a keybind hint
+        void draw_sidebar_text( const std::string_view &original_text, const nc_color &color );
+        void print_hint( const std::string &action, nc_color color = c_magenta );
+        void draw_tile_info();
+        void draw_mission_info();
+        void draw_settings_info();
+        void draw_quick_reference();
+        void draw_layer_info();
+        void draw_debug();
+    public:
+        int width = 0;
+        int x_pos = 0;
+        overmap_sidebar( overmap_ui::overmap_draw_data_t &data, const input_context &ictxt );
+
+        void init();
+        void draw_controls() override;
+    protected:
+        cataimgui::bounds get_bounds() override;
+        void on_resized() override {
+            init();
+        };
+};

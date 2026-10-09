@@ -3,6 +3,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include "json.h"
 #include "mp/net.h"
@@ -21,14 +22,14 @@ bool relaying()
     return net::has_client();
 }
 
-void write_conditions( JsonOut &json, const std::string &id, const std::string &variant,
-                       const std::string &season, const std::optional<bool> &is_indoors,
+void write_conditions( JsonOut &json, std::string_view id, std::string_view variant,
+                       std::string_view season, const std::optional<bool> &is_indoors,
                        const std::optional<bool> &is_night, const int volume )
 {
     json.member( "type", "sfx" );
-    json.member( "id", id );
-    json.member( "variant", variant );
-    json.member( "season", season );
+    json.member( "id", std::string( id ) );
+    json.member( "variant", std::string( variant ) );
+    json.member( "season", std::string( season ) );
     if( is_indoors ) {
         json.member( "indoors", *is_indoors );
     }
@@ -41,7 +42,7 @@ void write_conditions( JsonOut &json, const std::string &id, const std::string &
 
 } // namespace
 
-void variant( const std::string &id, const std::string &variant, const std::string &season,
+void variant( std::string_view id, std::string_view variant, std::string_view season,
               const std::optional<bool> &is_indoors, const std::optional<bool> &is_night,
               const int volume, const std::optional<double> angle_degrees, const double pitch_min,
               const double pitch_max )
@@ -63,7 +64,7 @@ void variant( const std::string &id, const std::string &variant, const std::stri
     net::send_line( os.str() );
 }
 
-void ambient( const std::string &id, const std::string &variant, const std::string &season,
+void ambient( std::string_view id, std::string_view variant, std::string_view season,
               const std::optional<bool> &is_indoors, const std::optional<bool> &is_night,
               const int volume, const int channel, const int fade_in_duration, const double pitch,
               const int loops )

@@ -324,8 +324,8 @@
     "weight": "1500 kg",
     "//": "When large volumes are fixed this should be 1500 L",
     "aggression": 5,
-    "speed": 120,
-    "attack_cost": 120,
+    "speed": 110,
+    "attack_cost": 110,
     "hp": 150,
     "zombify_into": "mon_zryptosaurus",
     "description": "Large sharp teeth and a lean frame, with long wicked claws and a feathered mullet and tail.",
@@ -340,14 +340,37 @@
   },
   {
     "type": "MONSTER",
+    "id": "mon_nanotyrannus",
+    "name": { "str_sp": "nanotyrannus" },
+    "copy-from": "mon_appalachiosaurus",
+    "default_faction": "nanotyrannus",
+    "volume": "700 L",
+    "weight": "700 kg",
+    "aggression": 5,
+    "speed": 110,
+    "attack_cost": 110,
+    "hp": 90,
+    "zombify_into": "mon_zanotyrannus",
+    "description": "Large sharp teeth and long legs, with a feathered mullet and tail.",
+    "reproduction": { "baby_type": { "baby_egg": "egg_nanotyrannus" }, "baby_count": 3, "baby_timer": 24 },
+    "grab_strength": 15,
+    "special_attacks": [
+      { "id": "teeth_grab", "cooldown": 30 },
+      { "id": "teeth_pull", "cooldown": 15 },
+      { "type": "leap", "cooldown": 20, "max_range": 5, "allow_no_target": true },
+      [ "EAT_CARRION", 100 ]
+    ]
+  },
+  {
+    "type": "MONSTER",
     "id": "mon_appalachiosaurus",
     "name": { "str_sp": "appalachiosaurus" },
     "copy-from": "mon_gorgosaurus",
     "default_faction": "appalachiosaurus",
     "weight": "1500 kg",
     "//": "When large volumes are fixed this should be 1500 L",
-    "speed": 130,
-    "attack_cost": 130,
+    "speed": 120,
+    "attack_cost": 120,
     "melee_damage": [ { "damage_type": "cut", "amount": 14 } ],
     "hp": 150,
     "zombify_into": "mon_zappalachiosaurus",
@@ -1408,6 +1431,19 @@
     "attack_cost": 80,
     "zombify_into": "mon_zoabosaurus",
     "description": "Massive, long-necked, four-legged dinosaur with a long tail and sturdy build.",
+    "special_attacks": [
+      {
+        "type": "spell",
+        "spell_data": { "id": "moabosaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_DinoMod", 30 ],
+      [ "EAT_CROP", 40 ],
+      [ "BROWSE", 60 ],
+      [ "GRAZE", 60 ]
+    ],
     "reproduction": { "baby_type": { "baby_egg": "egg_moabosaurus" }, "baby_count": 3, "baby_timer": 24 }
   },
   {
@@ -1422,7 +1458,13 @@
     "zombify_into": "mon_zaplocanthosaurus",
     "description": "Massive, long-necked, four-legged dinosaur with a whip-like tail and tall shoulders.",
     "special_attacks": [
-      { "id": "stomp_DinoMod", "cooldown": 10, "damage_max_instance": [ { "damage_type": "bash", "amount": 12 } ] },
+      {
+        "type": "spell",
+        "spell_data": { "id": "haplocanthosaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
       [ "tailsmash_DinoMod", 30 ],
       [ "EAT_CROP", 40 ],
       [ "BROWSE", 60 ],
@@ -1441,6 +1483,19 @@
     "hp": 230,
     "zombify_into": "mon_zamargasaurus",
     "description": "Massive, long-necked, four-legged dinosaur with a whip-like tail and two rows of tall spines running down the neck and back.",
+    "special_attacks": [
+      {
+        "type": "spell",
+        "spell_data": { "id": "amargasaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_DinoMod", 30 ],
+      [ "EAT_CROP", 40 ],
+      [ "BROWSE", 60 ],
+      [ "GRAZE", 60 ]
+    ],
     "reproduction": { "baby_type": { "baby_egg": "egg_amargasaurus" }, "baby_count": 3, "baby_timer": 24 },
     "armor": { "bash": 6, "bullet": 2, "cut": 8 }
   },
@@ -1471,7 +1526,13 @@
     "hp": 475,
     "zombify_into": "mon_zapatosaurus",
     "special_attacks": [
-      { "id": "stomp_DinoMod", "cooldown": 10, "damage_max_instance": [ { "damage_type": "bash", "amount": 12 } ] },
+      {
+        "type": "spell",
+        "spell_data": { "id": "apatosaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
       [ "tailsmash_long_DinoMod", 30 ],
       [ "EAT_CROP", 40 ],
       [ "BROWSE", 60 ],
@@ -1481,7 +1542,7 @@
     "reproduction": { "baby_type": { "baby_egg": "egg_apatosaurus" }, "baby_count": 3, "baby_timer": 24 },
     "baby_flags": [ "SPRING", "SUMMER" ],
     "biosignature": { "biosig_item": "feces_dino", "biosig_timer": 1 },
-    "flags": [ "SEES", "HEARS", "ANIMAL", "PATH_AVOID_DANGER", "BASHES", "DESTROYS", "WARM", "PUSH_MON", "CORNERED_FIGHTER", "EATS" ],
+    "flags": [ "SEES", "HEARS", "ANIMAL", "PATH_AVOID_DANGER", "BASHES", "WARM", "PUSH_MON", "CORNERED_FIGHTER", "EATS" ],
     "harvest": "dino_sauropod",
     "anger_triggers": [ "HURT", "FRIEND_ATTACKED", "PLAYER_NEAR_BABY" ],
     "fear_triggers": [ "FRIEND_DIED" ],
@@ -1497,6 +1558,19 @@
     "//": "When large volumes are fixed this should be 15000 L",
     "hp": 450,
     "zombify_into": "mon_zrontosaurus",
+    "special_attacks": [
+      {
+        "type": "spell",
+        "spell_data": { "id": "brontosaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_long_DinoMod", 30 ],
+      [ "EAT_CROP", 40 ],
+      [ "BROWSE", 60 ],
+      [ "GRAZE", 60 ]
+    ],
     "description": "Massive, long-necked, four-legged dinosaur with bulky torso and long, whip-like tail.",
     "reproduction": { "baby_type": { "baby_egg": "egg_brontosaurus" }, "baby_count": 3, "baby_timer": 24 },
     "armor": { "cut": 2, "bullet": 2, "bash": 8 }
@@ -1512,6 +1586,19 @@
     "speed": 60,
     "attack_cost": 60,
     "zombify_into": "mon_ziplodocus",
+    "special_attacks": [
+      {
+        "type": "spell",
+        "spell_data": { "id": "diplodocus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_long_DinoMod", 30 ],
+      [ "EAT_CROP", 40 ],
+      [ "BROWSE", 60 ],
+      [ "GRAZE", 60 ]
+    ],
     "description": "Huge, long-necked, four-legged dinosaur with a long, whip-like tail.",
     "reproduction": { "baby_type": { "baby_egg": "egg_diplodocus" }, "baby_count": 3, "baby_timer": 24 }
   },
@@ -1528,8 +1615,14 @@
     "zombify_into": "mon_zarosaurus",
     "description": "Huge, long-necked, four-legged dinosaur with a long, whip-like tail and one large claw on each foreleg.",
     "special_attacks": [
-      { "id": "stomp_DinoMod", "cooldown": 10, "damage_max_instance": [ { "damage_type": "cut", "amount": 14 } ] },
-      [ "tailsmash_DinoMod", 40 ],
+      {
+        "type": "spell",
+        "spell_data": { "id": "barosaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_long_DinoMod", 40 ],
       [ "EAT_CROP", 40 ],
       [ "BROWSE", 60 ],
       [ "GRAZE", 60 ]
@@ -1547,6 +1640,19 @@
     "speed": 60,
     "attack_cost": 60,
     "zombify_into": "mon_zamarasaurus",
+    "special_attacks": [
+      {
+        "type": "spell",
+        "spell_data": { "id": "camarasaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_long_DinoMod", 30 ],
+      [ "EAT_CROP", 40 ],
+      [ "BROWSE", 60 ],
+      [ "GRAZE", 60 ]
+    ],
     "description": "Huge four-legged dinosaur with a square head and a shorter neck and tail than similar dinosaurs.",
     "reproduction": { "baby_type": { "baby_egg": "egg_camarasaurus" }, "baby_count": 3, "baby_timer": 24 },
     "armor": { "bash": 6, "cut": 3, "bullet": 3 }
@@ -1563,6 +1669,19 @@
     "melee_dice": 6,
     "hp": 475,
     "zombify_into": "mon_zrachiosaurus",
+    "special_attacks": [
+      {
+        "type": "spell",
+        "spell_data": { "id": "brachiosaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_long_DinoMod", 30 ],
+      [ "EAT_CROP", 40 ],
+      [ "BROWSE", 60 ],
+      [ "GRAZE", 60 ]
+    ],
     "description": "Massive, long-necked, four-legged dinosaur with longer forelegs and a whip-like tail.",
     "reproduction": { "baby_type": { "baby_egg": "egg_brachiosaurus" }, "baby_count": 3, "baby_timer": 24 },
     "armor": { "bash": 8, "cut": 6, "bullet": 3 }
@@ -1579,6 +1698,19 @@
     "melee_dice": 6,
     "hp": 465,
     "zombify_into": "mon_zastrodon",
+    "special_attacks": [
+      {
+        "type": "spell",
+        "spell_data": { "id": "astrodon_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_long_DinoMod", 30 ],
+      [ "EAT_CROP", 40 ],
+      [ "BROWSE", 60 ],
+      [ "GRAZE", 60 ]
+    ],
     "description": "Gigantic, long-necked, four-legged dinosaur with a round body.",
     "reproduction": { "baby_type": { "baby_egg": "egg_astrodon" }, "baby_count": 3, "baby_timer": 24 }
   },
@@ -1594,6 +1726,19 @@
     "melee_dice": 5,
     "hp": 500,
     "zombify_into": "mon_zalamosaurus",
+    "special_attacks": [
+      {
+        "type": "spell",
+        "spell_data": { "id": "alamosaurus_control", "min_level": 1, "hit_self": true },
+        "allow_no_target": true,
+        "monster_message": "",
+        "cooldown": 3
+      },
+      [ "tailsmash_long_DinoMod", 30 ],
+      [ "EAT_CROP", 40 ],
+      [ "BROWSE", 60 ],
+      [ "GRAZE", 60 ]
+    ],
     "description": "Gigantic four-legged dinosaur with a long neck and spiked tail protected by natural bone armor.",
     "reproduction": { "baby_type": { "baby_egg": "egg_alamosaurus" }, "baby_count": 3, "baby_timer": 24 },
     "armor": { "bash": 15, "cut": 19, "bullet": 3 }
@@ -2952,5 +3097,26 @@
     "anger_triggers": [ "PLAYER_WEAK", "FRIEND_ATTACKED", "PLAYER_CLOSE" ],
     "categories": [ "DINOSAUR", "WILDLIFE" ],
     "armor": { "bash": 4, "cut": 4, "bullet": 6 }
+  },
+  {
+    "id": "mon_sauropod_leg",
+    "type": "MONSTER",
+    "name": { "str": "sauropod leg" },
+    "description": "A huge fleshy appendage holding up a much larger dinosaur.  Looks very heavy.",
+    "copy-from": "mon_apatosaurus",
+    "symbol": "(",
+    "hp": 200,
+    "proportional": { "dodge": 0.25, "speed": 1.2 },
+    "melee_dice": 6,
+    "melee_dice_sides": 15,
+    "melee_skill": 4,
+    "special_attacks": [ { "id": "stomp_DinoMod", "cooldown": 10, "damage_max_instance": [ { "damage_type": "bash", "amount": 12 } ] } ],
+    "death_function": {
+      "corpse_type": "BROKEN",
+      "message": "The sauropod stumbles as one of its legs is badly hurt and collapses.",
+      "eoc": "EOC_SAUROPOD_HURT"
+    },
+    "weakpoint_sets": [ "wps_sauropod_leg" ],
+    "extend": { "flags": [ "DESTROYS" ] }
   }
 ]

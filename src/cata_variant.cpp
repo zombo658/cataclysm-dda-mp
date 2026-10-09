@@ -10,7 +10,7 @@ static bool is_valid_impl_2( const std::string &s )
 }
 
 template<size_t... I>
-constexpr bool is_valid_impl( const cata_variant &v, std::index_sequence<I...> )
+static constexpr bool is_valid_impl( const cata_variant &v, std::index_sequence<I...> )
 {
     constexpr size_t num_types = static_cast<size_t>( cata_variant_type::num_types );
     constexpr std::array<bool( * )( const std::string & ), num_types> is_valid_helpers = {{
@@ -45,6 +45,7 @@ std::string enum_to_string<cata_variant_type>( cata_variant_type type )
         case cata_variant_type::character_id: return "character_id";
         case cata_variant_type::chrono_seconds: return "chrono_seconds";
         case cata_variant_type::debug_menu_index: return "debug_menu_index";
+        case cata_variant_type::dimension_id: return "dimension_id";
         case cata_variant_type::efftype_id: return "efftype_id";
         case cata_variant_type::faction_id: return "faction_id";
         case cata_variant_type::field_type_id: return "field_type_id";

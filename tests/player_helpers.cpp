@@ -1,5 +1,4 @@
 #include <cstddef>
-#include <functional>
 #include <list>
 #include <map>
 #include <memory>
@@ -16,13 +15,13 @@
 #include "character_id.h"
 #include "character_martial_arts.h"
 #include "coordinates.h"
+#include "enums.h"
 #include "game.h"
-#include "inventory.h"
 #include "item.h"
 #include "item_location.h"
 #include "itype.h"
 #include "magic.h"
-#include "make_static.h"
+#include "map_helpers.h"
 #include "map.h"
 #include "npc.h"
 #include "pimpl.h"
@@ -34,17 +33,20 @@
 #include "ret_val.h"
 #include "skill.h"
 #include "stomach.h"
+#include "temp_crafting_inventory.h"
 #include "type_id.h"
 #include "value_ptr.h"
 
 static const itype_id itype_debug_backpack( "debug_backpack" );
 static const itype_id itype_debug_nutrition( "debug_nutrition" );
 
+static const json_character_flag json_flag_BIONIC_TOGGLED( "BIONIC_TOGGLED" );
+
 static const move_mode_id move_mode_walk( "walk" );
 
 int get_remaining_charges( const itype_id &tool_id )
 {
-    const inventory crafting_inv = get_player_character().crafting_inventory();
+    const temp_crafting_inventory crafting_inv = get_player_character().crafting_inventory();
     std::vector<const item *> items =
     crafting_inv.items_with( [tool_id]( const item & i ) {
         return i.typeId() == tool_id;
@@ -58,7 +60,7 @@ int get_remaining_charges( const itype_id &tool_id )
 
 bool player_has_item_of_type( const itype_id &id )
 {
-    std::vector<item *> matching_items = get_player_character().inv->items_with(
+    std::vector<item *> matching_items = get_player_character().items_with(
     [&]( const item & i ) {
         return i.typeId() == id;
     } );
@@ -86,9 +88,12 @@ void clear_character( Character &dummy, bool skip_nutrition )
     dummy.clear_worn();
     dummy.calc_encumbrance();
     dummy.invalidate_crafting_inventory();
-    dummy.inv->clear();
     dummy.remove_weapon();
     dummy.clear_mutations();
+    // clear_mutations() removes traits but does not rebuild bodypart topology.
+    // Rebuild anatomy now so tests see baseline human limbs (e.g. feet, not talons).
+    dummy.set_body();
+    dummy.tally_organic_size();
     dummy.mutation_category_level.clear();
     dummy.clear_bionics();
 
@@ -104,12 +109,6 @@ void clear_character( Character &dummy, bool skip_nutrition )
         dummy.consume( food );
     }
 
-    // This sets HP to max, clears addictions and morale,
-    // and sets hunger, thirst, sleepiness and such to zero
-    dummy.environmental_revert_effect();
-    // However, the above does not set stored kcal
-    dummy.set_stored_kcal( dummy.get_healthy_kcal() );
-
     dummy.prof = profession::generic();
     dummy.hobbies.clear();
     dummy._skills->clear();
@@ -117,13 +116,19 @@ void clear_character( Character &dummy, bool skip_nutrition )
     dummy.clear_morale();
     dummy.activity.set_to_null();
     dummy.backlog.clear();
+    // Reset age/height before stored kcal since get_healthy_kcal()
+    // depends on height.
     dummy.reset_chargen_attributes();
+    dummy.environmental_revert_effect();
+    dummy.set_stored_kcal( dummy.get_healthy_kcal() );
+
     dummy.set_pain( 0 );
     dummy.reset_bonuses();
     dummy.set_speed_base( 100 );
     dummy.set_speed_bonus( 0 );
     dummy.set_sleep_deprivation( 0 );
     dummy.set_moves( 0 );
+    dummy.set_trauma( 0 );
     dummy.oxygen = dummy.get_oxygen_max();
     for( const proficiency_id &prof : dummy.known_proficiencies() ) {
         dummy.lose_proficiency( prof, true );
@@ -141,13 +146,14 @@ void clear_character( Character &dummy, bool skip_nutrition )
 
     // Make sure we don't carry around weird effects.
     dummy.clear_effects();
+    dummy.set_dodges_left( dummy.get_num_dodges() );
     dummy.set_underwater( false );
 
     // Make stats nominal.
-    dummy.str_max = 8;
-    dummy.dex_max = 8;
-    dummy.int_max = 8;
-    dummy.per_max = 8;
+    dummy.set_str_base( 8 );
+    dummy.set_dex_base( 8 );
+    dummy.set_int_base( 8 );
+    dummy.set_per_base( 8 );
     dummy.set_str_bonus( 0 );
     dummy.set_dex_bonus( 0 );
     dummy.set_int_bonus( 0 );
@@ -161,6 +167,11 @@ void clear_character( Character &dummy, bool skip_nutrition )
     dummy.magic = pimpl<known_magic>();
     dummy.forget_all_recipes();
     dummy.set_focus( dummy.calc_focus_equilibrium() );
+
+    // Final stored_kcal sync after all attribute resets.
+    dummy.set_stored_kcal( dummy.get_healthy_kcal() );
+    // Recompute hp_max now that stats, body, and kcal are all finalized.
+    dummy.recalc_hp();
 }
 
 void arm_shooter( Character &shooter, const itype_id &gun_type,
@@ -213,17 +224,20 @@ void arm_shooter( Character &shooter, const itype_id &gun_type,
 void clear_avatar()
 {
     avatar &avatar = get_avatar();
+    g->clear_kill_tracker();
     clear_character( avatar );
+    avatar.grab( object_type::NONE );
     avatar.clear_identified();
     avatar.clear_nutrition();
     avatar.reset_all_missions();
+    // Records outlive the items they claim.
+    clear_reservations();
 }
 
 void equip_shooter( npc &shooter, const std::vector<itype_id> &apparel )
 {
     CHECK( !shooter.in_vehicle );
     shooter.clear_worn();
-    shooter.inv->clear();
     for( const itype_id &article : apparel ) {
         shooter.wear_item( item( article ) );
     }
@@ -240,6 +254,23 @@ void process_activity( Character &dummy, bool pass_time )
             }
         }
     } while( dummy.activity );
+}
+
+bool process_activity_bounded( Character &dummy, const int max_turns, const int max_dispatches )
+{
+    int turns = 0;
+    int dispatches = 0;
+    while( dummy.activity && turns < max_turns ) {
+        dummy.mod_moves( dummy.get_speed() );
+        while( dummy.get_moves() > 0 && dummy.activity ) {
+            dummy.activity.do_turn( dummy );
+            if( ++dispatches >= max_dispatches ) {
+                return false;
+            }
+        }
+        ++turns;
+    }
+    return !dummy.activity;
 }
 
 npc &spawn_npc( const point_bub_ms &p, const std::string &npc_class )
@@ -285,7 +316,7 @@ void give_and_activate_bionic( Character &you, bionic_id const &bioid )
     REQUIRE( bio.id == bioid );
 
     // turn on if possible
-    if( bio.id->has_flag( STATIC( json_character_flag( "BIONIC_TOGGLED" ) ) ) && !bio.powered ) {
+    if( bio.id->has_flag( json_flag_BIONIC_TOGGLED ) && !bio.powered ) {
         const std::vector<material_id> fuel_opts = bio.info().fuel_opts;
         if( !fuel_opts.empty() ) {
             you.set_value( fuel_opts.front().str(), "2" );

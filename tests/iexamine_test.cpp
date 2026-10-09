@@ -1,3 +1,5 @@
+#include <string>
+
 #include "calendar.h"
 #include "cata_catch.h"
 #include "coordinates.h"
@@ -6,12 +8,13 @@
 #include "map_helpers.h"
 #include "mapdata.h"
 #include "point.h"
+#include "translation.h"
 #include "type_id.h"
 
 TEST_CASE( "mapdata_examine" )
 {
-    map_data_common_t data;
-    data.set_examine( iexamine_functions{iexamine::always_true, iexamine::water_source} );
+    ter_t data;
+    data.set_examine( iexamine_functions{iexamine::always_true, iexamine::water_source, no_translation( "test water source" ) } );
 
     CHECK( data.has_examine( iexamine::water_source ) );
     CHECK_FALSE( data.has_examine( iexamine::fungus ) );
@@ -21,7 +24,7 @@ TEST_CASE( "mapdata_examine" )
 
 TEST_CASE( "examine_bush" )
 {
-    clear_map();
+    clear_map_without_vision();
     map &m = get_map();
     const tripoint_bub_ms &pine_loc = tripoint_bub_ms::zero;
     const tripoint_bub_ms &elderberry_loc = pine_loc + tripoint::east;

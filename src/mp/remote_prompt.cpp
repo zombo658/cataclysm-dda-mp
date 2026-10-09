@@ -9,7 +9,11 @@
 
 #include "action.h"
 #include "catacharset.h"
-#include "dialogue_win.h"
+#include "creature_tracker.h"
+#include "dialogue.h"
+#include "dialogue_imgui.h"
+#include "talker.h"
+#include "avatar.h"
 #include "input_context.h"
 #include "iuse_software.h"
 #include "json.h"
@@ -18,6 +22,7 @@
 #include "map.h"
 #include "mp/net.h"
 #include "mp/player_talk.h"
+#include "mp/protocol.h"
 #include "mp/rc_npc.h"
 #include "mp/remote_trade.h"
 #include "mp/remote_vehicle.h"
@@ -103,6 +108,7 @@ void read_answer( const std::optional<std::string> &line, const Reader &read )
     if( !line ) {
         return;
     }
+    const protocol::reading_network reading;
     try {
         const JsonValue value = json_loader::from_string( *line );
         const JsonObject obj = value.get_object();
@@ -277,7 +283,8 @@ void new_conversation()
     conversation++;
 }
 
-std::optional<int> ask_dialogue( const std::string &npc_name, const std::string &line,
+std::optional<int> ask_dialogue( const std::string &npc_name, const tripoint_abs_ms &at,
+                                 const std::string &line,
                                  const std::string &speaker, const nc_color &speaker_color,
                                  const std::vector<talk_data> &responses, const std::vector<bool> &selectable )
 {
@@ -287,6 +294,7 @@ std::optional<int> ask_dialogue( const std::string &npc_name, const std::string 
     const std::optional<std::string> answer_line = ask( "dialogue", [&]( JsonOut & json ) {
         json.member( "conversation", conversation );
         json.member( "npc", npc_name );
+        json.member( "at", at );
         json.member( "line", line );
         json.member( "speaker", speaker );
         json.member( "speaker_color", string_from_color( speaker_color ) );
@@ -312,27 +320,25 @@ std::optional<int> ask_dialogue( const std::string &npc_name, const std::string 
 namespace
 {
 
-// dialogue::opt() on the client: the game's dialogue window, kept over the
-// lines of one conversation.
+// dialogue::opt_imgui() on the client: the game's dialogue window over the
+// copies of the two characters, with the lines of one conversation.
 int answer_dialogue( const JsonObject &question )
 {
-    static std::unique_ptr<dialogue_window> d_win;
+    struct history_line {
+        std::string text;
+        std::string speaker;
+        nc_color color;
+    };
+    static std::vector<history_line> history;
     static int shown_conversation = -1;
     const int conv = question.get_int( "conversation", 0 );
-    if( !d_win || conv != shown_conversation ) {
-        d_win = std::make_unique<dialogue_window>();
+    if( conv != shown_conversation ) {
+        history.clear();
         shown_conversation = conv;
     }
     const std::string npc_name = question.get_string( "npc", "" );
-    d_win->add_history_separator();
-    d_win->clear_history_highlights();
-    const std::string speaker = question.get_string( "speaker", "" );
-    if( speaker.empty() ) {
-        d_win->add_to_history( question.get_string( "line", "" ) );
-    } else {
-        d_win->add_to_history( question.get_string( "line", "" ), speaker,
-                               color_from_string( question.get_string( "speaker_color", "c_white" ) ) );
-    }
+    history.push_back( { question.get_string( "line", "" ), question.get_string( "speaker", "" ),
+                         color_from_string( question.get_string( "speaker_color", "c_white" ) ) } );
     std::vector<talk_data> lines;
     std::vector<bool> selectable;
     std::vector<std::string> hotkeys;
@@ -346,50 +352,80 @@ int answer_dialogue( const JsonObject &question )
         hotkeys.push_back( td.hotkey_desc );
         selectable.push_back( r.get_bool( "selectable", true ) );
     }
-    d_win->set_responses( lines );
-    d_win->sel_response = 0;
 
-    ui_adaptor ui;
-    const auto resize_cb = [&]( ui_adaptor & ui ) {
-        d_win->resize( ui );
-    };
-    ui.on_screen_resize( resize_cb );
-    resize_cb( ui );
-    ui.on_redraw( [&]( const ui_adaptor & ) {
-        d_win->draw( npc_name );
-    } );
-    input_context ctxt( "DIALOGUE_CHOOSE_RESPONSE" );
-    d_win->set_up_scrolling( ctxt );
-    ctxt.register_action( "HELP_KEYBINDINGS" );
-    ctxt.register_action( "CONFIRM" );
-    ctxt.register_action( "ANY_INPUT" );
-    ctxt.register_action( "QUIT" );
+    // The window draws its sidebar from the conversation: the copies.
+    avatar &you = get_avatar();
+    Creature *other = nullptr;
+    if( question.has_array( "at" ) ) {
+        tripoint_abs_ms at;
+        question.read( "at", at );
+        other = get_creature_tracker().creature_at( at );
+    }
+    dialogue d( get_talker_for( you ), get_talker_for( other != nullptr ? *other :
+                static_cast<Creature &>( you ) ), {} );
     int chosen = -2;
-    while( chosen == -2 ) {
-        ui_manager::redraw();
-        std::string action = ctxt.handle_input();
-        const input_event evt = ctxt.get_raw_input();
-        d_win->handle_scrolling( action, ctxt );
-        if( action == "CONFIRM" ) {
-            const int i = d_win->sel_response;
-            if( i >= 0 && static_cast<size_t>( i ) < selectable.size() && selectable[i] ) {
-                chosen = i;
+    {
+        dialogue_imgui_impl d_img( &d, false, npc_name.empty(), std::string() );
+        for( const history_line &h : history ) {
+            if( h.speaker.empty() ) {
+                d_img.add_to_history( h.text );
+            } else {
+                d_img.add_to_history( h.text, h.speaker, h.color );
             }
-        } else if( action == "ANY_INPUT" ) {
-            // As create_option_line() shows them.
-            const std::string key = right_justify( evt.short_description(), 2 );
-            for( size_t i = 0; i < hotkeys.size(); i++ ) {
-                if( hotkeys[i] == key && selectable[i] ) {
-                    chosen = static_cast<int>( i );
+        }
+        d_img.set_responses( lines );
+        d_img.sel_response = 0;
+        d_img.scroll_to = cataimgui::scroll::end;
+
+        input_context ctxt( "DIALOGUE" );
+        ctxt.register_updown();
+        ctxt.register_action( "CONFIRM" );
+        ctxt.register_action( "HOME" );
+        ctxt.register_action( "PAGE_DOWN" );
+        ctxt.register_action( "END" );
+        ctxt.register_action( "PAGE_UP" );
+        ctxt.register_action( "ANY_INPUT" );
+        ctxt.register_action( "HELP_KEYBINDINGS" );
+        ctxt.register_action( "QUIT" );
+        ctxt.set_timeout( 10 );
+        while( chosen == -2 ) {
+            ui_manager::redraw_invalidated();
+            const std::string action = ctxt.handle_input();
+            const input_event evt = ctxt.get_raw_input();
+            const int count = static_cast<int>( lines.size() );
+            if( action == "CONFIRM" || d_img.user_clicked_response_button ) {
+                d_img.user_clicked_response_button = false;
+                const int i = d_img.sel_response;
+                if( i >= 0 && i < count && selectable[i] ) {
+                    chosen = i;
                 }
+            } else if( action == "DOWN" ) {
+                d_img.sel_response = std::min( count - 1, d_img.sel_response + 1 );
+            } else if( action == "UP" ) {
+                d_img.sel_response = std::max( 0, d_img.sel_response - 1 );
+            } else if( action == "END" ) {
+                d_img.scroll_to = cataimgui::scroll::page_down;
+            } else if( action == "HOME" ) {
+                d_img.scroll_to = cataimgui::scroll::page_up;
+            } else if( action == "PAGE_UP" ) {
+                d_img.scroll_to = cataimgui::scroll::line_up;
+            } else if( action == "PAGE_DOWN" ) {
+                d_img.scroll_to = cataimgui::scroll::line_down;
+            } else if( action == "ANY_INPUT" ) {
+                // As create_option_line() shows them.
+                const std::string key = right_justify( evt.short_description(), 2 );
+                for( size_t i = 0; i < hotkeys.size(); i++ ) {
+                    if( hotkeys[i] == key && selectable[i] ) {
+                        chosen = static_cast<int>( i );
+                    }
+                }
+            } else if( action == "QUIT" ) {
+                chosen = -1;
             }
-        } else if( action == "QUIT" ) {
-            chosen = -1;
         }
     }
     if( chosen >= 0 ) {
-        d_win->add_history_separator();
-        d_win->add_to_history( lines[chosen].text, _( "You" ), c_light_blue );
+        history.push_back( { lines[chosen].text, _( "You" ), c_light_blue } );
     }
     return chosen;
 }

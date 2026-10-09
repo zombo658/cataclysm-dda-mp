@@ -1,23 +1,32 @@
 [
   {
     "type": "recipe",
-    "activity_level": "NO_EXERCISE",
     "result": "water_clean",
+    "charges": 1,
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
-    "time": "5 m",
     "autolearn": true,
-    "batch_time_factors": [ 20, 1 ],
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "//": "1u of water_boiling_heat takes 5 m minimum, heat at full power",
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+    "steps": [
+      {
+        "name": "Boiling",
+        "time": "5 m",
+        "//": "1u of water_boiling_heat takes 5 m minimum, heat at full power",
+        "activity_level": "NO_EXERCISE",
+        "qualities": [ { "id": "BOIL", "level": 1 } ],
+        "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+        "batch_time_factors": [ 20, 1 ],
+        "attention": "unattended",
+        "max_time": "30 m"
+      }
+    ],
     "components": [ [ [ "water", 1 ] ] ]
   },
   {
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
     "result": "water_clean",
+    "charges": 1,
     "category": "CC_FOOD",
     "id_suffix": "using_water_purifier",
     "subcategory": "CSC_FOOD_DRINKS",
@@ -33,18 +42,80 @@
   },
   {
     "type": "recipe",
-    "activity_level": "NO_EXERCISE",
-    "result": "water_purifying",
+    "result": "water_clean",
     "category": "CC_FOOD",
     "id_suffix": "using_tablets",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
-    "time": "5 m",
-    "batch_time_factors": [ 90, 2 ],
     "charges": 4,
-    "//": "See pur_tablets item definition for documentation and discussion",
     "autolearn": true,
-    "components": [ [ [ "water_murky", 4 ] ], [ [ "pur_tablets", 1 ] ] ]
+    "flags": [ "BLIND_EASY" ],
+    "steps": [
+      {
+        "name": "Mixing and shaking",
+        "time": "10 m",
+        "batch_time_factors": { "mode": "linear", "setup": "10 m" },
+        "activity_level": "MODERATE_EXERCISE"
+      },
+      {
+        "name": "Purifying",
+        "time": "40 m",
+        "batch_time_factors": { "mode": "linear", "setup": "40 m" },
+        "activity_level": "NO_EXERCISE",
+        "attention": "unattended"
+      }
+    ],
+    "components": [ [ [ "water", 4 ] ], [ [ "pur_tablets", 1 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "result": "water_clean",
+    "category": "CC_FOOD",
+    "id_suffix": "using_bleach",
+    "subcategory": "CSC_FOOD_DRINKS",
+    "skill_used": "cooking",
+    "charges": 48,
+    "autolearn": true,
+    "flags": [ "BLIND_EASY" ],
+    "steps": [
+      {
+        "name": "Mixing and shaking",
+        "time": "10 m",
+        "batch_time_factors": { "mode": "linear", "setup": "10 m" },
+        "activity_level": "MODERATE_EXERCISE"
+      },
+      {
+        "name": "Purifying",
+        "time": "40 m",
+        "batch_time_factors": { "mode": "linear", "setup": "40 m" },
+        "activity_level": "NO_EXERCISE",
+        "attention": "unattended"
+      }
+    ],
+    "components": [ [ [ "water", 48 ] ], [ [ "bleach", 1 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "result": "water_clean",
+    "id_suffix": "using_tablets_from_murky_water",
+    "category": "CC_FOOD",
+    "subcategory": "CSC_FOOD_DRINKS",
+    "steps": [
+      {
+        "name": "Mixing and shaking",
+        "time": "10 m",
+        "batch_time_factors": { "mode": "linear", "setup": "10 m" },
+        "activity_level": "MODERATE_EXERCISE"
+      },
+      {
+        "name": "Purifying",
+        "time": "40 m",
+        "batch_time_factors": { "mode": "linear", "setup": "40 m" },
+        "activity_level": "NO_EXERCISE",
+        "attention": "unattended"
+      }
+    ],
+    "components": [ [ [ "water_murky", 4 ] ], [ [ "pur_tablets", 2 ] ] ]
   },
   {
     "type": "recipe",
@@ -61,159 +132,189 @@
     "components": [ [ [ "water_murky", 10 ] ] ]
   },
   {
+    "abstract": "abstract_tea",
     "type": "recipe",
-    "activity_level": "NO_EXERCISE",
-    "result": "tea",
     "category": "CC_*",
     "subcategory": "CSC_*_NESTED",
     "skill_used": "cooking",
     "autolearn": true,
-    "//": "2 minutes to boil per 250ml, then simultaneous steeping time of 4 minutes.",
-    "time": "6 m",
-    "batch_time_factors": [ 65, 1 ],
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+    "steps": [
+      {
+        "name": "Boiling",
+        "time": "5 m",
+        "//": "1u of water_boiling_heat takes 5 m minimum, heat at full power",
+        "activity_level": "NO_EXERCISE",
+        "qualities": [ { "id": "BOIL", "level": 1 } ],
+        "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+        "batch_time_factors": { "mode": "logistic", "percent": 20, "at": 1 },
+        "attention": "unattended",
+        "max_time": "30 m",
+        "unattend_message": "Your boiling water is ready."
+      },
+      {
+        "name": "Steeping",
+        "time": "6 m",
+        "//": "Steeping time of 6 minutes.",
+        "batch_time_factors": { "mode": "logistic", "percent": 99, "at": 1 },
+        "activity_level": "NO_EXERCISE",
+        "attention": "unattended"
+      }
+    ]
+  },
+  {
+    "type": "recipe",
+    "result": "tea",
+    "copy-from": "abstract_tea",
     "components": [ [ [ "tea_raw", 1 ], [ "tea_bag", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
+    "result": "tea_sweetened",
+    "copy-from": "abstract_tea",
+    "components": [ [ [ "tea_raw", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ], [ [ "sugar_standard_half", 1, "LIST" ] ] ]
+  },
+  {
+    "type": "recipe",
     "result": "tea_green",
-    "activity_level": "NO_EXERCISE",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "skill_used": "cooking",
-    "autolearn": true,
-    "//": "2 minutes to (near-)boil per 250ml, then simultaneous steeping time of 2 minutes.",
-    "time": "4 m",
-    "batch_time_factors": [ 50, 1 ],
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+    "copy-from": "abstract_tea",
     "components": [ [ [ "tea_green_raw", 1 ], [ "tea_green_bag", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
     "result": "herbal_tea",
+    "copy-from": "abstract_tea",
+    "components": [ [ [ "wild_herbs", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "result": "herbal_tea",
     "id_suffix": "from_tea_bag",
-    "activity_level": "NO_EXERCISE",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "skill_used": "cooking",
-    "autolearn": true,
-    "//": "2 minutes to boil per 250ml, then simultaneous steeping time of 6 minutes.",
-    "time": "8 m",
-    "batch_time_factors": [ 75, 1 ],
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+    "copy-from": "abstract_tea",
     "components": [ [ [ "herbal_tea_bag", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
     "result": "tea_fruit",
-    "activity_level": "NO_EXERCISE",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+    "copy-from": "abstract_tea",
     "components": [ [ [ "tea_fruit_bag", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
     "result": "dandelion_tea",
     "id_suffix": "from_tea_bag",
-    "activity_level": "NO_EXERCISE",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+    "copy-from": "abstract_tea",
     "components": [ [ [ "tea_bag_dandelion", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
     "result": "chamomile_tea",
     "id_suffix": "from_tea_bag",
-    "activity_level": "NO_EXERCISE",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+    "copy-from": "abstract_tea",
     "components": [ [ [ "tea_bag_chamomile", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
-    "activity_level": "NO_EXERCISE",
-    "result": "herbal_tea",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "difficulty": 1,
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
-    "components": [ [ [ "wild_herbs", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
-  },
-  {
-    "type": "recipe",
-    "activity_level": "NO_EXERCISE",
     "result": "pine_tea",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "difficulty": 2,
-    "skills_required": [ "survival", 2 ],
-    "book_learn": [
-      [ "pocket_survival", 1 ],
-      [ "survival_book", 1 ],
-      [ "textbook_survival", 1 ],
-      [ "manual_survival", 1 ],
-      [ "mag_survival", 1 ],
-      [ "family_cookbook", 1 ]
-    ],
-    "qualities": [ { "id": "CUT", "level": 2 }, { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 2, "LIST" ] ] ],
-    "proficiencies": [ { "proficiency": "prof_forage_cooking" } ],
+    "copy-from": "abstract_tea",
+    "difficulty": 1,
     "components": [ [ [ "pine_bough", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
-    "activity_level": "NO_EXERCISE",
     "result": "dandelion_tea",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
+    "copy-from": "abstract_tea",
     "difficulty": 1,
-    "book_learn": {
-      "pocket_survival": { "skill_level": 1 },
-      "survival_book": { "skill_level": 1 },
-      "textbook_survival": { "skill_level": 1 },
-      "manual_survival": { "skill_level": 1 },
-      "mag_survival": { "skill_level": 1 },
-      "family_cookbook": { "skill_level": 1 },
-      "cookbook_daintydishes": { "skill_level": 2, "recipe_name": "Royal Penny Tea" }
-    },
-    "qualities": [ { "id": "BOIL", "level": 1 }, { "id": "CUT", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 2, "LIST" ] ] ],
-    "proficiencies": [ { "proficiency": "prof_forage_cooking" } ],
     "components": [ [ [ "raw_dandelion", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
-    "activity_level": "NO_EXERCISE",
     "result": "dandelionburdock_tea",
+    "copy-from": "abstract_tea",
+    "difficulty": 1,
+    "components": [ [ [ "raw_dandelion", 1 ] ], [ [ "raw_burdock", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "result": "chamomile_tea",
+    "copy-from": "abstract_tea",
+    "difficulty": 1,
+    "skills_required": [ "survival", 1 ],
+    "components": [ [ [ "chamomile", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "result": "lotus_tea",
+    "copy-from": "abstract_tea",
+    "difficulty": 1,
+    "skills_required": [ "survival", 1 ],
+    "charges": 4,
+    "components": [ [ [ "lotus", 1 ] ], [ [ "water", 4 ], [ "water_clean", 4 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "result": "spurge_tea",
+    "copy-from": "abstract_tea",
+    "difficulty": 1,
+    "skills_required": [ "survival", 1 ],
+    "components": [ [ [ "spurge", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "result": "bee_balm_tea",
+    "copy-from": "abstract_tea",
+    "components": [ [ [ "bee_balm", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
+  },
+  {
+    "abstract": "abstract_tea_with_chop",
+    "type": "recipe",
     "category": "CC_*",
     "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
+    "skill_used": "cooking",
+    "steps": [
+      {
+        "name": "Chopping Ingredients",
+        "time": "1 m",
+        "activity_level": "LIGHT_EXERCISE",
+        "qualities": [ { "id": "CUT", "level": 1 } ],
+        "batch_time_factors": { "mode": "linear", "setup": "1 m" }
+      },
+      {
+        "name": "Boiling",
+        "time": "5 m",
+        "//": "1u of water_boiling_heat takes 5 m minimum, heat at full power",
+        "activity_level": "NO_EXERCISE",
+        "qualities": [ { "id": "BOIL", "level": 1 } ],
+        "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
+        "batch_time_factors": { "mode": "logistic", "percent": 20, "at": 1 },
+        "attention": "unattended",
+        "max_time": "30 m",
+        "unattend_message": "Your boiling water is ready."
+      },
+      {
+        "name": "Steeping",
+        "time": "6 m",
+        "//": "Steeping time of 6 minutes.",
+        "batch_time_factors": { "mode": "logistic", "percent": 99, "at": 1 },
+        "activity_level": "NO_EXERCISE",
+        "attention": "unattended"
+      }
+    ]
+  },
+  {
+    "type": "recipe",
+    "result": "tea_wild_sarsaparilla",
+    "copy-from": "abstract_tea_with_chop",
+    "skills_required": [ "survival", 3 ],
+    "difficulty": 4,
+    "components": [ [ [ "water", 1 ], [ "water_clean", 1 ] ], [ [ "wild_sarsaparilla_root", 1 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "result": "tea_willowbark",
+    "copy-from": "abstract_tea_with_chop",
+    "skills_required": [ "survival", 1 ],
     "difficulty": 1,
-    "book_learn": {
-      "pocket_survival": { "skill_level": 1 },
-      "survival_book": { "skill_level": 1 },
-      "textbook_survival": { "skill_level": 1 },
-      "manual_survival": { "skill_level": 1 },
-      "mag_survival": { "skill_level": 1 },
-      "family_cookbook": { "skill_level": 1 },
-      "cookbook_daintydishes": { "skill_level": 2, "recipe_name": "Royal Penny Tea" }
-    },
-    "qualities": [ { "id": "BOIL", "level": 1 }, { "id": "CUT", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 2, "LIST" ] ] ],
-    "proficiencies": [ { "proficiency": "prof_forage_cooking" } ],
-    "components": [ [ [ "raw_dandelion", 1 ] ], [ [ "raw_burdock", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
+    "components": [ [ [ "water", 1 ], [ "water_clean", 1 ] ], [ [ "willowbark", 1 ] ] ]
   },
   {
     "type": "recipe",
@@ -241,74 +342,6 @@
       { "proficiency": "prof_forage_cooking" }
     ],
     "components": [ [ [ "chicory_raw", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
-  },
-  {
-    "type": "recipe",
-    "activity_level": "NO_EXERCISE",
-    "result": "chamomile_tea",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "difficulty": 1,
-    "skills_required": [ "survival", 1 ],
-    "book_learn": [
-      [ "pocket_survival", 1 ],
-      [ "survival_book", 1 ],
-      [ "textbook_survival", 1 ],
-      [ "manual_survival", 1 ],
-      [ "mag_survival", 1 ],
-      [ "family_cookbook", 1 ]
-    ],
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
-    "proficiencies": [ { "proficiency": "prof_food_prep" }, { "proficiency": "prof_forage_cooking" } ],
-    "components": [ [ [ "chamomile", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
-  },
-  {
-    "type": "recipe",
-    "activity_level": "NO_EXERCISE",
-    "result": "lotus_tea",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "difficulty": 1,
-    "skills_required": [ "survival", 1 ],
-    "time": "10 m",
-    "charges": 4,
-    "book_learn": [
-      [ "pocket_survival", 1 ],
-      [ "survival_book", 1 ],
-      [ "textbook_survival", 1 ],
-      [ "manual_survival", 1 ],
-      [ "mag_survival", 1 ],
-      [ "family_cookbook", 1 ]
-    ],
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 4, "LIST" ] ] ],
-    "proficiencies": [ { "proficiency": "prof_food_prep" }, { "proficiency": "prof_forage_cooking" } ],
-    "components": [ [ [ "lotus", 1 ] ], [ [ "water", 4 ], [ "water_clean", 4 ] ] ]
-  },
-  {
-    "type": "recipe",
-    "activity_level": "NO_EXERCISE",
-    "result": "spurge_tea",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "difficulty": 1,
-    "skills_required": [ "survival", 1 ],
-    "book_learn": [
-      [ "pocket_survival", 1 ],
-      [ "survival_book", 1 ],
-      [ "textbook_survival", 1 ],
-      [ "manual_survival", 1 ],
-      [ "mag_survival", 1 ],
-      [ "family_cookbook", 1 ]
-    ],
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 2, "LIST" ] ] ],
-    "proficiencies": [ { "proficiency": "prof_forage_cooking" } ],
-    "components": [ [ [ "spurge", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
@@ -349,7 +382,9 @@
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
-    "time": "2 m",
+    "time": "30 s",
+    "batch_time_factors": [ 80, 2 ],
+    "flags": [ "BLIND_HARD" ],
     "autolearn": true,
     "components": [ [ [ "instant_coffee", 1 ] ], [ [ "water_clean", 1 ] ] ]
   },
@@ -402,8 +437,8 @@
     "autolearn": true,
     "batch_time_factors": [ 30, 1 ],
     "proficiencies": [ { "proficiency": "prof_food_prep" } ],
-    "components": [ [ [ "almond_shelled", 2 ] ], [ [ "water_clean", 3 ] ] ],
-    "charges": 3
+    "components": [ [ [ "almond_shelled", 2 ] ], [ [ "water_clean", 1 ] ] ],
+    "charges": 1
   },
   {
     "type": "recipe",
@@ -420,8 +455,8 @@
     "autolearn": true,
     "batch_time_factors": [ 80, 1 ],
     "proficiencies": [ { "proficiency": "prof_food_prep" } ],
-    "components": [ [ [ "almond_shelled", 2 ] ], [ [ "water_clean", 3 ] ] ],
-    "charges": 3
+    "components": [ [ [ "almond_shelled", 2 ] ], [ [ "water_clean", 1 ] ] ],
+    "charges": 1
   },
   {
     "type": "recipe",
@@ -499,6 +534,23 @@
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
     "result": "soy_milk",
+    "id_suffix": "mortar",
+    "category": "CC_FOOD",
+    "subcategory": "CSC_FOOD_DRINKS",
+    "skill_used": "cooking",
+    "difficulty": 1,
+    "time": "28 m",
+    "qualities": [ { "id": "CONTAIN", "level": 1 }, { "id": "FINE_GRIND", "level": 1 }, { "id": "STRAIN", "level": 2 } ],
+    "tools": [ [ [ "surface_heat", 10, "LIST" ] ] ],
+    "autolearn": true,
+    "batch_time_factors": [ 25, 2 ],
+    "proficiencies": [ { "proficiency": "prof_food_prep" } ],
+    "components": [ [ [ "soybean", 2 ] ], [ [ "water_clean", 1 ] ] ]
+  },
+  {
+    "type": "recipe",
+    "activity_level": "LIGHT_EXERCISE",
+    "result": "soy_milk",
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
@@ -509,13 +561,14 @@
     "autolearn": true,
     "batch_time_factors": [ 25, 2 ],
     "proficiencies": [ { "proficiency": "prof_food_prep" } ],
-    "components": [ [ [ "soybean", 2 ] ], [ [ "water_clean", 2 ] ] ]
+    "components": [ [ [ "soybean", 2 ] ], [ [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
     "result": "oat_milk",
     "byproducts": [ [ "oat_pulp" ] ],
+    "charges": 3,
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
@@ -526,7 +579,7 @@
     "autolearn": true,
     "batch_time_factors": [ 25, 2 ],
     "proficiencies": [ { "proficiency": "prof_food_prep" } ],
-    "components": [ [ [ "oats", 1 ] ], [ [ "water_clean", 2 ] ] ]
+    "components": [ [ [ "oats", 1 ] ], [ [ "water_clean", 3 ] ] ]
   },
   {
     "type": "recipe",
@@ -547,22 +600,18 @@
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
     "result": "can_coconut",
-    "charges": 1,
     "byproducts": [ [ "juice_pulp", 2 ] ],
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
     "difficulty": 1,
+    "batch_time_factors": [ 75, 2 ],
     "time": "15 m",
     "book_learn": [ [ "manual_sealing", 1 ] ],
     "qualities": [ { "id": "CONTAIN", "level": 1 }, { "id": "CUT", "level": 2 }, { "id": "STRAIN", "level": 2 } ],
-    "proficiencies": [
-      { "proficiency": "prof_food_prep" },
-      { "proficiency": "prof_knife_skills" },
-      { "proficiency": "prof_preservation" },
-      { "proficiency": "prof_food_canning" }
-    ],
-    "components": [ [ [ "coconut_flesh", 10 ] ], [ [ "water_clean", 2 ] ] ]
+    "proficiencies": [ { "proficiency": "prof_food_prep" }, { "proficiency": "prof_knife_skills" } ],
+    "components": [ [ [ "coconut_flesh", 2 ] ], [ [ "water_clean", 1 ] ] ],
+    "charges": 2
   },
   {
     "type": "recipe",
@@ -582,6 +631,7 @@
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
     "result": "cranberry_juice",
+    "charges": 1,
     "byproducts": [ [ "juice_pulp", 2 ] ],
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
@@ -596,6 +646,7 @@
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
     "result": "apple_cider",
+    "charges": 1,
     "byproducts": [ [ "juice_pulp", 2 ] ],
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
@@ -630,6 +681,7 @@
     "skill_used": "cooking",
     "time": "30 s",
     "autolearn": true,
+    "flags": [ "BLIND_HARD" ],
     "components": [ [ [ "lemonade_powder", 1 ] ], [ [ "water_clean", 1 ] ] ]
   },
   {
@@ -642,6 +694,7 @@
     "skill_used": "cooking",
     "time": "30 s",
     "autolearn": true,
+    "flags": [ "BLIND_HARD" ],
     "components": [ [ [ "orangeade_powder", 1 ] ], [ [ "water_clean", 1 ] ] ]
   },
   {
@@ -654,6 +707,7 @@
     "skill_used": "cooking",
     "time": "30 s",
     "autolearn": true,
+    "flags": [ "BLIND_HARD" ],
     "components": [ [ [ "grapeade_powder", 1 ] ], [ [ "water_clean", 1 ] ] ]
   },
   {
@@ -701,6 +755,7 @@
     "type": "recipe",
     "activity_level": "LIGHT_EXERCISE",
     "result": "juice",
+    "charges": 1,
     "byproducts": [ [ "juice_pulp" ] ],
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
@@ -716,6 +771,7 @@
     "activity_level": "LIGHT_EXERCISE",
     "result": "juice",
     "id_suffix": "fresh",
+    "charges": 1,
     "byproducts": [ [ "juice_pulp", 2 ] ],
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
@@ -730,6 +786,7 @@
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
     "result": "sweet_water",
+    "charges": 1,
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
@@ -754,27 +811,15 @@
   },
   {
     "type": "recipe",
-    "activity_level": "LIGHT_EXERCISE",
-    "result": "tea_bark",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "skills_required": [ "survival", 6 ],
-    "difficulty": 5,
-    "book_learn": [ [ "textbook_survival", 5 ], [ "atomic_survival", 4 ], [ "survival_book", 3 ] ],
-    "qualities": [ { "id": "BOIL", "level": 1 }, { "id": "CUT", "level": 2 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
-    "components": [ [ [ "water", 1 ], [ "water_clean", 1 ] ], [ [ "tanbark", 2 ] ] ]
-  },
-  {
-    "type": "recipe",
     "activity_level": "NO_EXERCISE",
     "result": "milk_tea",
+    "charges": 2,
     "category": "CC_*",
     "subcategory": "CSC_*_NESTED",
     "skill_used": "cooking",
     "time": "1 m 30 s",
     "autolearn": true,
+    "batch_time_factors": [ 80, 2 ],
     "flags": [ "BLIND_HARD" ],
     "components": [
       [ [ "tea", 1 ] ],
@@ -785,6 +830,7 @@
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
     "result": "milk_coffee",
+    "charges": 2,
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
@@ -802,7 +848,6 @@
     "result": "chai_tea",
     "category": "CC_*",
     "subcategory": "CSC_*_NESTED",
-    "copy-from": "tea",
     "difficulty": 2,
     "charges": 2,
     "time": "10 m",
@@ -821,18 +866,6 @@
       [ [ "pepper", 10 ] ],
       [ [ "cinnamon", 10 ] ]
     ]
-  },
-  {
-    "type": "recipe",
-    "activity_level": "NO_EXERCISE",
-    "result": "bee_balm_tea",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "herbal_tea_from_tea_bag",
-    "difficulty": 2,
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
-    "components": [ [ [ "bee_balm", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ] ]
   },
   {
     "type": "recipe",
@@ -958,6 +991,7 @@
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
     "result": "milk_coffee_sweetened",
+    "charges": 2,
     "category": "CC_FOOD",
     "subcategory": "CSC_FOOD_DRINKS",
     "skill_used": "cooking",
@@ -969,17 +1003,6 @@
       [ [ "milk_standard", 1, "LIST" ], [ "lf_milk_standard", 1, "LIST" ], [ "milk_powder", 1 ], [ "con_milk", 1 ] ],
       [ [ "sugar_standard_half", 1, "LIST" ] ]
     ]
-  },
-  {
-    "type": "recipe",
-    "activity_level": "NO_EXERCISE",
-    "result": "tea_sweetened",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "copy-from": "tea",
-    "qualities": [ { "id": "BOIL", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 1, "LIST" ] ] ],
-    "components": [ [ [ "tea_raw", 1 ] ], [ [ "water", 1 ], [ "water_clean", 1 ] ], [ [ "sugar_standard_half", 1, "LIST" ] ] ]
   },
   {
     "type": "recipe",
@@ -998,11 +1021,13 @@
     "type": "recipe",
     "activity_level": "NO_EXERCISE",
     "result": "milk_tea_sweetened",
+    "charges": 2,
     "category": "CC_*",
     "subcategory": "CSC_*_NESTED",
     "skill_used": "cooking",
     "time": "1 m 30 s",
     "autolearn": true,
+    "batch_time_factors": [ 80, 2 ],
     "flags": [ "BLIND_HARD" ],
     "components": [
       [ [ "tea", 1 ] ],
@@ -1030,28 +1055,6 @@
       [ [ "salt", 1 ], [ "seasoning_salt", 1 ] ]
     ],
     "charges": 6
-  },
-  {
-    "type": "recipe",
-    "result": "tea_willowbark",
-    "activity_level": "NO_EXERCISE",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "skill_used": "cooking",
-    "skills_required": [ "survival", 5 ],
-    "difficulty": 4,
-    "time": "12 m",
-    "batch_time_factors": [ 80, 4 ],
-    "book_learn": [
-      [ "textbook_survival", 4 ],
-      [ "atomic_survival", 4 ],
-      [ "survival_book", 3 ],
-      [ "textbook_botany", 4 ],
-      [ "textbook_chemistry", 4 ]
-    ],
-    "qualities": [ { "id": "BOIL", "level": 1 }, { "id": "CUT", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 8, "LIST" ] ] ],
-    "components": [ [ [ "water", 1 ], [ "water_clean", 1 ] ], [ [ "willowbark", 1 ] ] ]
   },
   {
     "type": "recipe",
@@ -1229,6 +1232,7 @@
     "time": "2 m",
     "autolearn": true,
     "//": "You're just dissolving the milk cocoa powder into the water. That takes some time because cocoa powder has some fat. Therefore, you need to mix well",
+    "flags": [ "BLIND_HARD" ],
     "components": [ [ [ "cocoa_powder_milk", 1 ] ], [ [ "water_clean", 1 ] ] ]
   },
   {
@@ -1324,22 +1328,6 @@
   },
   {
     "type": "recipe",
-    "result": "tea_wild_sarsaparilla",
-    "activity_level": "NO_EXERCISE",
-    "category": "CC_*",
-    "subcategory": "CSC_*_NESTED",
-    "skill_used": "cooking",
-    "skills_required": [ "survival", 3 ],
-    "difficulty": 4,
-    "time": "12 m",
-    "batch_time_factors": [ 80, 4 ],
-    "autolearn": true,
-    "qualities": [ { "id": "BOIL", "level": 1 }, { "id": "CUT", "level": 1 } ],
-    "tools": [ [ [ "water_boiling_heat", 8, "LIST" ] ] ],
-    "components": [ [ [ "water", 1 ], [ "water_clean", 1 ] ], [ [ "wild_sarsaparilla_root", 1 ] ] ]
-  },
-  {
-    "type": "recipe",
     "result": "horchata",
     "activity_level": "NO_EXERCISE",
     "category": "CC_FOOD",
@@ -1361,5 +1349,26 @@
       [ [ "water", 1 ], [ "water_clean", 1 ] ]
     ],
     "//": "Compressed the timescale for flavor infusion to keep things easy and avoid intermediate crafting items."
+  },
+  {
+    "result": "brew_kvass",
+    "type": "recipe",
+    "category": "CC_FOOD",
+    "subcategory": "CSC_FOOD_DRINKS",
+    "activity_level": "LIGHT_EXERCISE",
+    "skill_used": "cooking",
+    "difficulty": 1,
+    "time": "5 m",
+    "batch_time_factors": [ 75, 2 ],
+    "autolearn": [ [ "survival", 2 ], [ "fabrication", 3 ] ],
+    "qualities": [ { "id": "CUT", "level": 1 }, { "id": "CONTAIN", "level": 1 } ],
+    "components": [
+      [ [ "bread", 8 ], [ "toast", 8 ] ],
+      [ [ "water", 8 ] ],
+      [ [ "sugar_standard", 1, "LIST" ] ],
+      [ [ "sweet_fruit_like", 1, "LIST" ] ],
+      [ [ "yeast", 1 ] ]
+    ],
+    "charges": 16
   }
 ]

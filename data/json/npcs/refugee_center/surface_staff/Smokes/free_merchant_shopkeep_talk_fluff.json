@@ -9,7 +9,7 @@
       {
         "text": "[Cannibal + Uncaring] Wait, I thought you were having food problems.",
         "topic": "TALK_FREE_MERCHANTS_MERCHANT_AboutGreeting_Cannibal",
-        "condition": { "and": [ { "u_has_trait": "CANNIBAL" }, { "u_has_trait": "PSYCHOPATH" } ] }
+        "condition": { "and": [ { "u_has_trait": "CANNIBAL" }, { "u_has_flag": "PSYCHOPATH" } ] }
       }
     ]
   },
@@ -61,6 +61,7 @@
       "TALK_FREE_MERCHANTS_MERCHANT_AboutMe_Smokes2"
     ],
     "type": "talk_topic",
+    "portrait_override": "Named_NPC_Smokes_TOPIC",
     "dynamic_line": "Not much to say.  What did you want to hear?",
     "responses": [
       { "text": "How'd you end up here?", "topic": "TALK_FREE_MERCHANTS_MERCHANT_AboutMe_Basic" },

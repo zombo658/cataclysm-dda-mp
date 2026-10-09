@@ -43,6 +43,8 @@ enum class mod : int {
     INTELLIGENCE,
     SPEED,
     ATTACK_SPEED, // affects attack speed of item even if it's not the one you're wielding
+    AIMING_SPEED,
+    RELOADING_SPEED,
     MOVE_COST,
     METABOLISM,
     MAX_MANA,
@@ -73,9 +75,11 @@ enum class mod : int {
     DODGE_CHANCE,
     BONUS_DODGE,
     BONUS_BLOCK,
+    FREE_DODGES,
     MELEE_DAMAGE,
     MELEE_RANGE_MODIFIER,
     MELEE_TO_HIT,
+    SMASH_BONUS,
     RANGED_DAMAGE,
     RANGED_ARMOR_PENETRATION,
     ATTACK_NOISE,
@@ -116,6 +120,7 @@ enum class mod : int {
     RECOIL_MODIFIER, //affects recoil when shooting a gun
     ITEM_ATTACK_SPEED,
     EQUIPMENT_DAMAGE_CHANCE,
+    THEORETICAL_SKILL_CATCHUP_BONUS,
     CLIMATE_CONTROL_HEAT,
     CLIMATE_CONTROL_CHILL,
     COMBAT_CATCHUP,
@@ -147,6 +152,7 @@ enum class mod : int {
     STAMINA_REGEN_MOD,
     MOVEMENT_EXERTION_MODIFIER,
     WEAKPOINT_ACCURACY,
+    BLEEDING_RATE,
     MOTION_ALARM,
     TOTAL_WEIGHT,
     FUEL_USAGE,
@@ -176,6 +182,7 @@ class enchantment
         };
 
         static void load_enchantment( const JsonObject &jo, const std::string &src );
+        static void finalize_all();
         static void reset();
         void load( const JsonObject &jo, std::string_view src = {},
                    const std::optional<std::string> &inline_id = std::nullopt, bool is_child = false );
@@ -325,13 +332,14 @@ class enchant_cache : public enchantment
         void force_add( const enchantment &rhs, const vehicle &veh );
         void force_add( const enchantment &rhs );
         void force_add( const enchant_cache &rhs );
-        void force_add_with_dialogue( const enchantment &rhs, const const_dialogue &d,
-                                      bool evaluate = true );
+        void force_add_with_dialogue( const enchantment &rhs, const const_dialogue &d );
         // adds enchantment mutations to the cache
         void force_add_mutation( const enchantment &rhs );
 
         // modifies character stats, or does other passive effects
         void activate_passive( Character &guy ) const;
+        template<typename TKey>
+        double get_value( const TKey &value, const std::map<TKey, double> &value_map ) const;
         double get_value_add( enchant_vals::mod value ) const;
         double get_value_multiply( enchant_vals::mod value ) const;
         int mult_bonus( enchant_vals::mod value_type, int base_value ) const;
@@ -365,8 +373,14 @@ class enchant_cache : public enchantment
         // casts all the hit_me_effects on self or a target depending on the enchantment definition
         void cast_hit_me( Character &caster, const Creature *target ) const;
         void cast_hit_me( Creature &caster, const Creature *target ) const;
+
+        template<typename TKey>
+        void save_add_and_multiply( JsonOut &jsout, const std::string_view &member_key,
+                                    const std::string &type_key, const std::map<TKey, double> &add_map,
+                                    const std::map<TKey, double> &mult_map ) const;
+
         void serialize( JsonOut &jsout ) const;
-        void add_value_add( enchant_vals::mod value, int add_value );
+        void add_value_add( enchant_vals::mod value, float add_value );
 
         void set_has( enchantment::has value );
         void add_value_mult( enchant_vals::mod value, float mult_value );

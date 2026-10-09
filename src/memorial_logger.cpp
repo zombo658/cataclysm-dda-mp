@@ -1,8 +1,8 @@
 #include "memorial_logger.h"
 
 #include <cstddef>
+#include <functional>
 #include <istream>
-#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -24,13 +24,13 @@
 #include "debug_menu.h"
 #include "effect.h"
 #include "enum_conversions.h"
+#include "enums.h"
 #include "event.h"
 #include "event_statistics.h"
 #include "filesystem.h"
 #include "flexbuffer_json.h"
 #include "game.h"
 #include "get_version.h"
-#include "inventory.h"
 #include "item.h"
 #include "item_factory.h"
 #include "item_location.h"
@@ -49,7 +49,6 @@
 #include "overmap.h"
 #include "overmapbuffer.h"
 #include "past_games_info.h"
-#include "pimpl.h"
 #include "profession.h"
 #include "proficiency.h"
 #include "skill.h"
@@ -59,6 +58,7 @@
 #include "trap.h"
 #include "type_id.h"
 #include "units.h"
+#include "visitable.h"
 
 // IWYU pragma: no_forward_declare debug_menu::debug_menu_index
 
@@ -273,15 +273,15 @@ void memorial_logger::write_text_memorial( std::ostream &file,
 
     //Stats
     file << _( "Final Stats:" ) << eol;
-    file << indent << string_format( _( "Str %d" ), u.str_cur )
-         << indent << string_format( _( "Dex %d" ), u.dex_cur )
-         << indent << string_format( _( "Int %d" ), u.int_cur )
-         << indent << string_format( _( "Per %d" ), u.per_cur ) << eol;
+    file << indent << string_format( _( "Str %d" ), u.get_str() )
+         << indent << string_format( _( "Dex %d" ), u.get_dex() )
+         << indent << string_format( _( "Int %d" ), u.get_int() )
+         << indent << string_format( _( "Per %d" ), u.get_per() ) << eol;
     file << _( "Base Stats:" ) << eol;
-    file << indent << string_format( _( "Str %d" ), u.str_max )
-         << indent << string_format( _( "Dex %d" ), u.dex_max )
-         << indent << string_format( _( "Int %d" ), u.int_max )
-         << indent << string_format( _( "Per %d" ), u.per_max ) << eol;
+    file << indent << string_format( _( "Str %d" ), u.get_str_base() )
+         << indent << string_format( _( "Dex %d" ), u.get_dex_base() )
+         << indent << string_format( _( "Int %d" ), u.get_int_base() )
+         << indent << string_format( _( "Per %d" ), u.get_per_base() ) << eol;
     file << eol;
 
     //Last 20 messages
@@ -381,20 +381,20 @@ void memorial_logger::write_text_memorial( std::ostream &file,
 
     //Inventory
     file << _( "Inventory:" ) << eol;
-    u.inv->restack( u );
-    invslice slice = u.inv->slice();
-    for( const std::list<item> *elem : slice ) {
-        const item &next_item = elem->front();
-        file << indent << next_item.invlet << " - " <<
-             next_item.tname( static_cast<unsigned>( elem->size() ), false );
-        if( elem->size() > 1 ) {
-            file << " [" << elem->size() << "]";
+    u.visit_items(
+    [&file, &indent]( item_location node ) {
+        // your "inventory" is all items inside of other items.
+        if( node.has_parent() && !node->is_gunmod() && !node->is_magazine() && !node->is_ammo() &&
+            !node->made_of( phase_id::LIQUID ) ) {
+            file << indent << node->invlet << " - " << node->tname();
+            if( node->charges > 0 ) {
+                file << " (" << node->charges << ')';
+            }
+            file << eol;
         }
-        if( next_item.charges > 0 ) {
-            file << " (" << next_item.charges << ")";
-        }
-        file << eol;
+        return VisitResponse::NEXT;
     }
+    );
     file << eol;
 
     //Lifetime stats
@@ -571,6 +571,8 @@ void memorial_logger::notify( const cata::event &e )
             }
             break;
         }
+        case event_type::character_effect_intensity_changed:
+            break;
         case event_type::character_kills_character: {
             character_id ch = e.get<character_id>( "killer" );
             if( ch == avatar_id ) {
@@ -614,7 +616,7 @@ void memorial_logger::notify( const cata::event &e )
             character_id ch = e.get<character_id>( "killer" );
             if( ch == avatar_id ) {
                 mtype_id victim_type = e.get<mtype_id>( "victim_type" );
-                if( victim_type->difficulty >= 30 ) {
+                if( victim_type->get_total_difficulty() >= 30 ) {
                     add( pgettext( "memorial_male", "Killed a %s." ),
                          pgettext( "memorial_female", "Killed a %s." ),
                          victim_type->nname() );
@@ -788,6 +790,12 @@ void memorial_logger::notify( const cata::event &e )
         case event_type::digs_into_lava: {
             add( pgettext( "memorial_male", "Dug a shaft into lava." ),
                  pgettext( "memorial_female", "Dug a shaft into lava." ) );
+            break;
+        }
+        case event_type::dimension_travel: {
+            add( pgettext( "memorial_male", "Traveled from '%s' to '%s'." ),
+                 pgettext( "memorial_female", "Traveled from '%s' to '%s'." ),
+                 e.get<dimension_id>( "from_dimension" ).c_str(), e.get<dimension_id>( "to_dimension" ).c_str() );
             break;
         }
         case event_type::disarms_nuke: {
@@ -1003,6 +1011,11 @@ void memorial_logger::notify( const cata::event &e )
         case event_type::opens_temple: {
             add( pgettext( "memorial_male", "Opened a strange temple." ),
                  pgettext( "memorial_female", "Opened a strange temple." ) );
+            break;
+        }
+        case event_type::phase_move: {
+            add( pgettext( "memorial_male", "Phased through an obstacle." ),
+                 pgettext( "memorial_female", "Phased through an obstacle." ) );
             break;
         }
         case event_type::player_fails_conduct: {

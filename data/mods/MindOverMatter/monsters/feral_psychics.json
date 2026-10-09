@@ -4,6 +4,7 @@
     "type": "MONSTER",
     "copy-from": "mon_feral_human_pipe",
     "//": "interstitial copy-from to edit flags and special attacks appropriately",
+    "default_faction": "feral_psychic",
     "special_attacks": [ [ "BROWSE", 100 ], [ "EAT_FOOD", 100 ] ],
     "flags": [
       "SEES",
@@ -29,9 +30,10 @@
     "relative": { "melee_skill": 2, "melee_dice": 1, "melee_dice_sides": -2, "dodge": 2 },
     "symbol": "@",
     "color": "pink",
-    "melee_damage": [ { "damage_type": "bash", "amount": 3 } ],
+    "melee_damage": [ { "damage_type": "bash", "amount": 1 } ],
     "death_drops": "feral_humans_death_drops_bio",
     "zombify_into": "mon_zombie_survivor",
+    "block": { "chance": 25, "effectiveness": 5, "count": 1, "ranged": false },
     "upgrades": { "half_life": 180, "into": "mon_feral_human_bio2" },
     "extend": {
       "special_attacks": [
@@ -42,7 +44,17 @@
           "cooldown": { "math": [ "7 + rand(14)" ] },
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } }
         },
-        [ "BIO_OP_DISARM", 10 ]
+        [ "BIO_OP_DISARM", 10 ],
+        {
+          "id": "psi_biokin_physical_enhancement",
+          "type": "spell",
+          "spell_data": { "id": "biokinetic_physical_enhancement_monster" },
+          "cooldown": 1,
+          "condition": {
+            "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_monster_physical_enhancement" } } ]
+          },
+          "monster_message": "%1$s clenches their fists and shakes open their hands."
+        }
       ]
     }
   },
@@ -55,10 +67,11 @@
     "relative": { "melee_skill": 4, "melee_dice": 1, "dodge": 4 },
     "color": "pink",
     "symbol": "@",
-    "melee_damage": [ { "damage_type": "bash", "amount": 6 } ],
+    "melee_damage": [ { "damage_type": "bash", "amount": 3 } ],
     "attack_cost": 80,
     "death_drops": "feral_humans_death_drops_bio",
     "zombify_into": "mon_zombie_survivor",
+    "block": { "chance": 45, "effectiveness": 10, "count": 1, "ranged": false },
     "upgrades": { "half_life": 180, "into": "mon_feral_human_bio3" },
     "extend": {
       "special_attacks": [
@@ -74,6 +87,16 @@
           "id": "bio_op_takedown",
           "cooldown": { "math": [ "7 + rand(14)" ] },
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } }
+        },
+        {
+          "id": "psi_biokin2_physical_enhancement",
+          "type": "spell",
+          "spell_data": { "id": "biokinetic_physical_enhancement_monster" },
+          "cooldown": 1,
+          "condition": {
+            "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_monster_physical_enhancement" } } ]
+          },
+          "monster_message": "%1$s clenches their fists and shakes open their hands."
         },
         {
           "id": "psi_biokin2_hardened_skin",
@@ -107,9 +130,10 @@
     "relative": { "melee_skill": 6, "melee_dice": 1, "dodge": 6 },
     "color": "pink",
     "symbol": "@",
-    "melee_damage": [ { "damage_type": "bash", "amount": 8 } ],
+    "melee_damage": [ { "damage_type": "bash", "amount": 5 } ],
     "attack_cost": 75,
     "death_drops": "feral_humans_death_drops_bio",
+    "block": { "chance": 65, "effectiveness": 15, "count": 2, "ranged": false },
     "zombify_into": "mon_zombie_survivor",
     "extend": {
       "special_attacks": [
@@ -141,6 +165,19 @@
           "condition": {
             "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_psi_biokin3_hurricane_blows" } } ]
           }
+        },
+        {
+          "id": "psi_biokin3_physical_enhancement",
+          "type": "spell",
+          "spell_data": { "id": "biokinetic_physical_enhancement_improved_monster" },
+          "cooldown": 1,
+          "condition": {
+            "and": [
+              { "not": { "u_has_flag": "NO_PSIONICS" } },
+              { "not": { "u_has_effect": "effect_monster_physical_enhancement_improved" } }
+            ]
+          },
+          "monster_message": "%1$s clenches their fists and shakes open their hands."
         },
         {
           "id": "psi_biokin3_hardened_skin",
@@ -205,7 +242,23 @@
     "death_drops": "feral_humans_death_drops_clair",
     "zombify_into": "mon_zombie_survivor",
     "upgrades": { "half_life": 180, "into": "mon_feral_human_clair2" },
-    "extend": { "special_attacks": [ { "id": "feral_weapon_pipe" } ], "flags": [ "GOODHEARING", "HARDTOSHOOT", "WIELDED_WEAPON" ] }
+    "extend": {
+      "flags": [ "GOODHEARING", "WIELDED_WEAPON" ],
+      "special_attacks": [
+        { "id": "feral_weapon_pipe" },
+        {
+          "id": "psi_clair_heightened_senses",
+          "type": "spell",
+          "spell_data": { "id": "clair_heightened_senses_monster_1" },
+          "cooldown": { "math": [ "10 + rand(20)" ] },
+          "allow_no_target": true,
+          "condition": {
+            "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_feral_heightened_senses" } } ]
+          },
+          "monster_message": "%1$s closes their eyes for a moment."
+        }
+      ]
+    }
   },
   {
     "id": "mon_feral_human_clair2",
@@ -217,13 +270,13 @@
     "color": "dark_gray",
     "symbol": "@",
     "morale": 110,
-    "armor": { "bullet": 20 },
     "//": "Armor here represents knowing where the enemy is going to shoot and not being there, not being literally immune to bullets.",
     "death_drops": "feral_humans_death_drops_clair",
     "zombify_into": "mon_zombie_survivor",
     "starting_ammo": { "rock": 6 },
     "upgrades": { "half_life": 180, "into": "mon_feral_human_clair3" },
     "extend": {
+      "flags": [ "GOODHEARING", "HARDTOSHOOT", "WIELDED_WEAPON" ],
       "special_attacks": [
         {
           "type": "gun",
@@ -239,9 +292,27 @@
           "ranges": [ [ 2, 7, "DEFAULT" ] ],
           "description": "The feral visionary throws a rock!"
         },
+        {
+          "id": "psi_clair2_heightened_senses",
+          "type": "spell",
+          "spell_data": { "id": "clair_heightened_senses_monster_2" },
+          "cooldown": { "math": [ "10 + rand(20)" ] },
+          "allow_no_target": true,
+          "condition": {
+            "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_feral_heightened_senses_2" } } ]
+          },
+          "monster_message": "%1$s closes their eyes for a moment."
+        },
+        {
+          "id": "psi_clair2_combat_sense",
+          "type": "spell",
+          "spell_data": { "id": "clair_combat_sense_monster_2", "hit_self": true },
+          "cooldown": { "math": [ "15 + rand(30)" ] },
+          "condition": { "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_feral_combat_sense_2" } } ] },
+          "monster_message": "%1$s adopts a relaxed pose."
+        },
         { "id": "feral_weapon_pipe" }
-      ],
-      "flags": [ "GOODHEARING", "HARDTOSHOOT", "WIELDED_WEAPON", "DROPS_AMMO", "ALL_SEEING" ]
+      ]
     }
   },
   {
@@ -254,12 +325,12 @@
     "color": "dark_gray",
     "symbol": "@",
     "morale": 110,
-    "armor": { "bullet": 40 },
     "//": "Armor here represents knowing where the enemy is going to shoot and not being there, not being literally immune to bullets.",
     "death_drops": "feral_humans_death_drops_clair",
     "zombify_into": "mon_zombie_survivor",
     "starting_ammo": { "rock": 6 },
     "extend": {
+      "flags": [ "GOODHEARING", "HARDTOSHOOT", "WIELDED_WEAPON" ],
       "special_attacks": [
         {
           "type": "gun",
@@ -276,6 +347,34 @@
           "description": "With inhuman accuracy, the pattern screamer throws a rock!"
         },
         { "id": "feral_weapon_pipe" },
+        {
+          "id": "psi_clair3_heightened_senses",
+          "type": "spell",
+          "spell_data": { "id": "clair_heightened_senses_monster_3" },
+          "cooldown": { "math": [ "10 + rand(20)" ] },
+          "allow_no_target": true,
+          "condition": {
+            "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_feral_heightened_senses_3" } } ]
+          },
+          "monster_message": "%1$s closes their eyes for a moment."
+        },
+        {
+          "id": "psi_clair3_combat_sense",
+          "type": "spell",
+          "spell_data": { "id": "clair_combat_sense_monster_3", "hit_self": true },
+          "cooldown": { "math": [ "15 + rand(30)" ] },
+          "condition": { "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_feral_combat_sense_3" } } ] },
+          "monster_message": "%1$s adopts a relaxed pose."
+        },
+        {
+          "id": "psi_clair3_clear_sight",
+          "type": "spell",
+          "spell_data": { "id": "clair_clarity_monster_spell" },
+          "cooldown": { "math": [ "20 + rand(40)" ] },
+          "allow_no_target": true,
+          "condition": { "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "u_has_effect": "effect_clair_clear_sight" } } ] },
+          "monster_message": "%1$s closes their eyes for a moment."
+        },
         {
           "id": "psi_pattern_scream",
           "type": "spell",
@@ -308,7 +407,7 @@
           "spell_data": { "id": "electrokinetic_shock_touch_monster", "min_level": 3 },
           "cooldown": { "math": [ "7 + rand(14)" ] },
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
-          "monster_message": "%1$s's touches %3$s with a jolt!"
+          "monster_message": "%1$s reaches for %3$s as sparks play over their hand!"
         }
       ]
     },
@@ -337,7 +436,7 @@
           "spell_data": { "id": "electrokinetic_shock_touch_monster", "min_level": 3 },
           "cooldown": { "math": [ "4 + rand(8)" ] },
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
-          "monster_message": "%1$s's touches %3$s with a jolt!"
+          "monster_message": "%1$s reaches for %3$s as sparks play over their hand!"
         },
         {
           "id": "psi_electrokin2_lightning_bolt",
@@ -382,7 +481,7 @@
           "spell_data": { "id": "electrokinetic_shock_touch_monster", "min_level": 5 },
           "cooldown": { "math": [ "4 + rand(8)" ] },
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
-          "monster_message": "%1$s's touches %3$s with a jolt!"
+          "monster_message": "%1$s reaches for %3$s as sparks play over their hand!"
         },
         {
           "id": "psi_electrokin3_lightning_bolt",
@@ -616,7 +715,6 @@
           "damage_max_instance": [ { "damage_type": "heat", "amount": 20 } ],
           "dodgeable": true,
           "blockable": false,
-          "effects": [ { "id": "onfire", "duration": 60, "chance": 25, "affect_hit_bp": true } ],
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
           "hit_dmg_u": "%1$s gestures and your %2$s is engulfed in flames!",
           "hit_dmg_npc": "%1$s gestures and <npcname>'s %2$s is engulfed in flames!",
@@ -668,7 +766,6 @@
           "damage_max_instance": [ { "damage_type": "heat", "amount": 25 } ],
           "dodgeable": true,
           "blockable": false,
-          "effects": [ { "id": "onfire", "duration": 60, "chance": 50, "affect_hit_bp": true } ],
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
           "hit_dmg_u": "%1$s gestures and your %2$s is engulfed in flames!",
           "hit_dmg_npc": "%1$s gestures and <npcname>'s %2$s is engulfed in flames!",
@@ -732,7 +829,6 @@
           "damage_max_instance": [ { "damage_type": "heat", "amount": 35 } ],
           "dodgeable": true,
           "blockable": false,
-          "effects": [ { "id": "onfire", "duration": 60, "chance": 75, "affect_hit_bp": true } ],
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
           "hit_dmg_u": "%1$s gestures and your %2$s is engulfed in flames!",
           "hit_dmg_npc": "%1$s gestures and <npcname>'s %2$s is engulfed in flames!",
@@ -815,7 +911,13 @@
           "uncanny_dodgeable": true,
           "blockable": false,
           "effects_require_dmg": false,
-          "condition": { "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "npc_has_flag": "TELEKIN_SHIELD" } } ] },
+          "condition": {
+            "and": [
+              { "not": { "u_has_flag": "NO_PSIONICS" } },
+              { "not": { "npc_has_flag": "TELEKIN_SHIELD" } },
+              { "not": { "npc_has_flag": "TELEKIN_PUSH_PULL_IMMUNE" } }
+            ]
+          },
           "hit_dmg_u": "%1$s stares at you and a powerful force hurls you through the air!",
           "hit_dmg_npc": "%1$s stares at <npcname> and a powerful force hurls them through the air!",
           "miss_msg_u": "%s stares at you, and you feel a crushing pressure for a moment before the feeling vanishes!",
@@ -842,7 +944,7 @@
     "name": "feral mindhand",
     "description": "This feral human moves quickly across uneven terrain and, when you look more closely, you see that they are floating just above the ground.  The air around them is distorted strangely, like looking through the surface of water.",
     "copy-from": "mon_feral_psion_default",
-    "species": [ "FERAL", "TELEKIN_PUSHPULL_NULL" ],
+    "species": [ "FERAL" ],
     "color": "yellow",
     "symbol": "@",
     "melee_damage": [ { "damage_type": "bash", "amount": 4 } ],
@@ -895,7 +997,13 @@
           "dodgeable": false,
           "uncanny_dodgeable": true,
           "blockable": false,
-          "condition": { "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "npc_has_flag": "TELEKIN_SHIELD" } } ] },
+          "condition": {
+            "and": [
+              { "not": { "u_has_flag": "NO_PSIONICS" } },
+              { "not": { "npc_has_flag": "TELEKIN_SHIELD" } },
+              { "not": { "npc_has_flag": "TELEKIN_PUSH_PULL_IMMUNE" } }
+            ]
+          },
           "hit_dmg_u": "%1$s stares at you and a powerful force hurls you through the air!",
           "hit_dmg_npc": "%1$s stares at <npcname> and a powerful force hurls them through the air!",
           "miss_msg_u": "%s stares at you, and you feel a crushing pressure for a moment before the feeling vanishes!",
@@ -932,7 +1040,7 @@
     "name": "unstoppable force",
     "description": "Hovering half a meter off the ground, this feral human is surrounded by a whirling cloud of rock, dust, splintered wood, and various household objects.  As they move, the ground occasionally shakes.",
     "copy-from": "mon_feral_psion_default",
-    "species": [ "FERAL", "TELEKIN_PUSHPULL_NULL" ],
+    "species": [ "FERAL" ],
     "color": "yellow",
     "symbol": "@",
     "melee_damage": [ { "damage_type": "bash", "amount": 8 } ],
@@ -984,7 +1092,13 @@
           "dodgeable": false,
           "uncanny_dodgeable": true,
           "blockable": false,
-          "condition": { "and": [ { "not": { "u_has_flag": "NO_PSIONICS" } }, { "not": { "npc_has_flag": "TELEKIN_SHIELD" } } ] },
+          "condition": {
+            "and": [
+              { "not": { "u_has_flag": "NO_PSIONICS" } },
+              { "not": { "npc_has_flag": "TELEKIN_SHIELD" } },
+              { "not": { "npc_has_flag": "TELEKIN_PUSH_PULL_IMMUNE" } }
+            ]
+          },
           "hit_dmg_u": "%1$s stares at you and a powerful force hurls you through the air!",
           "hit_dmg_npc": "%1$s stares at <npcname> and a powerful force hurls them through the air!",
           "miss_msg_u": "%s stares at you, and you feel a crushing pressure for a moment before the feeling vanishes!",
@@ -1020,6 +1134,20 @@
           "cooldown": { "math": [ "7 + rand(14)" ] },
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
           "monster_message": "%1$s gestures and the ground bursts apart!"
+        },
+        {
+          "id": "psi_telekin3_aegis",
+          "type": "spell",
+          "spell_data": { "id": "telekinetic_aegis_monster" },
+          "cooldown": 1,
+          "condition": {
+            "and": [
+              { "not": { "u_has_flag": "NO_PSIONICS" } },
+              { "or": [ "npc_driving" ] },
+              { "not": { "u_has_effect": "effect_monster_aegis_limiter" } }
+            ]
+          },
+          "monster_message": "%1$s throws their arms wide!"
         },
         {
           "id": "psi_telekin3_earthshake",
@@ -1405,7 +1533,7 @@
           "spell_data": { "id": "teleport_blink_attack_monster", "min_level": 4 },
           "cooldown": { "math": [ "10 + rand(20)" ] },
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
-          "monster_message": "%1$s touches %3$s and the world around %3$s wavers."
+          "monster_message": "The air wavers around %1$s as they reach for %3$s."
         },
         {
           "id": "psi_porter3_reactive_displacement",
@@ -1446,6 +1574,14 @@
           "cooldown": { "math": [ "17 + rand(32)" ] },
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
           "monster_message": "The lights around %1$s waver and shapes appear near %3$s."
+        },
+        {
+          "id": "psi_teleport3_oubliette",
+          "type": "spell",
+          "spell_data": { "id": "teleport_oubliette_monster", "min_level": 6 },
+          "cooldown": { "math": [ "25 + rand(50)" ] },
+          "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
+          "monster_message": "%1$s touches %3$s and the air around %3$s warps."
         }
       ],
       "flags": [ "CLIMBS", "HARDTOSHOOT", "TELEPORT_IMMUNE" ]
@@ -1457,8 +1593,7 @@
     "name": "feral mender",
     "description": "Other than the intense expression, this feral human looks to be the picture of health.  They could have starred in a healthcare advertisement before the Cataclysm.  Only the jagged bit of wood clutched like a club indicates something is wrong.",
     "copy-from": "mon_feral_psion_default",
-    "proportional": { "hp": 1.2 },
-    "//": "HP and regeneration due to vitakinetic powers",
+    "//": "Regeneration due to vitakinetic powers",
     "material": [ "flesh" ],
     "color": "green",
     "symbol": "@",
@@ -1485,7 +1620,7 @@
           "blockable": true,
           "eoc": [ "EOC_FERAL_VITAKIN1_ENERVATING_TOUCH" ],
           "condition": { "not": { "u_has_flag": "NO_PSIONICS" } },
-          "hit_dmg_u": "%1$s touches you and you feel weaker!",
+          "hit_dmg_u": "%1$s reaches for you you and you feel weaker!",
           "hit_dmg_npc": "%1$s touches <npcname> and they flinch!",
           "miss_msg_u": "%1$s tries to touch you, but you dodge!",
           "miss_msg_npc": "%1$s tries to touch <npcname>, but they dodge!",

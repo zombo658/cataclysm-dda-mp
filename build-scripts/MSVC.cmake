@@ -24,15 +24,10 @@ Remove /RTC1
 
 #]=======================================================================]
 
-# Path has changed, so this configure run will find cl.exe
-set(CMAKE_C_COMPILER   cl.exe)
-set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER})
-
 # C++ flags used by all builds
 add_compile_options(
     /MP    # cl.exe build with multiple processes
     /utf-8 # set source and execution character sets to UTF-8
-    /bigobj # increase # of sections in object files
     /permissive- # enforce more standards compliant behavior
     /sdl-  # disable additional security checks
     /FC    # full path in compiler messages
@@ -51,7 +46,6 @@ add_compile_options(
     /wd26495 # uninitialized mamber
     /WX-     # do not tread warnings as errors
     /W1      # warning level
-    /TP      # every source file is a C++ file
     /Zc:forScope # force conformace in for loop scope
     /Zc:inline   # remove unreferenced COMDAT
     /Zc:wchar_t  # wchar_t is native type
@@ -85,9 +79,17 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 # Where is vcpkg.json ?
 set(VCPKG_MANIFEST_DIR ${CMAKE_SOURCE_DIR}/msvc-full-features)
 
-set(VCPKG_ROOT "" CACHE PATH "Path to VCPKG installation")
-if (NOT $ENV{VCPKG_ROOT} STREQUAL "")
-    include($ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
-elseif(NOT $CACHE{VCPKG_ROOT} STREQUAL "")
-    include($CACHE{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
+set(VCPKG_ROOT "$ENV{VCPKG_ROOT}" CACHE PATH "Path to VCPKG installation")
+if(NOT VCPKG_ROOT)
+    set(VCPKG_ROOT "C:/vcpkg" CACHE PATH "Path to VCPKG installation" FORCE)
 endif()
+
+set(_vcpkg_toolchain "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+if(NOT EXISTS "${_vcpkg_toolchain}")
+  message(FATAL_ERROR
+    "Could not find vcpkg toolchain file at:\n  ${_vcpkg_toolchain}\n"
+    "Check that VCPKG_ROOT points to a valid vcpkg checkout "
+    "(it should contain scripts/buildsystems/vcpkg.cmake).")
+endif()
+
+include("${_vcpkg_toolchain}")

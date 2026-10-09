@@ -43,5 +43,33 @@
     "volume": "600 L",
     "weight": "900 kg",
     "flags": [ "TRADER_AVOID" ]
+  },
+  {
+    "type": "ITEM",
+    "id": "broken_flailer_radiosphere",
+    "name": { "str": "torn flailer" },
+    "description": "A torn up cloth facsimile of a bird, you could tear it up even further for materials.",
+    "symbol": "v",
+    "color": "light_gray",
+    "category": "corpses",
+    "material": [ "cotton" ],
+    "price_postapoc": "0 USD",
+    "volume": "150 ml",
+    "weight": "60 g",
+    "flags": [ "TRADER_AVOID" ]
+  },
+  {
+    "type": "ITEM",
+    "id": "dead_solar_beetle_radiosphere",
+    "name": { "str": "giant solar beetle corpse" },
+    "description": "Corpse of a giant beetle-like robot with a scratched blue plastic shell, the exterior of its open elytra is covered with curved, degraded solar panels.",
+    "symbol": "B",
+    "color": "light_blue",
+    "category": "corpses",
+    "material": [ "glass", "plastic", "steel" ],
+    "price_postapoc": "0 USD",
+    "volume": "31250 ml",
+    "weight": "40050 g",
+    "flags": [ "TRADER_AVOID" ]
   }
 ]

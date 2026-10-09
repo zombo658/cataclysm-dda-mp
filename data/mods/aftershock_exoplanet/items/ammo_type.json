@@ -7,12 +7,6 @@
   },
   {
     "type": "ammunition_type",
-    "id": "xray_laser_barrel",
-    "name": "ray laser barrel",
-    "default": "xray_laser_barrel"
-  },
-  {
-    "type": "ammunition_type",
     "id": "afs_foam",
     "name": "industrial foam",
     "default": "afs_foamcrete"
@@ -82,6 +76,12 @@
     "id": "metal_rail",
     "name": "ferrous rail projectile",
     "default": "steel_rail"
+  },
+  {
+    "type": "ammunition_type",
+    "id": "30x200mm",
+    "name": "30x200mm railgun slug",
+    "default": "afs_30x200mm"
   },
   {
     "type": "ammunition_type",

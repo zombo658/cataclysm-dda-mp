@@ -148,7 +148,7 @@
       "str": "The Prop Builder's Molding and Casting Handbook",
       "str_pl": "copies of The Prop Builder's Molding and Casting Handbook"
     },
-    "description": "The first book to contain, in one comprehensive volume, every molding and casting procedure of use to the theater props builder of any skill level.  The author demonstrates the techniques involved in over thirty materials from papier-mache to breakaway glass.",
+    "description": "The first book to contain, in one comprehensive volume, every molding and casting procedure of use to the theater props builder of any skill level.  The author demonstrates the techniques involved in over thirty materials from papier-mâché to breakaway glass.",
     "weight": "1500 g",
     "volume": "1250 ml",
     "price": "45 USD",
@@ -798,6 +798,27 @@
     "max_level": 3,
     "intelligence": 14,
     "time": "20 m",
+    "read_skill": "fabrication",
+    "read_fun": -1
+  },
+  {
+    "id": "improvised_munition_handbook",
+    "type": "ITEM",
+    "subtypes": [ "BOOK" ],
+    "category": "manuals",
+    "name": { "str": "TM 31-210 Improvised Munitions Handbook", "str_pl": "copies of TM 31-210 Improvised Munitions Handbook" },
+    "description": "Army manual, written for situations when military supplies are inaccessible, and describes a variety of ways an army man can produce simple munition out of materials at hand.  Opposite to more popular books of this type, this one is keen to preserve your body integrity in the process, although caution is advised nonetheless.",
+    "weight": "130 g",
+    "volume": "550 ml",
+    "price": "11 USD 95 cent",
+    "price_postapoc": "28 USD",
+    "material": [ "paper" ],
+    "symbol": "?",
+    "looks_like": "textbook_anarch",
+    "color": "yellow",
+    "max_level": 3,
+    "intelligence": 6,
+    "time": "45 m",
     "read_skill": "fabrication",
     "read_fun": -1
   }

@@ -1,27 +1,61 @@
 #include "level_cache.h"
 
-#include <algorithm>
-
-#include "lightmap.h"
-#include "shadowcasting.h"
+#include <cstring>
 
 level_cache::level_cache()
 {
-    const int map_dimensions = MAPSIZE_X * MAPSIZE_Y;
+    clear();
+}
+
+uint64_t next_cache_generation()
+{
+    static uint64_t last = 0;
+    return ++last;
+}
+
+void level_cache::clear()
+{
+    // Blast zeroes over the entire region. Some compilers, looking at you msvc, aren't smart enough
+    // to turn this into a single fused memset. Sometimes it doesn't even optimize fill_n into memset
+    // but emits scalar loops. This murders map test performance.
+#pragma GCC diagnostic push
+    // It's safe to disable this because we static_assert that level_cache_default_zero_members is
+    // trivially copyable, and we know all zeros bit pattern is a legal representation for the type.
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
+    std::memset( static_cast<level_cache_default_zero_members *>( this ), 0,
+                 sizeof( level_cache_default_zero_members ) );
+#pragma GCC diagnostic pop
+
     transparency_cache_dirty.set();
+    vision_transparency_dirty.set();
     outside_cache_dirty = true;
     floor_cache_dirty = false;
-    constexpr four_quadrants four_zeros( 0.0f );
-    std::fill_n( &lm[0][0], map_dimensions, four_zeros );
-    std::fill_n( &sm[0][0], map_dimensions, 0.0f );
-    std::fill_n( &light_source_buffer[0][0], map_dimensions, 0.0f );
-    std::fill_n( &outside_cache[0][0], map_dimensions, false );
-    std::fill_n( &floor_cache[0][0], map_dimensions, false );
-    std::fill_n( &transparency_cache[0][0], map_dimensions, 0.0f );
-    std::fill_n( &vision_transparency_cache[0][0], map_dimensions, 0.0f );
-    std::fill_n( &seen_cache[0][0], map_dimensions, 0.0f );
-    std::fill_n( &camera_cache[0][0], map_dimensions, 0.0f );
-    std::fill_n( &visibility_cache[0][0], map_dimensions, lit_level::DARK );
+    seen_cache_dirty = false;
+    lightmap_dirty = true;
+    // the memset above marked every memory cache bit dirty
+    map_memory_sweep_pending = true;
+    has_colored_lights = false;
+    vision_observer_overrides.clear();
+    built_sight_penalty = -1.0f;
+    outside_rewritten = true;
+    vehicle_opaque_any = false;
+    transparency_vehicle_opaque_any = false;
+    sight_revision = next_cache_generation();
+    geometry_revision = next_cache_generation();
+    field_revision = next_cache_generation();
+    sun_revision = next_cache_generation();
+    sun_uniform = -1.0f;
+    light_full = false;
+    light_changes_by_turn = false;
+    light_tint = light_color_rgb{};
+    lightmap_sun_revision = 0;
+    no_floor_gaps = false;
+
+    natural_light_level_cache = 0.0f;
+
+    vehicle_list.clear();
+    zone_vehicles.clear();
+
     clear_vehicle_cache();
 }
 

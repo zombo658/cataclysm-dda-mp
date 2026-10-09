@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <list>
 #include <map>
@@ -15,6 +16,10 @@
 #include "coordinates.h"
 #include "debug.h"
 #include "effect.h"
+#include "game.h"
+#include "item.h"
+#include "item_pocket.h"
+#include "kill_tracker.h"
 #include "map_iterator.h"
 #include "messages.h"
 #include "morale.h"
@@ -23,7 +28,6 @@
 #include "type_id.h"
 #include "units.h"
 
-class item;
 struct itype;
 
 static const efftype_id effect_took_prozac( "took_prozac" );
@@ -31,6 +35,11 @@ static const efftype_id effect_took_xanax( "took_xanax" );
 
 static const itype_id itype_foodperson_mask( "foodperson_mask" );
 static const itype_id itype_foodperson_mask_on( "foodperson_mask_on" );
+
+static const json_character_flag json_flag_NUMB( "NUMB" );
+static const json_character_flag json_flag_PRED3( "PRED3" );
+static const json_character_flag json_flag_PRED4( "PRED4" );
+static const json_character_flag json_flag_PSYCHOPATH( "PSYCHOPATH" );
 
 static const morale_type morale_perm_fpmode_on( "morale_perm_fpmode_on" );
 static const morale_type morale_perm_hoarder( "morale_perm_hoarder" );
@@ -53,15 +62,33 @@ void Character::update_morale()
 
 void Character::hoarder_morale_penalty()
 {
-    // For hoarders holsters count as a flat -1 penalty for being empty, we also give them a 25% allowence on their pockets below 1000_ml
-    int pen = ( ( free_space() - holster_volume() ) - ( small_pocket_volume() / 4 ) ) / 125_ml;
-    pen += empty_holsters();
-    if( pen > 70 ) {
-        pen = 70;
+    units::volume no_penalty_volume = 8000_ml;
+    units::volume total_volume = 0_ml;
+
+    std::vector<item_pocket *> top_pockets = weapon.get_container_pockets();
+    for( item &it : worn.worn ) {
+        std::vector<item_pocket *> worn_pockets = it.get_container_pockets();
+        top_pockets.insert( top_pockets.end(), worn_pockets.begin(), worn_pockets.end() );
     }
-    if( pen <= 0 ) {
+    for( const item_pocket *pocket : top_pockets ) {
+        // Ablative stuff isn't gear, it is armor
+        if( pocket->is_ablative() ) {
+            continue;
+        }
+        total_volume += pocket->contents_volume();
+    }
+    int pen = ( no_penalty_volume - total_volume ) / 100_ml;
+    if( pen >= 80 ) {
+        pen = 60;
+    } else if( pen <= 0 ) {
         pen = 0;
+    } else if( pen <= 40 ) {
+        // first 4L counts 10 per, next 4L is only 5 per
+        pen = pen / 2 ;
+    } else {
+        pen = pen - 20 ;
     }
+
     if( has_effect( effect_took_xanax ) ) {
         pen = pen / 7;
     } else if( has_trait( trait_THRESH_SPECIES_RAVENFOLK ) ) {
@@ -141,8 +168,54 @@ void Character::apply_persistent_morale()
     }
 }
 
-int Character::get_morale_level() const
+void Character::clamp_trauma()
 {
+    trauma_counter = std::clamp( trauma_counter, 0, 1000 );
+}
+
+int Character::get_trauma() const
+{
+    return trauma_counter;
+}
+
+void Character::mod_trauma( int amt )
+{
+    trauma_counter += amt;
+    clamp_trauma();
+}
+
+void Character::set_trauma( int amt )
+{
+    trauma_counter = amt;
+    clamp_trauma();
+}
+
+double Character::get_modifier_for_ALL_morale() const
+{
+    if( has_flag( json_flag_NUMB ) ) {
+        return 0.0; // I just don't care about anything anymore... (medical mutant)
+    }
+
+    // Only player is bothered by guilt kills, because only player tracks them.
+    if( !is_avatar() || has_flag( json_flag_PSYCHOPATH ) ||
+        has_flag( json_flag_PRED3 ) || has_flag( json_flag_PRED4 ) ) {
+        // No guilt.
+        return 1.0;
+    }
+
+    // Sanity check, at 1000 kills we're down to all morale modifiers being ~5% of max.
+    const int num_kills = std::clamp( g->get_kill_tracker().guilt_kill_count(), 0, 1000 );
+    const int trauma_experiences = get_trauma();
+    const int total_trauma = num_kills + trauma_experiences;
+    return std::pow( 0.997, total_trauma );
+}
+
+int Character::get_morale_level( bool raw ) const
+{
+    if( !raw ) {
+        return std::round( get_modifier_for_ALL_morale() * morale->get_level() );
+    }
+    // For the unusual case that needs it, direct access to raw level for comparison purposes
     return morale->get_level();
 }
 
@@ -208,6 +281,11 @@ void Character::check_and_recover_morale()
     apply_persistent_morale();
 
     if( !morale->consistent_with( test_morale ) ) {
+
+        add_msg_debug( debugmode::DF_CHARACTER, "Test morale:\n%s\n", test_morale.to_string_writable() );
+        add_msg_debug( debugmode::DF_CHARACTER, "Actual %s morale:\n%s\n", disp_name( true ),
+                       morale->to_string_writable() );
+
         morale->sync_permanent( test_morale ); // Recover only permanent morale
         add_msg_debug( debugmode::DF_CHARACTER, "%s morale was recovered.", disp_name( true ) );
     }
@@ -230,5 +308,5 @@ void Character::disp_morale()
         pain_penalty = calc_focus_equilibrium( true ) - equilibrium - sleepiness_penalty;
     }
 
-    morale->display( equilibrium, pain_penalty, sleepiness_penalty );
+    morale->display( equilibrium, pain_penalty, sleepiness_penalty, *this );
 }

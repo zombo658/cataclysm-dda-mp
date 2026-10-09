@@ -22,6 +22,11 @@ void snippet_library::load_snippet( const JsonObject &jsobj, const std::string &
     }
     hash_to_id_migration = std::nullopt;
     const std::string category = jsobj.get_string( "category" );
+    if( jsobj.has_member( "override" ) && jsobj.get_bool( "override" ) ) {
+        snippets_by_category[category].ids.clear();
+        snippets_by_category[category].no_id.clear();
+
+    }
     if( jsobj.has_array( "text" ) ) {
         add_snippets_from_json( category, jsobj.get_array( "text" ), src );
     } else {
@@ -378,4 +383,9 @@ template<> const translation &snippet_id::obj() const
 template<> bool snippet_id::is_valid() const
 {
     return SNIPPET.has_snippet_with_id( *this );
+}
+
+std::string get_hint()
+{
+    return SNIPPET.random_from_category( "hint" ).value_or( translation() ).translated();
 }

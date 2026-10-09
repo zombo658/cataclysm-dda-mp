@@ -95,16 +95,6 @@
         "result": "f_plant_mature",
         "valid_furniture": [ "f_plant_seedling", "f_plant_seed" ],
         "message": "The plant grows in moments, leaves unfurling, roots churning the soil, and flowers opening toward the sun.  Before you even lower your hands, it's fully grown, though not yet ready for the harvest."
-      },
-      {
-        "result": "f_dirtmound_shallow_mature",
-        "valid_furniture": [ "f_dirtmound_shallow_seed", "f_dirtmound_shallow_seedling" ],
-        "message": "The plant grows in moments, leaves unfurling, roots churning the soil, and flowers opening toward the sun.  Before you even lower your hands, it's fully grown, though not yet ready for the harvest."
-      },
-      {
-        "result": "f_dirtmound_pile_mature",
-        "valid_furniture": [ "f_dirtmound_pile_seed", "f_dirtmound_pile_seedling" ],
-        "message": "The plant grows in moments, leaves unfurling, roots churning the soil, and flowers opening toward the sun.  Before you even lower your hands, it's fully grown, though not yet ready for the harvest."
       }
     ]
   },
@@ -121,16 +111,47 @@
         "result": "f_plant_harvest",
         "valid_furniture": [ "f_plant_mature" ],
         "message": "The plant's buds swell, fruiting and growing.  Before you even lower your hands, it's ripe and ready for the harvest."
-      },
+      }
+    ]
+  },
+  {
+    "type": "ter_furn_transform",
+    "id": "ter_changeling_autumn_clean_nearby_spills",
+    "field": [
       {
-        "result": "f_dirtmound_shallow_harvest",
-        "valid_furniture": [ "f_dirtmound_shallow_mature" ],
-        "message": "The plant's buds swell, fruiting and growing.  Before you even lower your hands, it's ripe and ready for the harvest."
-      },
+        "result": "fd_null",
+        "valid_field": [
+          "fd_dust",
+          "fd_mechanical_fluid",
+          "fd_dirty_water",
+          "fd_blood",
+          "fd_bile",
+          "fd_bile_adv",
+          "fd_slime",
+          "fd_sap",
+          "fd_blood_veggy",
+          "fd_blood_insect",
+          "fd_blood_invertebrate"
+        ],
+        "message": "Spills and dust on the floor shimmer and disappear."
+      }
+    ]
+  },
+  {
+    "type": "ter_furn_transform",
+    "id": "ter_changeling_winter_close_the_reality_tear",
+    "field": [
       {
-        "result": "f_dirtmound_pile_harvest",
-        "valid_furniture": [ "f_dirtmound_pile_mature" ],
-        "message": "The plant's buds swell, fruiting and growing.  Before you even lower your hands, it's ripe and ready for the harvest."
+        "result": "fd_null",
+        "valid_field": [ "fd_fatigue" ],
+        "message": "The edges of the swirling wound in reality crack like ice over new fallen snow, and then the entire portal shatters into shards of nothingness."
+      }
+    ],
+    "trap": [
+      {
+        "result": "tr_null",
+        "valid_trap": [ "tr_portal" ],
+        "message": "The edges of the swirling wound in reality crack like ice over new fallen snow, and then the entire portal shatters into shards of nothingness."
       }
     ]
   }

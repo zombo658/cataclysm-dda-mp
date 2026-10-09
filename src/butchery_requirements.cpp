@@ -2,8 +2,11 @@
 
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <string>
 
+#include "butchery.h"
+#include "cata_utility.h"
 #include "creature.h"
 #include "debug.h"
 #include "enum_conversions.h"
@@ -11,7 +14,6 @@
 #include "generic_factory.h"
 #include "item.h"
 #include "requirements.h"
-#include "butchery.h"
 
 namespace
 {
@@ -35,6 +37,11 @@ void butchery_requirements::load_butchery_req( const JsonObject &jo, const std::
     butchery_req_factory.load( jo, src );
 }
 
+void butchery_requirements::finalize_all()
+{
+    butchery_req_factory.finalize();
+}
+
 const std::vector<butchery_requirements> &butchery_requirements::get_all()
 {
     return butchery_req_factory.get_all();
@@ -53,7 +60,11 @@ bool butchery_requirements::is_valid() const
 void butchery_requirements::load( const JsonObject &jo, std::string_view )
 {
     for( const JsonMember member : jo.get_object( "requirements" ) ) {
-        float modifier = std::stof( member.name() );
+        std::optional<double> mod_val = svtod( member.name() );
+        if( !mod_val.has_value() ) {
+            jo.throw_error( "Invalid key for requirements, cannot convert to float" );
+        }
+        float modifier = mod_val.value();
         requirements.emplace( modifier, std::map<creature_size, std::map<butcher_type, requirement_id>> {} );
 
         int critter_size = 1;
@@ -97,11 +108,12 @@ void butchery_requirements::check_consistency()
 }
 
 std::pair<float, requirement_id> butchery_requirements::get_fastest_requirements(
-    const read_only_visitable &crafting_inv, creature_size size, butcher_type butcher ) const
+    const Character *actor, const temp_crafting_inventory &crafting_inv, creature_size size,
+    butcher_type butcher ) const
 {
     for( const std::pair<const float, std::map<creature_size, std::map<butcher_type, requirement_id>>>
          &riter : requirements ) {
-        if( riter.second.at( size ).at( butcher )->can_make_with_inventory( crafting_inv,
+        if( riter.second.at( size ).at( butcher )->can_make_with_inventory( actor, crafting_inv,
                 is_crafting_component ) ) {
             return std::make_pair( riter.first, riter.second.at( size ).at( butcher ) );
         }

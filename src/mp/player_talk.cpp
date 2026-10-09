@@ -168,7 +168,7 @@ void inspect( const JsonObject &question )
     float prof_bonus = u.get_skill_level( skill_firstaid );
     prof_bonus = u.has_proficiency( proficiency_prof_wound_care ) ? prof_bonus + 1 : prof_bonus;
     prof_bonus = u.has_proficiency( proficiency_prof_wound_care_expert ) ? prof_bonus + 2 : prof_bonus;
-    const bool precise = prof_bonus * 4 + u.per_cur >= 20;
+    const bool precise = prof_bonus * 4 + u.get_per() >= 20;
     who->body_window( _( "Limbs of: " ) + who->disp_name(), true, precise, 0, 0, 0,
                                           0.0f, 0.0f, 0.0f, 0.0f, 0.0f );
 }

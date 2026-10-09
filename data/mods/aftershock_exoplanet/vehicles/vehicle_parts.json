@@ -11,7 +11,7 @@
     "location": "center",
     "durability": 200,
     "description": "This is little more than a sheet metal basin welded to the bottom of the vehicle, extending below it.  Though it holds a lot of stuff, its shoddiness makes it fragile.",
-    "size": 600,
+    "size": "150 L",
     "breaks_into": [ { "item": "lc_steel_lump", "count": [ 4, 6 ] }, { "item": "scrap", "count": [ 4, 6 ] } ]
   },
   {
@@ -103,7 +103,7 @@
       { "item": "lc_steel_lump", "count": [ 2, 4 ] },
       { "item": "lc_steel_chunk", "count": [ 2, 4 ] },
       { "item": "scrap", "count": [ 2, 4 ] },
-      { "item": "cable", "charges": [ 5, 20 ] },
+      { "item": "cable", "count": [ 2, 7 ] },
       { "item": "RAM", "count": [ 1, 4 ] },
       { "item": "e_scrap", "count": [ 3, 8 ] }
     ],
@@ -206,7 +206,7 @@
     "breaks_into": [
       { "item": "mc_steel_lump", "count": [ 6, 11 ] },
       { "item": "mc_steel_chunk", "count": [ 6, 11 ] },
-      { "item": "scrap", "charges": [ 6, 11 ] }
+      { "item": "scrap", "count": [ 6, 11 ] }
     ],
     "damage_reduction": { "all": 50 },
     "variants": [ { "symbols": "O", "symbols_broken": "#" } ]
@@ -279,5 +279,71 @@
     "item": "veh_tools_kitchen",
     "looks_like": "kitchen_unit",
     "extend": { "allowed_tools": [ "afs_atompot" ] }
+  },
+  {
+    "id": "ship_reactor_pdu",
+    "type": "vehicle_part",
+    "categories": [ "movement" ],
+    "color": "light_blue",
+    "durability": 800,
+    "flags": [ "NO_INSTALL_HIDDEN", "NO_UNINSTALL", "NO_REPAIR", "OBSTACLE", "PERPETUAL", "REACTOR" ],
+    "looks_like": "minireactor",
+    "location": "center",
+    "epower": "200 kW",
+    "requirements": {
+      "install": { "skills": [ [ "mechanics", 3 ] ], "time": "60 m", "using": [ [ "vehicle_wrench_2", 1 ] ] },
+      "removal": { "skills": [ [ "mechanics", 2 ] ], "time": "30 m", "using": [ [ "vehicle_wrench_2", 1 ] ] },
+      "repair": { "skills": [ [ "mechanics", 4 ] ], "time": "60 m", "using": [ [ "welding_standard", 5 ] ] }
+    },
+    "item": "ship_reactor_pdu",
+    "description": "A distribution cabinet linking to the ship's main reactor, can be used to build an external electric grid powered by the ship's surplus power.",
+    "variants": [ { "symbols": "X", "symbols_broken": "O" } ],
+    "breaks_into": [
+      { "item": "mc_steel_lump", "count": [ 3, 6 ] },
+      { "item": "mc_steel_chunk", "count": [ 3, 6 ] },
+      { "item": "scrap", "count": [ 3, 6 ] }
+    ]
+  },
+  {
+    "id": "aerodyne_engine",
+    "copy-from": "helicopter_rotors",
+    "type": "vehicle_part",
+    "item": "afs_aerodyne_engine",
+    "description": "A multi-axis aerodyne engine, powered by chemical fuel.  Allows flight within the atmosphere.",
+    "rotor_diameter": 1,
+    "bonus": 9,
+    "durability": 450,
+    "damage_modifier": 80,
+    "flags": [ "ROTOR", "NO_REPAIR", "SMASH_REMOVE" ],
+    "requirements": { "removal": { "skills": [ [ "mechanics", 8 ] ], "time": "1 h", "using": "vehicle_weld_removal" } },
+    "breaks_into": [ { "item": "scrap", "count": [ 15, 30 ] }, { "item": "ch_steel_chunk", "count": [ 8, 16 ] } ],
+    "damage_reduction": { "all": 66 }
+  },
+  {
+    "id": "engine_turbine_large",
+    "copy-from": "gas_turbine_engine",
+    "type": "vehicle_part",
+    "item": "afs_aerodyne_powerplant",
+    "description": "A massive turbine engine, used to power aerodynes.  Has a prodigiously high rate of fuel consumption.",
+    "durability": 400,
+    "epower": "-10 W",
+    "power": "4400000 W",
+    "energy_consumption": "6600000 W",
+    "breaks_into": [
+      { "item": "alloy_plate", "count": [ 4, 6 ] },
+      { "item": "ch_steel_lump", "count": [ 100, 120 ] },
+      { "item": "ch_steel_chunk", "count": [ 100, 120 ] },
+      { "item": "scrap", "count": [ 100, 120 ] }
+    ],
+    "requirements": {
+      "install": { "skills": [ [ "mechanics", 9 ] ], "time": "60 m", "using": [ [ "vehicle_wrench_2", 1 ] ] },
+      "removal": { "skills": [ [ "mechanics", 7 ] ], "time": "30 m", "using": [ [ "vehicle_wrench_2", 1 ] ] },
+      "repair": {
+        "skills": [ [ "mechanics", 10 ] ],
+        "time": "60 m",
+        "using": [ [ "repair_welding_standard", 7 ], [ "repair_welding_alloys", 5 ], [ "vehicle_wrench_2", 1 ], [ "vehicle_screw", 1 ] ]
+      }
+    },
+    "damage_reduction": { "all": 70 }
   }
 ]

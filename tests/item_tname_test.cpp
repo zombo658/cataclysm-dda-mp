@@ -46,13 +46,13 @@ static const itype_id itype_longshirt( "longshirt" );
 static const itype_id itype_milkshake( "milkshake" );
 static const itype_id itype_mushroom( "mushroom" );
 static const itype_id itype_pants( "pants" );
-static const itype_id itype_pepper( "pepper" );
+static const itype_id itype_pepper_test( "pepper_test" );
 static const itype_id itype_pine_nuts( "pine_nuts" );
 static const itype_id itype_protein_bar_evac( "protein_bar_evac" );
 static const itype_id itype_purse( "purse" );
 static const itype_id itype_rock( "rock" );
-static const itype_id itype_salt( "salt" );
-static const itype_id itype_sauerkraut( "sauerkraut" );
+static const itype_id itype_salt_test( "salt_test" );
+static const itype_id itype_sauerkraut_test( "sauerkraut_test" );
 static const itype_id itype_sheet_cotton( "sheet_cotton" );
 static const itype_id itype_test_baseball( "test_baseball" );
 static const itype_id itype_test_load_bearing_vest( "test_load_bearing_vest" );
@@ -180,7 +180,7 @@ TEST_CASE( "items_with_a_temperature_flag", "[item][tname][temperature]" )
             REQUIRE( nut.has_flag( flag_FROZEN ) );
 
             THEN( "it appears frozen" ) {
-                CHECK( nut.tname() == "pine nuts (fresh) (frozen)" );
+                CHECK( nut.tname() == "Handful of pine nuts (fresh) (frozen)" );
             }
         }
         WHEN( "cold" ) {
@@ -188,7 +188,7 @@ TEST_CASE( "items_with_a_temperature_flag", "[item][tname][temperature]" )
             REQUIRE( nut.has_flag( flag_COLD ) );
 
             THEN( "it appears cold" ) {
-                CHECK( nut.tname() == "pine nuts (fresh) (cold)" );
+                CHECK( nut.tname() == "Handful of pine nuts (fresh) (cold)" );
             }
         }
 
@@ -197,7 +197,7 @@ TEST_CASE( "items_with_a_temperature_flag", "[item][tname][temperature]" )
             REQUIRE( nut.has_flag( flag_HOT ) );
 
             THEN( "it appears hot" ) {
-                CHECK( nut.tname() == "pine nuts (fresh) (hot)" );
+                CHECK( nut.tname() == "Handful of pine nuts (fresh) (hot)" );
             }
         }
     }
@@ -758,16 +758,16 @@ TEST_CASE( "nested_items_tname", "[item][tname]" )
         }
         SECTION( "container has whitelist" ) {
             std::string const wlmark = "⁺";
-            REQUIRE( backpack_hiking.get_all_contained_pockets().size() >= 2 );
-            backpack_hiking.get_all_contained_pockets().front()->settings.whitelist_item(
+            REQUIRE( backpack_hiking.get_container_pockets().size() >= 2 );
+            backpack_hiking.get_container_pockets().front()->settings.whitelist_item(
                 itype_rock );
             CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack" +
                    colorize( wlmark, c_dark_gray ) + " " + nesting_sym + " " + rock_nested_tname );
-            backpack_hiking.get_all_contained_pockets()[1]->settings.set_was_edited();
+            backpack_hiking.get_container_pockets()[1]->settings.set_was_edited();
             // different pocket was edited
             CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack" +
                    colorize( wlmark, c_dark_gray ) + " " + nesting_sym + " " + rock_nested_tname );
-            backpack_hiking.get_all_contained_pockets()[0]->settings.set_was_edited();
+            backpack_hiking.get_container_pockets()[0]->settings.set_was_edited();
             CHECK( backpack_hiking.tname( 1 ) == color_pref + "hiking backpack" +
                    colorize( wlmark, c_light_gray ) + " " + nesting_sym + " " + rock_nested_tname );
         }
@@ -826,13 +826,13 @@ TEST_CASE( "nested_items_tname", "[item][tname]" )
     type_only.set( tname::segments::TYPE );
     SECTION( "aggregated food stats" ) {
         avatar &u = get_avatar();
-        item salt( itype_salt );
+        item salt( itype_salt_test );
         std::string const cat_food_str = salt.get_category_shallow().name_noun( 2 );
-        item pepper( itype_pepper );
+        item pepper( itype_pepper_test );
         item juniper( itype_juniper );
         item ration( itype_protein_bar_evac );
         item carrot( itype_carrot );
-        item sauerkraut( itype_sauerkraut );
+        item sauerkraut( itype_sauerkraut_test );
         item bag( itype_bag_plastic );
         std::string const carrots_tname = carrot.tname( 2, type_only );
 

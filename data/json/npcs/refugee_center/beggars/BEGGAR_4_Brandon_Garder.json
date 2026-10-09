@@ -7,9 +7,10 @@
     "gender": "male",
     "name_suffix": "Carpenter",
     "temp_suffix": "Beggar",
+    "portrait_filename": "Named_NPC_brandon_garder",
     "class": "NC_BEGGAR_4",
     "attitude": 0,
-    "mission": 7,
+    "mission": "GUARD",
     "chat": "TALK_REFUGEE_BEGGAR_4",
     "faction": "lobby_beggars"
   },

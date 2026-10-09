@@ -1,4 +1,3 @@
-#include <functional>
 #include <vector>
 
 #include "avatar.h"
@@ -22,7 +21,7 @@ static const itype_id itype_sw629( "sw629" );
 TEST_CASE( "unload_revolver_naked_one_bullet", "[unload][nonmagzine]" )
 {
     clear_avatar();
-    clear_map();
+    clear_map_without_vision();
 
     Character &dummy = get_player_character();
     avatar &player_character = get_avatar();
@@ -57,7 +56,7 @@ TEST_CASE( "unload_revolver_naked_one_bullet", "[unload][nonmagzine]" )
 TEST_CASE( "unload_revolver_naked_fully_loaded", "[unload][nonmagzine]" )
 {
     clear_avatar();
-    clear_map();
+    clear_map_without_vision();
 
     Character &dummy = get_player_character();
     avatar &player_character = get_avatar();

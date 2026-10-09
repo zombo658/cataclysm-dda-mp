@@ -2,12 +2,10 @@
   {
     "type": "npc",
     "id": "xe_vampire_mentor",
-    "//": "Maybe there will be non-mentor vampire NPCs someday.  For now, there's only the mentors.",
-    "//2": "When vampires will gain random weaknesses, no mentor will ever have the Barred from Mortal Joys weakness.",
     "name_suffix": "vampire",
     "class": "NC_NPC_XE_VAMPIRE_MENTOR",
     "attitude": 0,
-    "mission": 2,
+    "mission": "SHELTER",
     "chat": "TALK_VAMPIRE_MENTOR",
     "faction": "no_faction"
   },
@@ -36,9 +34,10 @@
     "traits": [
       { "group": "Appearance_demographics" },
       { "group": "BG_survival_story_UNIVERSAL" },
-      { "group": "NPC_starting_traits" },
+      { "group": "NPC_Vampire_Mentor_starting_traits" },
       { "group": "trait_group_complete_vampire" },
-      { "trait": "MENTOR_PEACE", "prob": 100 }
+      { "trait": "MENTOR_PEACE", "prob": 100 },
+      { "trait": "PSYCHOPATH", "prob": 100 }
     ]
   },
   {
@@ -46,8 +45,10 @@
     "type": "talk_topic",
     "//": "When dialogue conditions will be possible to chain, there needs to be a 1% chance of a dialogue where the mentor gets mad at the fact that there is now another Anathema.  Around 1% of mentors knew about it.",
     "//2": "Their response focuses on not panicking, for that tends to provoke hostiles into attacking.  However, they will refuse to stay near the Anathema even for a second.",
+    "//3": "Same for Bloodthorne druids.  It's a good idea to stay near someone who swore to spend their entire life killing your kind, it totally won't get you killed.",
+    "//4": "Except for these, they won't react unless facing hostility as they can't magically guess which human is a vampire hunter.",
     "dynamic_line": {
-      "u_has_trait": "VAMPIRE_ANATHEMA",
+      "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ],
       "yes": "Sorry I must go.  Bye!",
       "no": {
         "compare_string": [ "yes", { "u_val": "general_meeting_u_met_mentor" } ],
@@ -59,19 +60,19 @@
       {
         "text": "I want to talk.",
         "topic": "TALK_VAMPIRE_MENTOR_TALK",
-        "condition": { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } },
+        "condition": { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } },
         "effect": { "u_add_var": "general_meeting_u_met_mentor", "value": "yes" }
       },
       {
         "text": "I want a mentor.",
         "topic": "TALK_VAMPIRE_MENTOR_MENTORING",
-        "condition": { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } },
+        "condition": { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } },
         "effect": { "u_add_var": "general_meeting_u_met_mentor", "value": "yes" }
       },
       {
         "text": "I want to kill vampires.",
         "topic": "TALK_VAMPIRE_MENTOR_KILLING",
-        "condition": { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } },
+        "condition": { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } },
         "effect": { "u_add_var": "general_meeting_u_met_mentor", "value": "yes" }
       },
       {
@@ -81,7 +82,7 @@
           "and": [
             { "u_has_trait": "VAMPIRE4" },
             { "not": { "compare_string": [ "yes", { "u_val": "told_about_trueness" } ] } },
-            { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } }
+            { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } }
           ]
         },
         "effect": { "u_add_var": "told_about_trueness", "value": "yes" }
@@ -92,8 +93,13 @@
         "//": "Anathema who haven't obtained these recipes need not to worry, for one of their powers will give them the remaining gifts and they will have almost all the weaknesses anyway.",
         "condition": {
           "and": [
-            { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } },
-            { "not": { "u_know_recipe": "xe_vampire_blood_gift_research" } },
+            { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } },
+            {
+              "or": [
+                { "not": { "u_know_recipe": "xe_vampire_blood_gift_research" } },
+                { "not": { "u_know_recipe": "xe_vampire_blood_gift_refinement_research" } }
+              ]
+            },
             { "compare_string": [ "yes", { "u_val": "told_about_trueness" } ] }
           ]
         }
@@ -105,7 +111,7 @@
           "and": [
             { "compare_string": [ "yes", { "u_val": "received_mentor_book" } ] },
             { "not": { "u_has_item": "vampire_mentor_book" } },
-            { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } }
+            { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } }
           ]
         }
       },
@@ -133,16 +139,21 @@
       {
         "text": "…",
         "topic": "TALK_DONE",
-        "condition": { "u_has_trait": "VAMPIRE_ANATHEMA" },
+        "condition": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] },
         "effect": [
-          { "npc_die": { "remove_corpse": true, "supress_message": true, "remove_from_creature_tracker": true } },
+          { "npc_die": { "remove_corpse": true, "supress_message": true } },
           { "u_message": "The mentor vanishes in a fine mist." }
         ]
       },
       {
         "text": "Do you want to chat for a bit?",
         "topic": "TALK_MENTOR_NO_CHAT",
-        "condition": { "and": [ { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } }, { "npc_has_trait": "PSYCHOPATH" } ] },
+        "condition": {
+          "and": [
+            { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } },
+            { "npc_has_trait": "PSYCHOPATH" }
+          ]
+        },
         "effect": { "u_add_var": "general_meeting_u_met_mentor", "value": "yes" }
       },
       {
@@ -151,13 +162,18 @@
         "//": "Non-uncaring mentors enjoy a good chat, both for fun and purpose.",
         "//2": "If you're a vampire, it keeps them on your good side and cement that you made the right choice.",
         "//3": "If you're not a vampire, it builds trust so you're more receptive when they will offer you to become a vampire.",
-        "condition": { "and": [ { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } }, { "not": { "npc_has_trait": "PSYCHOPATH" } } ] },
+        "condition": {
+          "and": [
+            { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } },
+            { "not": { "npc_has_trait": "PSYCHOPATH" } }
+          ]
+        },
         "effect": { "u_add_var": "general_meeting_u_met_mentor", "value": "yes" }
       },
       {
         "text": "Just passing through, don't mind me.",
         "topic": "TALK_DONE",
-        "condition": { "not": { "u_has_trait": "VAMPIRE_ANATHEMA" } },
+        "condition": { "not": { "u_has_any_trait": [ "VAMPIRE_ANATHEMA", "BLOODTHORNE_DRUID_SYMBIOTIC_PLANT" ] } },
         "effect": { "u_add_var": "general_meeting_u_met_mentor", "value": "yes" }
       }
     ]
@@ -222,7 +238,7 @@
         "topic": "TALK_DONE",
         "effect": [
           "hostile",
-          { "npc_die": { "remove_corpse": true, "supress_message": true, "remove_from_creature_tracker": true } },
+          { "npc_die": { "remove_corpse": true, "supress_message": true } },
           { "u_message": "The mentor vanishes in a fine mist." }
         ]
       },
@@ -290,6 +306,7 @@
         "text": "Yes.  I want more power.",
         "effect": [
           { "u_learn_recipe": "xe_vampire_blood_gift_research" },
+          { "u_learn_recipe": "xe_vampire_blood_gift_refinement_research" },
           { "u_learn_recipe": "xe_vampire_blood_weaknesses_reshuffle" }
         ],
         "topic": "TALK_VAMPIRE_MENTOR_BLOOD_GIFT_RESEARCH_LEARNED"
@@ -330,7 +347,7 @@
     "id": [ "TALK_VAMPIRE_MENTOR_NEWVAMPIRE" ],
     "type": "talk_topic",
     "dynamic_line": {
-      "str": "[bites you] Here you go.  You might not notice the effects at first, but keep some human blood close for when your thirst will appear and some shelter for when the sun will start to burn your skin.  There are levels of vampiric power that cannot be achieved through time alone.  When you'll reach that point, come back here and I'll help you reach them."
+      "str": "[Drains a significant portion of your blood and begins speaking to you before you black out] Here you go.  You might not notice the effects at first, but keep some human blood close for when your thirst will appear and some shelter for when the sun will start to burn your skin.  There are levels of vampiric power that cannot be achieved through time alone.  When you'll reach that point, come back here and I'll help you reach them.  [Slits its own wrist and lets you drink, as the blood hits your tongue it energizes you and washes away the dizziness of blood loss]"
     },
     "responses": [
       { "text": "Can we talk about something else?", "topic": "TALK_VAMPIRE_MENTOR_TALK" },
@@ -526,6 +543,7 @@
     "effect": [
       { "finish_mission": "GET_COMPONENTS_FOR_TIER_5", "success": true },
       { "u_add_trait": "BLOOD_DRINKER" },
+      { "run_eocs": [ "EOC_TIER_4_REMOVE_MORALS" ] },
       { "run_eocs": [ "EOC_VAMPIRE_ADD_ONE_WEAKNESS" ] },
       { "run_eocs": [ "EOC_VAMPIRE_ADD_ONE_WEAKNESS" ] },
       { "u_add_effect": "vampire_virus_post_mortal", "intensity": 1, "duration": "PERMANENT" },
@@ -551,7 +569,7 @@
         "topic": "TALK_DONE",
         "effect": [
           "hostile",
-          { "npc_die": { "remove_corpse": true, "supress_message": true, "remove_from_creature_tracker": true } },
+          { "npc_die": { "remove_corpse": true, "supress_message": true } },
           { "u_message": "The mentor vanishes in a fine mist." }
         ]
       },
@@ -582,7 +600,7 @@
         "topic": "TALK_DONE",
         "effect": [
           "hostile",
-          { "npc_die": { "remove_corpse": true, "supress_message": true, "remove_from_creature_tracker": true } },
+          { "npc_die": { "remove_corpse": true, "supress_message": true } },
           { "u_message": "The mentor vanishes in a fine mist." }
         ]
       },

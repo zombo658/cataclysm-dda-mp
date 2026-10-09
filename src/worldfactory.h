@@ -41,7 +41,7 @@ class save_t
         std::string base_path() const;
 
         static save_t from_save_id( const std::string &save_id );
-        static save_t from_base_path( const std::string &base_path );
+        static save_t from_base_path( std::string_view base_path );
 
         bool operator==( const save_t &rhs ) const {
             return name == rhs.name;
@@ -89,7 +89,9 @@ struct WORLD {
         bool create_timestamp();
 
         bool has_compression_enabled() const;
-        bool set_compression_enabled( bool enabled ) const;
+        bool set_compression_enabled( bool enabled );
+    private:
+        mutable std::optional<bool> is_compressed;
 
 };
 
@@ -138,7 +140,7 @@ class worldfactory
         bool valid_worldname( const std::string &name, bool automated = false ) const;
 
         /**
-         * @param delete_folder If true: delete all the files and directories  of the given
+         * @param delete_folder If true: delete all the files and directories of the given
          * world folder. Else just avoid deleting the config files and the directory
          * itself.
          */

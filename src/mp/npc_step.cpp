@@ -121,7 +121,7 @@ std::vector<std::string> dangerous_tile( const npc &guy, const tripoint_bub_ms &
     } else if( here.has_flag( ter_furn_flag::TFLAG_SHARP, dest ) &&
                !here.has_flag( ter_furn_flag::TFLAG_SHARP, guy.pos_bub() ) &&
                !guy.has_flag( json_flag_ALL_TERRAIN_NAVIGATION ) &&
-               !( guy.in_vehicle || here.veh_at( dest ) ) && guy.dex_cur < 78 &&
+               !( guy.in_vehicle || here.veh_at( dest ) ) && guy.get_dex() < 78 &&
                !std::all_of( sharp_bps.begin(), sharp_bps.end(), sharp_bp_check ) ) {
         harmful_stuff.push_back( here.name( dest ) );
     }

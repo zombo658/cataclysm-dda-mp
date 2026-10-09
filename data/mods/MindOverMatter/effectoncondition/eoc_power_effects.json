@@ -35,63 +35,147 @@
   {
     "type": "effect_on_condition",
     "id": "EOC_PSIONICS_KCAL_COST",
-    "effect": [ { "math": [ "u_calories()", "-=", "psionics_kcal_cost(u_latest_channeled_power_difficulty)" ] } ]
+    "effect": [ { "math": [ "u_calories() -= psionics_kcal_cost(u_latest_channeled_power_difficulty)" ] } ]
   },
   {
     "type": "effect_on_condition",
     "id": "EOC_BIOKIN_MATRIX_BOOST",
+    "//": "The EoCs below provide a boost to the appropriate path or relevant psychic knacks when wielding an appropriate matrix crystal",
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
-    "condition": { "and": [ { "u_has_trait": "BIOKINETIC" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_BIOKINESIS" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('BIOKINETIC')", "+=", "4" ] } ]
+    "condition": {
+      "and": [
+        { "or": [ { "u_has_trait": "BIOKINETIC" }, { "u_has_trait": "PSYCHIC_KNACK" } ] },
+        { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_BIOKINESIS" }
+      ]
+    },
+    "effect": [
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'BIOKINETIC') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'biokin_flexibility_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'biokin_adrenaline_knack') = 6" ] }
+    ]
   },
   {
     "type": "effect_on_condition",
     "id": "EOC_CLAIR_MATRIX_BOOST",
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
-    "condition": { "and": [ { "u_has_trait": "CLAIRSENTIENT" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_CLAIRSENTIENCE" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('CLAIRSENTIENT')", "+=", "4" ] } ]
+    "condition": {
+      "and": [
+        { "or": [ { "u_has_trait": "CLAIRSENTIENT" }, { "u_has_trait": "PSYCHIC_KNACK" } ] },
+        { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_CLAIRSENTIENCE" }
+      ]
+    },
+    "effect": [
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'CLAIRSENTIENT') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'clair_better_senses_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'clair_danger_sense_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'clair_examine_item_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'clair_astral_projection_knack') = 6" ] }
+    ]
   },
   {
     "type": "effect_on_condition",
     "id": "EOC_ELECTRO_MATRIX_BOOST",
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
-    "condition": { "and": [ { "u_has_trait": "ELECTROKINETIC" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_ELECTROKINESIS" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('ELECTROKINETIC')", "+=", "4" ] } ]
+    "condition": {
+      "and": [
+        { "or": [ { "u_has_trait": "ELECTROKINETIC" }, { "u_has_trait": "PSYCHIC_KNACK" } ] },
+        { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_ELECTROKINESIS" }
+      ]
+    },
+    "effect": [
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'ELECTROKINETIC') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'electrokinetic_see_electric_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'electrokinetic_pain_immune_knack') = 6" ] },
+      {
+        "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'electrokinetic_hacking_interface_knack') = 6" ]
+      }
+    ]
   },
   {
     "type": "effect_on_condition",
     "id": "EOC_PHOTO_MATRIX_BOOST",
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
-    "condition": { "and": [ { "u_has_trait": "PHOTOKINETIC" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_PHOTOKINESIS" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('PHOTOKINETIC')", "+=", "4" ] } ]
+    "condition": {
+      "and": [
+        { "or": [ { "u_has_trait": "PHOTOKINETIC" }, { "u_has_trait": "PSYCHIC_KNACK" } ] },
+        { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_PHOTOKINESIS" }
+      ]
+    },
+    "effect": [
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'PHOTOKINETIC') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'photokinetic_camouflage_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'photokinetic_hide_ugly_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'photokinetic_radio_knack') = 6" ] }
+    ]
   },
   {
     "type": "effect_on_condition",
     "id": "EOC_PYRO_MATRIX_BOOST",
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
-    "condition": { "and": [ { "u_has_trait": "PYROKINETIC" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_PYROKINESIS" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('PYROKINETIC')", "+=", "4" ] } ]
+    "condition": {
+      "and": [
+        { "or": [ { "u_has_trait": "PYROKINETIC" }, { "u_has_trait": "PSYCHIC_KNACK" } ] },
+        { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_PYROKINESIS" }
+      ]
+    },
+    "effect": [
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'PYROKINETIC') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'pyrokinetic_flash_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'pyrokinetic_intensify_flames_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'pyrokinetic_eruption_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'pyrokinetic_call_flames_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'pyrokinetic_cloak_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'pyrokinetic_flamethrower_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'pyrokinetic_aura_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'pyrokinetic_blast_knack') = 6" ] }
+    ]
   },
   {
     "type": "effect_on_condition",
     "id": "EOC_TELEKIN_MATRIX_BOOST",
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
-    "condition": { "and": [ { "u_has_trait": "TELEKINETIC" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_TELEKINESIS" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('TELEKINETIC')", "+=", "4" ] } ]
+    "condition": {
+      "and": [
+        { "or": [ { "u_has_trait": "TELEKINETIC" }, { "u_has_trait": "PSYCHIC_KNACK" } ] },
+        { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_TELEKINESIS" }
+      ]
+    },
+    "effect": [
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEKINETIC') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telekinetic_pull_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telekinetic_push_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telekinetic_slam_down_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telekinetic_wave_knack') = 6" ] }
+    ]
   },
   {
     "type": "effect_on_condition",
     "id": "EOC_TEEP_MATRIX_BOOST",
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
-    "condition": { "and": [ { "u_has_trait": "TELEPATH" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_TELEPATHY" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('TELEPATH')", "+=", "4" ] } ]
+    "condition": {
+      "and": [
+        { "or": [ { "u_has_trait": "TELEPATH" }, { "u_has_trait": "PSYCHIC_KNACK" } ] },
+        { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_TELEPATHY" }
+      ]
+    },
+    "effect": [
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEPATH') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telepathic_shield_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telepathic_mind_sense_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telepathic_morale_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telepathic_mesmerize_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telepathic_blast_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telepathic_animal_mind_control_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telepathic_invisibility_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'telepathic_blast_radius_knack') = 6" ] }
+    ]
   },
   {
     "type": "effect_on_condition",
@@ -99,15 +183,27 @@
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
     "condition": { "and": [ { "u_has_trait": "TELEPORTER" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_TELEPORTATION" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('TELEPORTER')", "+=", "4" ] } ]
+    "effect": [ { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEPORTER') = 6" ] } ]
   },
   {
     "type": "effect_on_condition",
     "id": "EOC_VITAKIN_MATRIX_BOOST",
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
-    "condition": { "and": [ { "u_has_trait": "VITAKINETIC" }, { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_VITAKINESIS" } ] },
-    "effect": [ { "math": [ "u_school_level_adjustment('VITAKINETIC')", "+=", "4" ] } ]
+    "condition": {
+      "and": [
+        { "or": [ { "u_has_trait": "VITAKINETIC" }, { "u_has_trait": "PSYCHIC_KNACK" } ] },
+        { "u_has_wielded_with_flag": "MATRIX_CRYSTAL_VITAKINESIS" }
+      ]
+    },
+    "effect": [
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'VITAKINETIC') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'vita_health_power_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'vita_concentrated_healing_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'vita_remove_poison_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'vita_cure_disease_knack') = 6" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'spell': 'vita_banish_illness_knack') = 6" ] }
+    ]
   },
   {
     "type": "effect_on_condition",
@@ -126,7 +222,8 @@
             "TELEKINETIC",
             "TELEPATH",
             "TELEPORTER",
-            "VITAKINETIC"
+            "VITAKINETIC",
+            "PSYCHIC_KNACK"
           ]
         },
         { "test_eoc": "EOC_CONDITION_NEAR_NETHER_RELATED_LOCATION" }
@@ -141,7 +238,8 @@
       { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEKINETIC') = 2" ] },
       { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEPATH') = 2" ] },
       { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEPORTER') = 2" ] },
-      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'VITAKINETIC') = 2" ] }
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'VITAKINETIC') = 2" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'PSYCHIC_KNACK') = 2" ] }
     ]
   },
   {
@@ -161,7 +259,8 @@
             "TELEKINETIC",
             "TELEPATH",
             "TELEPORTER",
-            "VITAKINETIC"
+            "VITAKINETIC",
+            "PSYCHIC_KNACK"
           ]
         },
         { "test_eoc": "EOC_CONDITION_YOU_ARE_IN_NETHER_LOCATION" }
@@ -176,7 +275,40 @@
       { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEKINETIC') = 4" ] },
       { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEPATH') = 4" ] },
       { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'TELEPORTER') = 4" ] },
-      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'VITAKINETIC') = 4" ] }
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'VITAKINETIC') = 4" ] },
+      { "math": [ "u_spellcasting_adjustment('caster_level', 'school': 'PSYCHIC_KNACK') = 4" ] }
+    ]
+  },
+  {
+    "type": "effect_on_condition",
+    "id": "EOC_INTERSTICE_MOM_PHYSIOLOGY_REDUCES_POWER_COST",
+    "eoc_type": "EVENT",
+    "required_event": "opens_spellbook",
+    "condition": { "u_has_trait": "INTERSTICE_PHYSIOLOGY" },
+    "effect": [ { "math": [ "u_spellcasting_adjustment('cost','flag_whitelist': 'PSIONIC') = -.9" ] } ]
+  },
+  {
+    "type": "effect_on_condition",
+    "id": "EOC_MOM_CASCADE_STONE_POWER_BOOST",
+    "eoc_type": "EVENT",
+    "required_event": "opens_spellbook",
+    "condition": { "u_has_effect": "effect_mom_cascade_stone" },
+    "effect": [ { "math": [ "u_spellcasting_adjustment('cost','flag_whitelist': 'PSIONIC') = -.9" ] } ]
+  },
+  {
+    "type": "effect_on_condition",
+    "id": "EOC_MOM_CASCADE_STONE_CONSEQUENCES",
+    "eoc_type": "EVENT",
+    "required_event": "spellcasting_finish",
+    "condition": {
+      "and": [
+        { "test_eoc": "EOC_CONDITION_SPELLCASTING_FINISH_TRAIT_AND_SCHOOL_LIST" },
+        { "u_has_effect": "effect_mom_cascade_stone" }
+      ]
+    },
+    "effect": [
+      { "if": { "math": [ "rand(1) >= 1" ] }, "then": { "math": [ "u_health() -= 1" ] } },
+      { "if": { "math": [ "rand(8) >= 7" ] }, "then": { "u_deal_damage": "biological", "amount": 1, "arpen": 999 } }
     ]
   },
   {
@@ -191,7 +323,7 @@
         { "or": [ { "compare_string": [ "telepathic_blast", { "context_val": "spell" } ] } ] }
       ]
     },
-    "effect": [ { "math": [ "u_val('focus')", "+=", "rand(2) + 1" ] } ]
+    "effect": [ { "math": [ "u_val('focus') += rand(2) + 1" ] } ]
   },
   {
     "type": "effect_on_condition",
@@ -210,7 +342,7 @@
         }
       ]
     },
-    "effect": [ { "run_eocs": "EOC_perk_blood_drinking_heal_hp_check" } ]
+    "effect": [ { "run_eocs": "EOC_MOM_PSYCHIC_VAMPIRE_HEAL_HP" } ]
   },
   {
     "type": "effect_on_condition",
@@ -218,7 +350,7 @@
     "eoc_type": "EVENT",
     "required_event": "opens_spellbook",
     "condition": { "u_has_trait": "PSI_EXTENDED_CHANNELING_active" },
-    "effect": [ { "math": [ "u_spellcasting_adjustment('casting_time', 'flag_whitelist': 'PSIONIC') = 25" ] } ]
+    "effect": [ { "math": [ "u_spellcasting_adjustment('casting_time', 'flag_whitelist': 'PSIONIC') = 4" ] } ]
   },
   {
     "type": "effect_on_condition",
@@ -282,6 +414,7 @@
           "EOC_CLAIR_REMOVE_SEE_AURAS",
           "EOC_CLAIR_REMOVE_RANGED_ENHANCE",
           "EOC_CLAIR_REMOVE_DODGE_POWER",
+          "EOC_CLAIR_REMOVE_SENSE_HOSTILE_CREATURES",
           "EOC_CLAIR_REMOVE_CRAFT_BONUS",
           "EOC_CLAIR_REMOVE_CLEAR_SIGHT",
           "EOC_CLAIR_REMOVE_GROUP_TACTICS",
@@ -327,6 +460,8 @@
           "EOC_VITAKIN_REMOVE_CONCENTRATED_HEALING",
           "EOC_VITAKIN_REMOVE_HEALTH_POWER",
           "EOC_VITAKIN_REMOVE_CURE_DISEASE",
+          "EOC_VITAKIN_REMOVE_INCREASED_HP",
+          "EOC_VITAKIN_REMOVE_NO_NEED_FOR_SLEEP",
           "EOC_VITAKIN_REMOVE_SUPER_HEAL",
           "EOC_VITAKIN_REMOVE_RETURN_FROM_DEATH"
         ]
@@ -376,6 +511,7 @@
           "EOC_CLAIR_REMOVE_DANGER_SENSE",
           "EOC_CLAIR_REMOVE_SEE_AURAS",
           "EOC_CLAIR_REMOVE_RANGED_ENHANCE",
+          "EOC_CLAIR_REMOVE_SENSE_HOSTILE_CREATURES",
           "EOC_CLAIR_REMOVE_DODGE_POWER",
           "EOC_CLAIR_REMOVE_CRAFT_BONUS",
           "EOC_CLAIR_REMOVE_CLEAR_SIGHT",
@@ -422,6 +558,8 @@
           "EOC_VITAKIN_REMOVE_CONCENTRATED_HEALING",
           "EOC_VITAKIN_REMOVE_HEALTH_POWER",
           "EOC_VITAKIN_REMOVE_CURE_DISEASE",
+          "EOC_VITAKIN_REMOVE_INCREASED_HP",
+          "EOC_VITAKIN_REMOVE_NO_NEED_FOR_SLEEP",
           "EOC_VITAKIN_REMOVE_SUPER_HEAL",
           "EOC_VITAKIN_REMOVE_RETURN_FROM_DEATH",
           "EOC_MOM_NO_EFFECT"
@@ -445,6 +583,7 @@
           "Premonition",
           "Aura Sight",
           "Marksman's Eye",
+          "Sense Hostility",
           "Combat Sense",
           "Intuitive Artisan",
           "Clarity",
@@ -491,6 +630,8 @@
           "Leukocyte Accumulation",
           "Healthy Glow",
           "Immunostimulus",
+          "Augment Durability",
+          "Selective Autosomnia",
           "Anabolic Rejuvenation",
           "Accelerated Resuscitation",
           "cancel"
@@ -499,6 +640,12 @@
         "allow_cancel": true
       }
     ]
+  },
+  {
+    "type": "effect_on_condition",
+    "id": "EOC_MOM_PSYCHIC_VAMPIRE_HEAL_HP",
+    "//": "Overridden by mod_interactions/bombastic_perks when that mod is loaded",
+    "effect": [  ]
   },
   {
     "type": "effect_on_condition",
@@ -531,6 +678,7 @@
           "EOC_CLAIR_REMOVE_SEE_AURAS",
           "EOC_CLAIR_REMOVE_RANGED_ENHANCE",
           "EOC_CLAIR_REMOVE_DODGE_POWER",
+          "EOC_CLAIR_REMOVE_SENSE_HOSTILE_CREATURES",
           "EOC_CLAIR_REMOVE_CRAFT_BONUS",
           "EOC_CLAIR_REMOVE_CLEAR_SIGHT",
           "EOC_CLAIR_REMOVE_GROUP_TACTICS",
@@ -576,6 +724,8 @@
           "EOC_VITAKIN_REMOVE_CONCENTRATED_HEALING",
           "EOC_VITAKIN_REMOVE_HEALTH_POWER",
           "EOC_VITAKIN_REMOVE_CURE_DISEASE",
+          "EOC_VITAKIN_REMOVE_INCREASED_HP",
+          "EOC_VITAKIN_REMOVE_NO_NEED_FOR_SLEEP",
           "EOC_VITAKIN_REMOVE_SUPER_HEAL",
           "EOC_VITAKIN_REMOVE_RETURN_FROM_DEATH"
         ]
