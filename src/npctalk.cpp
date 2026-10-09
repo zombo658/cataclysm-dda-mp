@@ -95,6 +95,8 @@
 #include "mission.h"
 #include "mongroup.h"
 #include "monster.h"
+#include "mp/remote_actions.h"
+#include "mp/remote_prompt.h"
 #include "mtype.h"
 #include "mutation.h"
 #include "npc.h"
@@ -2923,6 +2925,9 @@ talk_topic dialogue::opt( dialogue_window &d_win, const talk_topic &topic )
     challenge = uppercase_first_letter( challenge );
 
     d_win.clear_history_highlights();
+    // The same line for the second player's dialogue window (mp/remote_prompt.h).
+    std::string history_speaker;
+    nc_color history_color = c_white;
     if( challenge[0] == '&' ) {
         // No name prepended!
         challenge = challenge.substr( 1 );
@@ -2934,8 +2939,9 @@ talk_topic dialogue::opt( dialogue_window &d_win, const talk_topic &topic )
         d_win.add_to_history( challenge );
     } else {
         npc *npc_actor = actor( true )->get_npc();
-        d_win.add_to_history( challenge, d_win.is_not_conversation ? "" : actor( true )->disp_name(),
-                              npc_actor ? npc_actor->basic_symbol_color() : c_red );
+        history_speaker = d_win.is_not_conversation ? "" : actor( true )->disp_name();
+        history_color = npc_actor ? npc_actor->basic_symbol_color() : c_red;
+        d_win.add_to_history( challenge, history_speaker, history_color );
     }
     if( debug_mode ) {
         std::vector<std::string> dynamic_line_debug = build_debug_info( d_win, topic );
@@ -2990,6 +2996,17 @@ talk_topic dialogue::opt( dialogue_window &d_win, const talk_topic &topic )
 
     size_t response_ind = response_hotkeys.size();
     bool okay;
+    std::vector<bool> selectable;
+    for( size_t i = 0; i < responses.size(); i++ ) {
+        selectable.push_back( !response_condition_exists[i] || response_condition_eval[i] );
+    }
+    // The second player talks: their client shows it and answers.
+    if( const std::optional<int> remote = mp::remote_prompt::ask_dialogue(
+            d_win.is_not_conversation ? "" : actor( true )->disp_name(), challenge, history_speaker,
+            history_color, response_lines, selectable ) ) {
+        response_ind = *remote >= 0 && static_cast<size_t>( *remote ) < responses.size() &&
+                       selectable[*remote] ? *remote : get_best_quit_response();
+    } else
     do {
         std::string action;
         do {
@@ -9052,3 +9069,55 @@ std::vector<std::string> get_all_talk_topic_ids()
     return dialogue_ids;
 }
 
+
+// The second player's conversations (mp/remote_actions.h): avatar::talk_to()
+// for another character; the dialogue asks the second player
+// (mp/remote_prompt.h).
+namespace mp::talk_hooks
+{
+
+std::string talk( Character &who, Creature &other )
+{
+    std::unique_ptr<talker> talk_with = get_talker_for( other );
+    if( !talk_with->will_talk_to_u( who, false ) ) {
+        return string_format( _( "%s doesn't want to talk." ), other.disp_name() );
+    }
+    mp::remote_prompt::new_conversation();
+    dialogue d( get_talker_for( who ), std::move( talk_with ), {} );
+    d.actor( true )->check_missions();
+    for( mission *&mission : d.actor( true )->assigned_missions() ) {
+        if( mission->get_assigned_player_id() == who.getID() ) {
+            d.missions_assigned.push_back( mission );
+        }
+    }
+    for( const std::string &topic_id : d.actor( true )->get_topics( false ) ) {
+        d.add_topic( topic_id );
+    }
+    dialogue_window d_win;
+    do {
+        d.actor( true )->update_missions( d.missions_assigned );
+        const talk_topic next = d.opt( d_win, d.topic_stack.back() );
+        if( next.id == "TALK_NONE" ) {
+            int cat = topic_category( d.topic_stack.back() );
+            do {
+                d.topic_stack.pop_back();
+            } while( cat != -1 && !d.topic_stack.empty() && topic_category( d.topic_stack.back() ) == cat );
+        }
+        if( next.id == "TALK_DONE" || d.topic_stack.empty() ) {
+            npc *npc_actor = d.actor( true )->get_npc();
+            if( npc_actor ) {
+                if( npc_actor->myclass->bye_message_override.empty() ) {
+                    d.actor( true )->say( npc_actor->chat_snippets().snip_bye.translated() );
+                } else {
+                    d.actor( true )->say( npc_actor->myclass->bye_message_override.translated() );
+                }
+            }
+            d.done = true;
+        } else if( next.id != "TALK_NONE" ) {
+            d.add_topic( next );
+        }
+    } while( !d.done );
+    return std::string();
+}
+
+} // namespace mp::talk_hooks

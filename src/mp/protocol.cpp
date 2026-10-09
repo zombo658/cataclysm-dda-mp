@@ -286,7 +286,8 @@ void handle_line( const std::string &line )
         return;
     }
     if( cmd_name == "combat" || cmd_name == "activity" || cmd_name == "construct" ||
-        cmd_name == "move_mode" || cmd_name == "setting" || cmd_name == "power" ) {
+        cmd_name == "move_mode" || cmd_name == "setting" || cmd_name == "power" ||
+        cmd_name == "talk" ) {
         std::string why_not;
         try {
             const JsonValue value = json_loader::from_string( line );
@@ -297,6 +298,7 @@ void handle_line( const std::string &line )
                       cmd_name == "construct" ? remote_actions::construct( *guy, obj ) :
                       cmd_name == "setting" ? remote_actions::setting( *guy, obj ) :
                       cmd_name == "power" ? remote_actions::power( *guy, obj ) :
+                      cmd_name == "talk" ? remote_actions::talk( *guy, obj ) :
                       remote_actions::move_mode( *guy, obj );
         } catch( const JsonError &err ) {
             why_not = "bad message: " + std::string( err.what() );

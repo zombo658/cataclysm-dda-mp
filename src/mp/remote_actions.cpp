@@ -15,6 +15,7 @@
 #include "avatar.h"
 #include "bionics.h"
 #include "bodygraph.h"
+#include "creature_tracker.h"
 #include "debug.h"
 #include "game.h"
 #include "game_inventory.h"
@@ -449,6 +450,20 @@ std::string power( npc &guy, const JsonObject &request )
     return std::string();
 }
 
+std::string talk( npc &guy, const JsonObject &request )
+{
+    tripoint_abs_ms where;
+    request.read( "target", where );
+    Creature *other = get_creature_tracker().creature_at( where );
+    if( other == nullptr || other == &guy ) {
+        return _( "nobody is there" );
+    }
+    if( other->is_avatar() ) {
+        return _( "talk to the host yourself" );
+    }
+    return talk_hooks::talk( guy, *other );
+}
+
 void set_client_active( const bool active )
 {
     client_on = active;
@@ -494,6 +509,7 @@ bool uses_character( const action_id act )
         case ACTION_PICK_STYLE:
         case ACTION_RECRAFT:
         case ACTION_LONGCRAFT:
+        case ACTION_CHAT:
             return true;
         default:
             return runs_host_code( act ) || changes_move_mode( act );
@@ -741,6 +757,33 @@ void run( const action_id act )
         case ACTION_LOOK:
             g->look_around();
             break;
+        case ACTION_CHAT: {
+            // game::chat(): who to talk to, among the NPCs in sight.
+            std::vector<npc *> available;
+            for( npc &guy : g->all_npcs() ) {
+                if( !guy.is_dead() && you.sees( get_map(), guy ) &&
+                    rl_dist( guy.pos_bub(), you.pos_bub() ) <= 24 ) {
+                    available.push_back( &guy );
+                }
+            }
+            if( available.empty() ) {
+                add_msg( m_info, _( "There's no one close enough to talk to." ) );
+                break;
+            }
+            uilist nmenu;
+            nmenu.text = _( "Who do you want to talk to?" );
+            for( size_t i = 0; i < available.size(); i++ ) {
+                nmenu.addentry( static_cast<int>( i ), true, MENU_AUTOASSIGN, available[i]->get_name() );
+            }
+            nmenu.query();
+            if( nmenu.ret >= 0 && static_cast<size_t>( nmenu.ret ) < available.size() ) {
+                const tripoint_abs_ms where = available[nmenu.ret]->pos_abs();
+                send( "talk", [&]( JsonOut & json ) {
+                    json.member( "target", where );
+                } );
+            }
+            break;
+        }
         case ACTION_TOGGLE_RUN:
         case ACTION_TOGGLE_CROUCH:
         case ACTION_TOGGLE_PRONE:

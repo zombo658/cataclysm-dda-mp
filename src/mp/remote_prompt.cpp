@@ -1,18 +1,24 @@
 #include "mp/remote_prompt.h"
 
 #include <chrono>
+#include <memory>
 #include <sstream>
 #include <thread>
 #include <utility>
 
 #include "action.h"
+#include "catacharset.h"
+#include "dialogue_win.h"
 #include "input_context.h"
 #include "json.h"
 #include "json_loader.h"
 #include "mp/net.h"
 #include "output.h"
+#include "string_formatter.h"
 #include "popup.h"
 #include "string_input_popup.h"
+#include "translations.h"
+#include "ui_manager.h"
 #include "uilist.h"
 
 namespace mp::remote_prompt
@@ -23,6 +29,7 @@ namespace
 
 int depth = 0;
 int next_id = 1;
+int conversation = 0;
 std::vector<std::string> deferred;
 
 template<typename Writer>
@@ -236,6 +243,130 @@ std::optional<std::optional<std::string>> ask_string( const std::string &title,
     return result;
 }
 
+void new_conversation()
+{
+    conversation++;
+}
+
+std::optional<int> ask_dialogue( const std::string &npc_name, const std::string &line,
+                                 const std::string &speaker, const nc_color &speaker_color,
+                                 const std::vector<talk_data> &responses, const std::vector<bool> &selectable )
+{
+    if( !active() ) {
+        return std::nullopt;
+    }
+    const std::optional<std::string> answer_line = ask( "dialogue", [&]( JsonOut & json ) {
+        json.member( "conversation", conversation );
+        json.member( "npc", npc_name );
+        json.member( "line", line );
+        json.member( "speaker", speaker );
+        json.member( "speaker_color", string_from_color( speaker_color ) );
+        json.member( "responses" );
+        json.start_array();
+        for( size_t i = 0; i < responses.size(); i++ ) {
+            json.start_object();
+            json.member( "text", responses[i].text );
+            json.member( "hotkey", responses[i].hotkey_desc );
+            json.member( "color", string_from_color( responses[i].color ) );
+            json.member( "selectable", i < selectable.size() ? static_cast<bool>( selectable[i] ) : true );
+            json.end_object();
+        }
+        json.end_array();
+    } );
+    int ret = -1;
+    read_answer( answer_line, [&]( const JsonObject & obj ) {
+        ret = obj.get_int( "ret", -1 );
+    } );
+    return ret;
+}
+
+namespace
+{
+
+// dialogue::opt() on the client: the game's dialogue window, kept over the
+// lines of one conversation.
+int answer_dialogue( const JsonObject &question )
+{
+    static std::unique_ptr<dialogue_window> d_win;
+    static int shown_conversation = -1;
+    const int conv = question.get_int( "conversation", 0 );
+    if( !d_win || conv != shown_conversation ) {
+        d_win = std::make_unique<dialogue_window>();
+        shown_conversation = conv;
+    }
+    const std::string npc_name = question.get_string( "npc", "" );
+    d_win->add_history_separator();
+    d_win->clear_history_highlights();
+    const std::string speaker = question.get_string( "speaker", "" );
+    if( speaker.empty() ) {
+        d_win->add_to_history( question.get_string( "line", "" ) );
+    } else {
+        d_win->add_to_history( question.get_string( "line", "" ), speaker,
+                               color_from_string( question.get_string( "speaker_color", "c_white" ) ) );
+    }
+    std::vector<talk_data> lines;
+    std::vector<bool> selectable;
+    std::vector<std::string> hotkeys;
+    for( JsonObject r : question.get_array( "responses" ) ) {
+        r.allow_omitted_members();
+        talk_data td;
+        td.text = r.get_string( "text", "" );
+        td.hotkey_desc = r.get_string( "hotkey", "" );
+        td.color = color_from_string( r.get_string( "color", "c_white" ) );
+        lines.push_back( td );
+        hotkeys.push_back( td.hotkey_desc );
+        selectable.push_back( r.get_bool( "selectable", true ) );
+    }
+    d_win->set_responses( lines );
+    d_win->sel_response = 0;
+
+    ui_adaptor ui;
+    const auto resize_cb = [&]( ui_adaptor & ui ) {
+        d_win->resize( ui );
+    };
+    ui.on_screen_resize( resize_cb );
+    resize_cb( ui );
+    ui.on_redraw( [&]( const ui_adaptor & ) {
+        d_win->draw( npc_name );
+    } );
+    input_context ctxt( "DIALOGUE_CHOOSE_RESPONSE" );
+    d_win->set_up_scrolling( ctxt );
+    ctxt.register_action( "HELP_KEYBINDINGS" );
+    ctxt.register_action( "CONFIRM" );
+    ctxt.register_action( "ANY_INPUT" );
+    ctxt.register_action( "QUIT" );
+    int chosen = -2;
+    while( chosen == -2 ) {
+        ui_manager::redraw();
+        std::string action = ctxt.handle_input();
+        const input_event evt = ctxt.get_raw_input();
+        d_win->handle_scrolling( action, ctxt );
+        if( action == "CONFIRM" ) {
+            const int i = d_win->sel_response;
+            if( i >= 0 && static_cast<size_t>( i ) < selectable.size() && selectable[i] ) {
+                chosen = i;
+            }
+        } else if( action == "ANY_INPUT" ) {
+            // As create_option_line() shows them.
+            const std::string key = right_justify( evt.short_description(), 2 );
+            for( size_t i = 0; i < hotkeys.size(); i++ ) {
+                if( hotkeys[i] == key && selectable[i] ) {
+                    chosen = static_cast<int>( i );
+                }
+            }
+        } else if( action == "QUIT" ) {
+            chosen = -1;
+        }
+    }
+    if( chosen >= 0 ) {
+        d_win->add_history_separator();
+        d_win->add_to_history( lines[chosen].text, _( "You" ), c_light_blue );
+    }
+    return chosen;
+}
+
+} // namespace
+
 void answer( const JsonObject &question )
 {
     question.allow_omitted_members();
@@ -243,6 +374,11 @@ void answer( const JsonObject &question )
     const std::string kind = question.get_string( "kind", "" );
     if( kind == "message" ) {
         popup( question.get_string( "text", "" ) );
+    } else if( kind == "dialogue" ) {
+        const int ret = answer_dialogue( question );
+        send_answer( id, [&]( JsonOut & json ) {
+            json.member( "ret", ret );
+        } );
     } else if( kind == "uilist" ) {
         uilist menu;
         menu.title = question.get_string( "title", "" );

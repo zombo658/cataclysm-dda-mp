@@ -11,6 +11,7 @@
 
 class JsonObject;
 class uilist;
+struct talk_data;
 
 // Questions the game asks while the host does something for the second
 // player (menus of furniture, "Really...?", directions, numbers) go to the
@@ -47,6 +48,14 @@ std::optional<std::optional<tripoint_rel_ms>> ask_direction( const std::string &
 // The outer optional: whether asked; the inner one: the text or cancel.
 std::optional<std::optional<std::string>> ask_string( const std::string &title,
         const std::string &description, const std::string &text, int width, bool only_digits );
+
+// dialogue::opt(): the NPC's line and the responses; the chosen response
+// (negative: leave), or std::nullopt when not the second player's talk.
+std::optional<int> ask_dialogue( const std::string &npc_name, const std::string &line,
+                                 const std::string &speaker, const nc_color &speaker_color,
+                                 const std::vector<talk_data> &responses, const std::vector<bool> &selectable );
+// A new conversation starts: the client opens a fresh dialogue window.
+void new_conversation();
 
 // ---- Client ----
 

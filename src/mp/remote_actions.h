@@ -9,6 +9,7 @@
 #include "type_id.h"
 
 class Character;
+class Creature;
 struct bionic;
 class JsonObject;
 class player_activity;
@@ -42,6 +43,8 @@ std::string move_mode( npc &guy, const JsonObject &request );
 std::string setting( npc &guy, const JsonObject &request );
 // {"cmd":"power","what":"bionic"/"mutation","index"/"id":...,"on":true}
 std::string power( npc &guy, const JsonObject &request );
+// {"cmd":"talk","target":[x,y,z]}: talk to whoever is there.
+std::string talk( npc &guy, const JsonObject &request );
 
 // ---- Client ----
 
@@ -78,6 +81,13 @@ bool forward_construction( const construction_id &id, const tripoint_abs_ms &whe
 bool forward_item_action( const item_location &loc, int key );
 
 } // namespace mp::remote_actions
+
+namespace mp::talk_hooks
+{
+// A conversation of who with other (defined in npctalk.cpp, next to
+// avatar::talk_to()); returns an empty string or why not.
+std::string talk( Character &who, Creature &other );
+} // namespace mp::talk_hooks
 
 namespace mp::construction_hooks
 {
