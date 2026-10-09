@@ -292,6 +292,9 @@ static void invalidate_view()
         here.invalidate_map_cache( z );
     }
     here.invalidate_visibility_cache();
+    // do_turn() resets the daylight every turn; without it the client keeps
+    // the light of the moment it first drew (dark in the tiles version).
+    g->reset_light_level();
 }
 
 void read( const JsonObject &message )
@@ -409,8 +412,8 @@ void read_world( const JsonObject &message )
             follow_avatar();
         }
     }
-    // Daylight changes what is seen.
-    get_map().invalidate_visibility_cache();
+    // Daylight changes the light and what is seen.
+    invalidate_view();
 }
 
 void read_overmap( const JsonObject &message )
