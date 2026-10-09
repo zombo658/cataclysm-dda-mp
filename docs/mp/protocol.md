@@ -31,7 +31,7 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `{"cmd":"construct","id":"constr_…","target":[x,y,z]}` | начать постройку из меню строительства |
 | `{"cmd":"move_mode","mode":"run"}` | режим движения (`walk`, `run`, `crouch`, `prone`) |
 | `{"cmd":"tile_action","action":"up"}` / `"down"` | подняться/спуститься по лестнице под персонажем (`offset` не нужен) |
-| `{"cmd":"setting","what":"style","value":"style_karate"}` | стиль боя; `"what":"fire_mode"` — режим огня оружия в руках; `"what":"worn_order","order":[…]` — новый порядок надетого (номера в прежнем порядке) |
+| `{"cmd":"setting","what":"style","value":"style_karate"}` | стиль боя; `"what":"fire_mode"` — режим огня оружия в руках; `"what":"worn_order","order":[…]` — новый порядок надетого (номера в прежнем порядке); `"what":"haul"` (`hauling`, `autohaul`, `filter`, `items`) — что тащить по земле |
 | `{"cmd":"tile_action","action":"autoattack"}` | ударить ближайшего врага рядом |
 | `{"cmd":"tile_action","action":"drive"}` | взять/отпустить управление машиной (на месте водителя); пока управляет, `move` рулит и газует |
 | `{"cmd":"power","what":"bionic","index":2,"on":true}` | включить/выключить бионику (номер в списке бионик персонажа); `"what":"mutation","id":"…"` — мутацию |

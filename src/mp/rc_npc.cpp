@@ -1,6 +1,9 @@
 #include "mp/rc_npc.h"
 
+#include <algorithm>
 #include <deque>
+#include <functional>
+#include <iterator>
 #include <list>
 #include <map>
 #include <set>
@@ -8,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "activity_actor_definitions.h"
 #include "avatar.h"
 #include "character_id.h"
 #include "creature.h"
@@ -19,6 +23,7 @@
 #include "game.h"
 #include "item.h"
 #include "item_location.h"
+#include "item_search.h"
 #include "json.h"
 #include "map.h"
 #include "map_selector.h"
@@ -118,6 +123,41 @@ static void reject( const npc &guy, const std::string &why )
     protocol::send_rejected( why );
 }
 
+// game::start_hauling() for the remote character: the hauled items follow.
+static void start_hauling( npc &guy, const tripoint_bub_ms &from )
+{
+    map &here = get_map();
+    std::vector<item_location> candidate_items = here.get_haulable_items( from );
+    guy.trim_haul_list( candidate_items );
+    std::vector<item_location> target_items = guy.haul_list;
+    if( guy.is_autohauling() && !guy.suppress_autohaul ) {
+        for( const item_location &it : guy.haul_list ) {
+            candidate_items.erase( std::remove( candidate_items.begin(), candidate_items.end(), it ),
+                                   candidate_items.end() );
+        }
+        if( guy.hauling_filter.empty() ) {
+            target_items.insert( target_items.end(), candidate_items.begin(), candidate_items.end() );
+        } else {
+            const std::function<bool( const item & )> filter = item_filter_from_string( guy.hauling_filter );
+            std::copy_if( candidate_items.begin(), candidate_items.end(), std::back_inserter( target_items ),
+            [&filter]( const item_location & it ) {
+                return filter( *it );
+            } );
+        }
+    }
+    guy.suppress_autohaul = false;
+    guy.haul_list.clear();
+    if( target_items.empty() ) {
+        if( !guy.is_autohauling() ) {
+            guy.stop_hauling();
+        }
+        return;
+    }
+    const std::vector<int> quantities( target_items.size(), 0 );
+    guy.assign_activity( move_items_activity_actor( target_items, quantities, false,
+                         tripoint_rel_ms(), true ) );
+}
+
 static void do_move( npc &guy, const point_rel_ms &dir )
 {
     map &here = get_map();
@@ -152,7 +192,11 @@ static void do_move( npc &guy, const point_rel_ms &dir )
         reject( guy, _( "the way is blocked" ) );
         return;
     }
+    const tripoint_bub_ms old_pos = guy.pos_bub( here );
     guy.move_to( dest, true );
+    if( guy.is_hauling() && guy.pos_bub( here ) != old_pos ) {
+        start_hauling( guy, old_pos );
+    }
 }
 
 static void do_attack( npc &guy, const point_rel_ms &dir )

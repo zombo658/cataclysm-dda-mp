@@ -438,6 +438,21 @@ std::string setting( npc &guy, const JsonObject &request )
         guy.martial_arts_data->set_style( style );
         return std::string();
     }
+    if( what == "haul" ) {
+        // The state the haul menu left on the client's copy.
+        guy.hauling = request.get_bool( "hauling", false );
+        guy.autohaul = request.get_bool( "autohaul", false );
+        guy.hauling_filter = request.get_string( "filter", "" );
+        guy.haul_list.clear();
+        for( JsonObject obj : request.get_array( "items" ) ) {
+            item_location loc;
+            loc.deserialize( obj );
+            if( loc && loc.carrier() == nullptr ) {
+                guy.haul_list.push_back( loc );
+            }
+        }
+        return std::string();
+    }
     if( what == "worn_order" ) {
         std::vector<int> order;
         for( const int i : request.get_array( "order" ) ) {
@@ -547,6 +562,8 @@ bool uses_character( const action_id act )
         case ACTION_LONGCRAFT:
         case ACTION_CHAT:
         case ACTION_SORT_ARMOR:
+        case ACTION_HAUL:
+        case ACTION_HAUL_TOGGLE:
             return true;
         default:
             return runs_host_code( act ) || changes_move_mode( act );
@@ -793,6 +810,18 @@ void run( const action_id act )
             break;
         case ACTION_LOOK:
             g->look_around();
+            break;
+        case ACTION_HAUL:
+        case ACTION_HAUL_TOGGLE:
+            g->do_action_for_mirror( act );
+            send( "setting", [&]( JsonOut & json ) {
+                json.member( "what", "haul" );
+                json.member( "value", "" );
+                json.member( "hauling", you.hauling );
+                json.member( "autohaul", you.autohaul );
+                json.member( "filter", you.hauling_filter );
+                json.member( "items", you.haul_list );
+            } );
             break;
         case ACTION_SORT_ARMOR: {
             // The host's screen on the copy; the new order goes to the host
