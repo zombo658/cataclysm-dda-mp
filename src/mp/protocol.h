@@ -29,6 +29,10 @@ void send_state( const npc &guy );
 // The same, at most a few times a second; called every turn so that the
 // client sees the world move while the host plays.
 void send_state_if_due();
+// The state send_state_if_due() held back, once the limit allows it.
+void send_pending_state();
+// Something the client sees changed (the second player's activity went on).
+void mark_changed();
 // A queued command could not be carried out.
 void send_rejected( const std::string &reason );
 

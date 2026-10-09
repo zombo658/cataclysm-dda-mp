@@ -81,9 +81,9 @@ enum pickup_answer : int {
     NUM_ANSWERS
 };
 
-static pickup_answer handle_problematic_pickup( const item &it, const std::string &explain )
+static pickup_answer handle_problematic_pickup( const item &it, const std::string &explain,
+        Character &u )
 {
-    Character &u = get_player_character();
 
     uilist amenu;
 
@@ -180,9 +180,8 @@ static bool is_bulk_load( const Pickup::pick_info &lhs, const Pickup::pick_info 
 // Returns false if pickup caused a prompt and the player selected to cancel pickup
 static bool pick_one_up( item_location &loc, int quantity, bool &got_water, bool &got_gas,
                          PickupMap &mapPickup, bool autopickup, bool &stash_successful, bool &got_frozen_liquid,
-                         Pickup::pick_info &info )
+                         Pickup::pick_info &info, Character &player_character )
 {
-    Character &player_character = get_player_character();
     bool picked_up = false;
     bool crushed = false;
     Pickup::pick_info pre_info( info );
@@ -247,7 +246,7 @@ static bool pick_one_up( item_location &loc, int quantity, bool &got_water, bool
         if( !autopickup ) {
             const std::string &explain = string_format( _( "Can't stash %s while it's not empty" ),
                                          newit.display_name() );
-            option = handle_problematic_pickup( newit, explain );
+            option = handle_problematic_pickup( newit, explain, player_character );
             did_prompt = true;
         } else {
             option = CANCEL;
@@ -356,12 +355,14 @@ static bool pick_one_up( item_location &loc, int quantity, bool &got_water, bool
 
 bool Pickup::do_pickup( std::vector<item_location> &targets, std::vector<int> &quantities,
                         bool autopickup,
-                        bool &stash_successful, Pickup::pick_info &info )
+                        bool &stash_successful, Pickup::pick_info &info, Character *who )
 {
     bool got_water = false;
     bool got_gas = false;
     bool got_frozen_liquid = false;
-    Character &player_character = get_player_character();
+    // The one picking up: the avatar unless told otherwise (the second
+    // player's character, mp/).
+    Character &player_character = who != nullptr ? *who : get_player_character();
     bool weight_is_okay = ( player_character.weight_carried() <= player_character.weight_capacity() );
 
     // Map of items picked up so we can output them all at the end and
@@ -382,7 +383,7 @@ bool Pickup::do_pickup( std::vector<item_location> &targets, std::vector<int> &q
             continue;
         }
         problem = !pick_one_up( target, quantity, got_water, got_gas, mapPickup, autopickup,
-                                stash_successful, got_frozen_liquid, info );
+                                stash_successful, got_frozen_liquid, info, player_character );
         if( info.total_bulk_volume > 200_ml ) {
             // Bulk loading is not allowed beyond a certain volume
             info = Pickup::pick_info();

@@ -69,6 +69,7 @@
 #include "monster.h"
 #include "mtype.h"
 #include "music.h"
+#include "mp/rc_npc.h"
 #include "mutation.h"
 #include "npc.h"
 #include "output.h"
@@ -5807,7 +5808,8 @@ std::optional<int> sew_advanced_actor::use( Character *p, item &it,
 std::optional<int> sew_advanced_actor::use( Character *p, item &it, map *here,
         const tripoint_bub_ms & ) const
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         return std::nullopt;
     }
     if( p->cant_do_mounted() ) {

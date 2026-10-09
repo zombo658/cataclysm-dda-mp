@@ -273,6 +273,7 @@ bool remote_move( npc &guy )
     if( !is_remote( guy ) ) {
         return false;
     }
+    protocol::mark_changed();
     if( guy.activity ) {
         // Whatever the activity asks (the shape of an installed part, ...)
         // asks the second player.
@@ -492,8 +493,11 @@ void wait_for_remote_players( const std::function<bool()> &host_input )
 
 bool host_input_should_yield()
 {
-    // Keep the connection alive while the host thinks, too.
+    // Keep the connection alive while the host thinks, too, and the client's
+    // copy up to date: what the second player's last action changed may come
+    // after the last state was sent (sending is limited to a few a second).
     protocol::poll();
+    protocol::send_pending_state();
     if( remote_needs_time() ) {
         // The host stands still: their avatar waits, and the turn passes.
         avatar &u = get_avatar();

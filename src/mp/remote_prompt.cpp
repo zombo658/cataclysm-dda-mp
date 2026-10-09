@@ -1,6 +1,7 @@
 #include "mp/remote_prompt.h"
 
 #include <chrono>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <thread>
@@ -10,6 +11,7 @@
 #include "catacharset.h"
 #include "dialogue_win.h"
 #include "input_context.h"
+#include "iuse_software.h"
 #include "json.h"
 #include "json_loader.h"
 #include "game.h"
@@ -52,7 +54,8 @@ std::string to_line( const Writer &write )
 // Sends the question and waits for the answer; the answer's object, or
 // std::nullopt if the client went away or took too long.
 template<typename Writer>
-std::optional<std::string> ask( const std::string &kind, const Writer &write )
+std::optional<std::string> ask( const std::string &kind, const Writer &write,
+                                const std::chrono::minutes patience = std::chrono::minutes( 5 ) )
 {
     if( !net::has_client() ) {
         return std::nullopt;
@@ -85,7 +88,7 @@ std::optional<std::string> ask( const std::string &kind, const Writer &write )
         gone = true;
     };
     // Long enough to read a menu; the host's game stands still meanwhile.
-    const auto give_up = std::chrono::steady_clock::now() + std::chrono::minutes( 5 );
+    const auto give_up = std::chrono::steady_clock::now() + patience;
     while( !answer && !gone && net::has_client() && std::chrono::steady_clock::now() < give_up ) {
         net::poll( h );
         std::this_thread::sleep_for( std::chrono::milliseconds( 10 ) );
@@ -416,6 +419,28 @@ bool peek( const tripoint_bub_ms &p )
     return true;
 }
 
+std::optional<videogame_result> ask_videogame( const std::string &name )
+{
+    if( !active() ) {
+        return std::nullopt;
+    }
+    // A game may take a while: the host's game stands still meanwhile.
+    const std::optional<std::string> line = ask( "videogame", [&]( JsonOut & json ) {
+        json.member( "game", name );
+    }, std::chrono::minutes( 60 ) );
+    videogame_result result;
+    read_answer( line, [&]( const JsonObject & obj ) {
+        result.won = obj.get_bool( "won", false );
+        result.score = obj.get_int( "score", 0 );
+        if( obj.has_object( "data" ) ) {
+            for( const JsonMember member : obj.get_object( "data" ) ) {
+                result.data[member.name()] = member.get_string();
+            }
+        }
+    } );
+    return result;
+}
+
 void answer( const JsonObject &question )
 {
     question.allow_omitted_members();
@@ -423,6 +448,16 @@ void answer( const JsonObject &question )
     const std::string kind = question.get_string( "kind", "" );
     if( kind == "message" ) {
         popup( question.get_string( "text", "" ) );
+    } else if( kind == "videogame" ) {
+        // The game itself on this screen; what came of it goes back.
+        std::map<std::string, std::string> data;
+        int score = 0;
+        const bool won = play_videogame( question.get_string( "game", "" ), data, score );
+        send_answer( id, [&]( JsonOut & json ) {
+            json.member( "won", won );
+            json.member( "score", score );
+            json.member( "data", data );
+        } );
     } else if( kind == "vehicle" ) {
         remote_vehicle::reopen( question );
     } else if( kind == "trade" ) {

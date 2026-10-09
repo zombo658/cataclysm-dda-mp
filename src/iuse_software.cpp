@@ -2,12 +2,14 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <string>
 
 #include "iuse_software_kitten.h"
 #include "iuse_software_lightson.h"
 #include "iuse_software_minesweeper.h"
 #include "iuse_software_snake.h"
+#include "mp/remote_prompt.h"
 #include "iuse_software_sokoban.h"
 #include "string_formatter.h"
 #include "translations.h"
@@ -16,6 +18,13 @@ bool play_videogame( const std::string &function_name,
                      std::map<std::string, std::string> &game_data,
                      int &score )
 {
+    // The second player plays on their own screen (mp/remote_prompt.h).
+    if( std::optional<mp::remote_prompt::videogame_result> remote =
+            mp::remote_prompt::ask_videogame( function_name ) ) {
+        game_data = remote->data;
+        score = remote->score;
+        return remote->won;
+    }
     if( function_name.empty() ) {
         score = 15;
         return true; // generic game

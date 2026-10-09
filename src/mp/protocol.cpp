@@ -51,6 +51,8 @@ std::string to_line( const Writer &write )
 
 // When the client last got the view and the status.
 std::chrono::steady_clock::time_point last_state_sent;
+// A state was due but held back by the limit.
+bool state_pending = false;
 // The client shows the game's own screen from the copies: the simple view
 // and sidebar are not needed any more (they are most of a step's traffic).
 bool client_native_screen = false;
@@ -529,6 +531,7 @@ void send_state( const npc &guy )
     }
     send_status( guy, "state" );
     last_state_sent = std::chrono::steady_clock::now();
+    state_pending = false;
 }
 
 void send_state_if_due()
@@ -537,12 +540,25 @@ void send_state_if_due()
         return;
     }
     // At most a few times a second, so that a sleeping host doesn't flood
-    // the network.
+    // the network; a state skipped here goes with send_pending_state().
     if( std::chrono::steady_clock::now() - last_state_sent < std::chrono::milliseconds( 250 ) ) {
+        state_pending = true;
         return;
     }
     if( const npc *guy = network_npc() ) {
         send_state( *guy );
+    }
+}
+
+void mark_changed()
+{
+    state_pending = true;
+}
+
+void send_pending_state()
+{
+    if( state_pending ) {
+        send_state_if_due();
     }
 }
 

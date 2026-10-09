@@ -638,6 +638,7 @@ void run_join_screen()
     get_avatar() = avatar();
     // And the map buffer, copies of the host's submaps.
     MAPBUFFER.clear();
+    world_sync::forget_host();
     if( state.host_world ) {
         // Back to what the main menu expects: core data only, no world.
         try {

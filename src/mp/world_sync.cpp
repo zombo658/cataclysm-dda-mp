@@ -1,5 +1,6 @@
 #include "mp/world_sync.h"
 
+#include <optional>
 #include <functional>
 #include <map>
 #include <memory>
@@ -46,6 +47,8 @@ size_t sent_overmap = 0;
 // a few tiles each way, the overmap screen more).
 constexpr int overmap_radius = 12;
 size_t sent_character = 0;
+// Client: where the host's map starts.
+std::optional<tripoint_abs_sm> host_origin;
 // The same without the position.
 size_t sent_character_still = 0;
 
@@ -182,6 +185,10 @@ void write_world( JsonOut &json )
     json.member( "windspeed", weather.windspeed );
     json.member( "winddirection", weather.winddirection );
     json.member( "lightning", weather.lightning_active );
+    // Where the host's map starts: the client's map starts there too, so
+    // that map coordinates (tripoint_bub_ms) in what goes between them, such
+    // as the target of an activity, mean the same tile on both sides.
+    json.member( "origin", get_map().get_abs_sub() );
 }
 
 // The character's JSON without its "location" member.
@@ -323,8 +330,10 @@ void read( const JsonObject &message )
     const int y = c.next_int();
     const int z = c.next_int();
     const tripoint_abs_sm center( x, y, z );
-    // The character in the middle of the map, as the host's bubble has its avatar.
-    get_map().load( center - point_rel_sm( HALF_MAPSIZE, HALF_MAPSIZE ), true );
+    // The map where the host's map is (see write_world()); before that is
+    // known, around the character.
+    get_map().load( host_origin ? *host_origin : center - point_rel_sm( HALF_MAPSIZE, HALF_MAPSIZE ),
+                    true );
     invalidate_view();
 }
 
@@ -386,6 +395,14 @@ void read_world( const JsonObject &message )
     weather.windspeed = message.get_int( "windspeed", 0 );
     weather.winddirection = message.get_int( "winddirection", 0 );
     weather.lightning_active = message.get_bool( "lightning", false );
+    if( message.has_array( "origin" ) ) {
+        tripoint_abs_sm origin;
+        message.read( "origin", origin );
+        if( !host_origin || *host_origin != origin ) {
+            host_origin = origin;
+            follow_avatar();
+        }
+    }
     // Daylight changes what is seen.
     get_map().invalidate_visibility_cache();
 }
@@ -418,6 +435,13 @@ void follow_avatar()
 {
     map &here = get_map();
     get_avatar().recalc_sight_limits();
+    if( host_origin ) {
+        if( here.get_abs_sub() != *host_origin ) {
+            here.load( *host_origin, true );
+        }
+        invalidate_view();
+        return;
+    }
     const tripoint_abs_sm at = project_to<coords::sm>( get_avatar().pos_abs() );
     const tripoint_abs_sm center = here.get_abs_sub() + point_rel_sm( HALF_MAPSIZE, HALF_MAPSIZE );
     if( at.xy() != center.xy() || at.z() != here.get_abs_sub().z() ) {
@@ -425,6 +449,11 @@ void follow_avatar()
                    true );
     }
     invalidate_view();
+}
+
+void forget_host()
+{
+    host_origin.reset();
 }
 
 bool fill_missing( const tripoint_abs_sm &omt_base )

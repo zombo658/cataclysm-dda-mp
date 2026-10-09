@@ -3,6 +3,7 @@
 #define CATA_SRC_MP_REMOTE_PROMPT_H
 
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -74,6 +75,14 @@ std::optional<int> ask_dialogue( const std::string &npc_name, const std::string 
                                  const std::vector<talk_data> &responses, const std::vector<bool> &selectable );
 // A new conversation starts: the client opens a fresh dialogue window.
 void new_conversation();
+// play_videogame(): a game on a device of the second player is played on
+// their screen. std::nullopt when it's the host's game.
+struct videogame_result {
+    bool won = false;
+    int score = 0;
+    std::map<std::string, std::string> data;
+};
+std::optional<videogame_result> ask_videogame( const std::string &name );
 // game::peek( p ) (peeking through curtains, ...): the second player peeks
 // on their own screen. False when it's the host's peek.
 bool peek( const tripoint_bub_ms &p );

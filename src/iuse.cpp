@@ -89,6 +89,7 @@
 #include "monster.h"
 #include "mtype.h"
 #include "music.h"
+#include "mp/rc_npc.h"
 #include "mutation.h"
 #include "npc.h"
 #include "omdata.h"
@@ -1669,7 +1670,8 @@ std::optional<int> iuse::petfood( Character *p, item *it, const tripoint_bub_ms 
 
 std::optional<int> iuse::radio_mod( Character *p, item *, const tripoint_bub_ms & )
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         // Now THAT would be kinda cruel
         return std::nullopt;
     }
@@ -1787,7 +1789,8 @@ static bool good_fishing_spot( const tripoint_bub_ms &pos, Character *p )
 
 std::optional<int> iuse::fishing_rod( Character *p, item *it, const tripoint_bub_ms & )
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         // Long actions - NPCs don't like those yet.
         return std::nullopt;
     }
@@ -3172,7 +3175,8 @@ std::optional<int> iuse::jackhammer( Character *p, item *it, const tripoint_bub_
 
 std::optional<int> iuse::pick_lock( Character *p, item *it, const tripoint_bub_ms &pos )
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         return std::nullopt;
     }
     avatar &you = dynamic_cast<avatar &>( *p );
@@ -3219,7 +3223,8 @@ std::optional<int> iuse::pick_lock( Character *p, item *it, const tripoint_bub_m
 
 std::optional<int> iuse::pickaxe( Character *p, item *it, const tripoint_bub_ms &pos )
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         // Long action
         return std::nullopt;
     }
@@ -3317,7 +3322,8 @@ std::optional<int> iuse::geiger_active( Character *, item *, const tripoint_bub_
 
 std::optional<int> iuse::teleport( Character *p, item *it, const tripoint_bub_ms & )
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         // That would be evil
         return std::nullopt;
     }
@@ -4169,7 +4175,8 @@ std::optional<int> iuse::portable_game( Character *p, item *it, const tripoint_b
 {
     const map &here = get_map();
 
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         // Long action
         return std::nullopt;
     }
@@ -4361,7 +4368,8 @@ std::optional<int> iuse::fitness_check( Character *p, item *it, const tripoint_b
 
 std::optional<int> iuse::hand_crank( Character *p, item *it, const tripoint_bub_ms & )
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         // Long action
         return std::nullopt;
     }
@@ -4395,7 +4403,8 @@ std::optional<int> iuse::hand_crank( Character *p, item *it, const tripoint_bub_
 
 std::optional<int> iuse::vibe( Character *p, item *it, const tripoint_bub_ms & )
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         // Long action
         // Also, that would be creepy as fuck, seriously
         return std::nullopt;
@@ -4541,7 +4550,8 @@ std::optional<int> iuse::blood_draw( Character *p, item *it, const tripoint_bub_
     map &here = get_map();
     const tripoint_bub_ms pos = p->pos_bub( here );
 
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         return std::nullopt;    // No NPCs for now!
     }
     if( p->cant_do_mounted() ) {
@@ -4788,7 +4798,8 @@ std::optional<int> iuse::chop_logs( Character *p, item *it, const tripoint_bub_m
 
 std::optional<int> iuse::oxytorch( Character *p, item *it, const tripoint_bub_ms & )
 {
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         // Long action
         return std::nullopt;
     }
@@ -5663,7 +5674,8 @@ std::optional<int> iuse::epic_music( Character *p, item *it, const tripoint_bub_
 std::optional<int> iuse::efiledevice( Character *p, item *it, const tripoint_bub_ms & )
 {
     //restrictions
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         return std::nullopt;
     }
     if( p->cant_do_mounted() ) {
@@ -9035,7 +9047,8 @@ std::optional<int> iuse::ebooksave( Character *p, item *it, const tripoint_bub_m
         return std::nullopt;
     }
 
-    if( p->is_npc() ) {
+    // The second player's character (mp/) uses its items as the avatar does.
+    if( p->is_npc() && !mp::is_remote_character( *p ) ) {
         return std::nullopt;
     }
 

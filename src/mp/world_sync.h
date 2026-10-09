@@ -45,6 +45,8 @@ void read_world( const JsonObject &message );
 void read_overmap( const JsonObject &message );
 // Keeps the client's map around its avatar (the copy of the character).
 void follow_avatar();
+// The game is left: the next host's map starts somewhere else.
+void forget_host();
 // Hook in map::loadn(): the client has no world to generate missing
 // submaps from; puts empty ones there instead. True if it did.
 bool fill_missing( const tripoint_abs_sm &omt_base );
