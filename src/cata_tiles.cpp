@@ -1935,6 +1935,7 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
                              tripoint_bub_ms( g->ter_view_p.xy(), center.z() ), 0, 0, lit_level::LIT,
                              false );
     }
+    draw_player_marks( overlay_strings );
     if( you.controlling_vehicle ) {
         std::optional<tripoint_rel_ms> indicator_offset = g->get_veh_dir_indicator_location( true );
         if( indicator_offset ) {

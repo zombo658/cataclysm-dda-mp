@@ -32,12 +32,14 @@
 #include "line.h"
 #include "map.h"
 #include "mp/net.h"
+#include "mp/player_talk.h"
 #include "npc.h"
 #include "output.h"
 #include "overmap_ui.h"
 #include "projectile.h"
 #include "ranged.h"
 #include "string_formatter.h"
+#include "string_input_popup.h"
 #include "translations.h"
 #include "uilist.h"
 #include "visitable.h"
@@ -520,7 +522,8 @@ std::string talk( npc &guy, const JsonObject &request )
         return _( "nobody is there" );
     }
     if( other->is_avatar() ) {
-        return _( "talk to the host yourself" );
+        player_talk::host_menu( guy );
+        return std::string();
     }
     return talk_hooks::talk( guy, *other );
 }
@@ -891,17 +894,26 @@ void run( const action_id act )
                     available.push_back( &guy );
                 }
             }
-            if( available.empty() ) {
-                add_msg( m_info, _( "There's no one close enough to talk to." ) );
-                break;
-            }
             uilist nmenu;
             nmenu.text = _( "Who do you want to talk to?" );
             for( size_t i = 0; i < available.size(); i++ ) {
                 nmenu.addentry( static_cast<int>( i ), true, MENU_AUTOASSIGN, available[i]->get_name() );
             }
+            // The other player, wherever they are: a message only they read.
+            const int message_host = static_cast<int>( available.size() );
+            nmenu.addentry( message_host, true, 'm', _( "Message to the host" ) );
             nmenu.query();
-            if( nmenu.ret >= 0 && static_cast<size_t>( nmenu.ret ) < available.size() ) {
+            if( nmenu.ret == message_host ) {
+                const std::string text = string_input_popup()
+                                         .title( _( "Message to the host:" ) )
+                                         .width( 60 )
+                                         .query_string();
+                if( !text.empty() ) {
+                    send( "say", [&]( JsonOut & json ) {
+                        json.member( "text", text );
+                    } );
+                }
+            } else if( nmenu.ret >= 0 && static_cast<size_t>( nmenu.ret ) < available.size() ) {
                 const tripoint_abs_ms where = available[nmenu.ret]->pos_abs();
                 send( "talk", [&]( JsonOut & json ) {
                     json.member( "target", where );

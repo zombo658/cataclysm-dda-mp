@@ -17,6 +17,8 @@
 #include "json_loader.h"
 #include "map.h"
 #include "messages.h"
+#include "mp/net.h"
+#include "mp/rc_npc.h"
 #include "mp/remote_prompt.h"
 #include "npc.h"
 #include "npctrade.h"
@@ -206,6 +208,22 @@ void trade_with_host( npc &guy )
     apply( guy, host, *res );
     guy.add_msg_if_player( m_good, _( "You exchange things with %s." ), host.get_name() );
     add_msg( m_good, _( "You exchange things with %s." ), guy.get_name() );
+}
+
+bool partner_refuses( const npc &np, const trade_selector::select_t &from_host,
+                      const trade_selector::select_t &from_partner )
+{
+    if( !is_remote( np ) || !net::has_client() ) {
+        return false;
+    }
+    // Asked of the second player: their things.
+    remote_prompt::asking_client asking;
+    const bool agreed = query_yn( _( "%1$s offers you: %2$s.\nAnd wants from you: %3$s.\nAgree?" ),
+                                  get_avatar().get_name(), describe( from_host ), describe( from_partner ) );
+    if( !agreed ) {
+        add_msg( m_bad, _( "%s doesn't agree to the exchange." ), np.get_name() );
+    }
+    return !agreed;
 }
 
 void answer( const JsonObject &question )

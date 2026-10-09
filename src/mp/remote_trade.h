@@ -4,6 +4,8 @@
 
 #include <string>
 
+#include "trade_ui.h"
+
 class Character;
 class JsonObject;
 class npc;
@@ -22,6 +24,10 @@ namespace mp::remote_trade
 bool trade_with_npc( npc &guy, npc &np, int cost, const std::string &deal );
 // The second player offers the host an exchange; the host agrees or not.
 void trade_with_host( npc &guy );
+// The host's trade with the second player's character (hook in
+// npc_trading::trade()): true if the second player says no.
+bool partner_refuses( const npc &np, const trade_selector::select_t &from_host,
+                      const trade_selector::select_t &from_partner );
 
 // ---- Client ----
 

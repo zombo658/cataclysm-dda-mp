@@ -7,6 +7,9 @@
 #include <vector>
 
 #include "cata_tiles.h"
+#include "cursesdef.h"
+#include "mp/world_sync.h"
+#include "avatar.h"
 #include "cata_utility.h"
 #include "coordinates.h"
 #include "game_constants.h"
@@ -123,6 +126,23 @@ void cata_tiles::draw_remote_view( const point &dest, int width, int height,
     }
     printErrorIf( SDL_RenderSetClipRect( renderer.get(), nullptr ) != 0,
                   "SDL_RenderSetClipRect failed" );
+}
+
+
+void cata_tiles::draw_player_marks( std::multimap<point, formatted_text> &overlay_strings )
+{
+    const tripoint_bub_ms view = get_player_character().pos_bub() + get_player_character().view_offset;
+    for( const mp::world_sync::player_mark &mark : mp::world_sync::players() ) {
+        const tripoint_bub_ms p = mark.who->pos_bub();
+        if( p.z() != view.z() ) {
+            continue;
+        }
+        // Above the head: the middle of the upper part of the tile.
+        const point at = player_to_screen( p.xy() ) + point( tile_width / 2, -tile_height / 4 );
+        // Green for the host, cyan for the second player, on both screens.
+        const int color = 8 + ( mark.host ? catacurses::green : catacurses::cyan );
+        overlay_strings.emplace( at, formatted_text( "\xE2\x96\xBC", color, text_alignment::center ) );
+    }
 }
 
 #endif // TILES

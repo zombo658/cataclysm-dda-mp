@@ -34,6 +34,7 @@
 #include "panels.h"
 #include "json_loader.h"
 #include "mp/net.h"
+#include "mp/player_talk.h"
 #include "mp/protocol.h"
 #include "mp/remote_actions.h"
 #include "mp/remote_crafting.h"
@@ -170,6 +171,10 @@ void handle_message( client_state &state, const std::string &line )
             state.step_pending = false;
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
+        } else if( type == "chat" ) {
+            player_talk::show( msg );
+            state.add_log( string_format( "%s: %s", msg.get_string( "from", "" ), msg.get_string( "text", "" ) ),
+                           c_light_cyan );
         } else if( type == "personal" ) {
             remote_log::read( msg );
             state.add_log( msg.get_string( "text", "" ), c_white );

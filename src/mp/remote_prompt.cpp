@@ -17,6 +17,7 @@
 #include "game.h"
 #include "map.h"
 #include "mp/net.h"
+#include "mp/player_talk.h"
 #include "mp/rc_npc.h"
 #include "mp/remote_trade.h"
 #include "mp/remote_vehicle.h"
@@ -448,6 +449,8 @@ void answer( const JsonObject &question )
     const std::string kind = question.get_string( "kind", "" );
     if( kind == "message" ) {
         popup( question.get_string( "text", "" ) );
+    } else if( kind == "inspect" ) {
+        player_talk::inspect( question );
     } else if( kind == "videogame" ) {
         // The game itself on this screen; what came of it goes back.
         std::map<std::string, std::string> data;

@@ -15,6 +15,7 @@
 #include "json_loader.h"
 #include "messages.h"
 #include "mp/net.h"
+#include "mp/player_talk.h"
 #include "mp/rc_npc.h"
 #include "mp/remote_actions.h"
 #include "mp/remote_crafting.h"
@@ -209,6 +210,8 @@ void handle_line_from( const std::string &line, const bool from_queue )
     // For "craft".
     std::string recipe;
     int batch = 1;
+    // For "say".
+    std::string say_text;
     // For "tile_action".
     std::optional<tripoint_rel_ms> tile_dir;
     try {
@@ -222,6 +225,7 @@ void handle_line_from( const std::string &line, const bool from_queue )
         revision = obj.get_int( "revision", 0 );
         index = obj.get_int( "index", -1 );
         action = obj.get_string( "action", "" );
+        say_text = obj.get_string( "text", "" );
         recipe = obj.get_string( "recipe", "" );
         if( obj.has_array( "offset" ) ) {
             JsonArray d = obj.get_array( "offset" );
@@ -255,6 +259,12 @@ void handle_line_from( const std::string &line, const bool from_queue )
     remote_prompt::asking_client asking;
     if( cmd_name == "status" ) {
         send_status( *guy, "status" );
+        return;
+    }
+    if( cmd_name == "say" ) {
+        if( !say_text.empty() ) {
+            player_talk::say_from_client( *guy, say_text );
+        }
         return;
     }
     if( cmd_name == "inventory" ) {

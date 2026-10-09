@@ -14,6 +14,9 @@
 #include "json.h"
 #include "map.h"
 #include "mapbuffer.h"
+#include "mp/net.h"
+#include "mp/rc_npc.h"
+#include "character_id.h"
 #include "mp/npc_grab.h"
 #include "mp/remote_actions.h"
 #include "avatar.h"
@@ -47,6 +50,8 @@ size_t sent_overmap = 0;
 // a few tiles each way, the overmap screen more).
 constexpr int overmap_radius = 12;
 size_t sent_character = 0;
+// Client: the copy of the host's avatar among the creatures.
+character_id host_copy_id;
 // Client: where the host's map starts.
 std::optional<tripoint_abs_sm> host_origin;
 // The same without the position.
@@ -364,6 +369,7 @@ void read_creatures( const JsonObject &message )
                 // things, as with followers).
                 guy->set_attitude( NPCATT_FOLLOW );
                 guy->set_fac( faction_your_followers );
+                host_copy_id = guy->getID();
             }
             guy->facing = facing;
             tracker.add_npc( guy );
@@ -454,6 +460,29 @@ void follow_avatar()
 void forget_host()
 {
     host_origin.reset();
+    host_copy_id = character_id();
+}
+
+std::vector<player_mark> players()
+{
+    std::vector<player_mark> marks;
+    if( remote_actions::client_active() ) {
+        // This client's character, and the copy of the host.
+        marks.push_back( { &get_avatar(), false } );
+        for( const npc &guy : g->all_npcs() ) {
+            if( guy.getID() == host_copy_id ) {
+                marks.push_back( { &guy, true } );
+            }
+        }
+    } else if( net::running() ) {
+        marks.push_back( { &get_avatar(), true } );
+        for( const npc &guy : g->all_npcs() ) {
+            if( is_remote( guy ) && get_avatar().sees( get_map(), guy ) ) {
+                marks.push_back( { &guy, false } );
+            }
+        }
+    }
+    return marks;
 }
 
 bool fill_missing( const tripoint_abs_sm &omt_base )

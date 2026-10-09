@@ -460,6 +460,8 @@ class cata_tiles
         void draw_om( const point &dest, const tripoint_abs_omt &center_abs_omt, bool blink );
         /** Multiplayer client: draw the view received from the host (src/mp/remote_tiles.cpp). */
         void draw_remote_view( const point &dest, int width, int height, const mp::view::grid &grid );
+        /** Multiplayer: the mark above each player's head (src/mp/remote_tiles.cpp). */
+        void draw_player_marks( std::multimap<point, formatted_text> &overlay_strings );
 
         /** Minimap functionality */
         void draw_minimap( const point &dest, const tripoint_bub_ms &center, int width, int height );

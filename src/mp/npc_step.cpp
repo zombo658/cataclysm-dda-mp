@@ -18,6 +18,7 @@
 #include "mapdata.h"
 #include "messages.h"
 #include "monster.h"
+#include "mp/player_talk.h"
 #include "mp/remote_actions.h"
 #include "mp/remote_trade.h"
 #include "mtype.h"
@@ -318,19 +319,8 @@ bool step( npc &guy, const tripoint_rel_ms &d )
         return true;
     }
     if( creatures.creature_at( dest ) == &get_avatar() ) {
-        // The host: trade places or things.
-        uilist amenu;
-        amenu.text = string_format( _( "What to do with %s?" ), get_avatar().get_name() );
-        amenu.addentry( 0, !guy.is_mounted() && !get_avatar().is_mounted(), 's', _( "Swap positions" ) );
-        amenu.addentry( 1, true, 'b', _( "Trade" ) );
-        amenu.query();
-        if( amenu.ret == 0 && confirm_dangerous( dangerous_tile( guy, dest ) ) ) {
-            guy.add_msg_if_player( _( "You swap places with %s." ), get_avatar().get_name() );
-            g->swap_critters( get_avatar(), guy );
-            guy.mod_moves( -200 );
-        } else if( amenu.ret == 1 ) {
-            remote_trade::trade_with_host( guy );
-        }
+        // The host: trade places or things, talk (mp/player_talk.h).
+        player_talk::host_menu( guy );
         return true;
     }
     if( guy.has_flag( json_flag_CANNOT_MOVE ) ) {

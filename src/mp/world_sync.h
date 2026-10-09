@@ -2,10 +2,14 @@
 #ifndef CATA_SRC_MP_WORLD_SYNC_H
 #define CATA_SRC_MP_WORLD_SYNC_H
 
+#include <string>
+#include <vector>
+
 #include "coordinates.h"
 
 class JsonObject;
 class JsonOut;
+class Character;
 class npc;
 
 // A copy of the map around the second player's character on the client, so
@@ -47,6 +51,14 @@ void read_overmap( const JsonObject &message );
 void follow_avatar();
 // The game is left: the next host's map starts somewhere else.
 void forget_host();
+
+// The players (the host's avatar and the second player's character, or
+// their copies on the client), for the mark above their heads.
+struct player_mark {
+    const Character *who;
+    bool host;
+};
+std::vector<player_mark> players();
 // Hook in map::loadn(): the client has no world to generate missing
 // submaps from; puts empty ones there instead. True if it did.
 bool fill_missing( const tripoint_abs_sm &omt_base );

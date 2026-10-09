@@ -95,6 +95,7 @@
 #include "mission.h"
 #include "mongroup.h"
 #include "monster.h"
+#include "mp/player_talk.h"
 #include "mp/remote_actions.h"
 #include "mp/remote_prompt.h"
 #include "mtype.h"
@@ -1594,6 +1595,10 @@ void npc::handle_sound( const sounds::sound_t spriority, const std::string &desc
 void avatar::talk_to( std::unique_ptr<talker> talk_with, bool radio_contact,
                       bool is_computer, bool is_not_conversation, const std::string &debug_topic )
 {
+    // The second player's character: a message to them, not a dialogue.
+    if( const npc *np = talk_with->get_npc(); np != nullptr && mp::player_talk::host_talks_to( *np ) ) {
+        return;
+    }
     const bool has_mind_control = has_trait( trait_DEBUG_MIND_CONTROL );
     const bool force_topic = !debug_topic.empty();
     if( !talk_with->will_talk_to_u( *this, has_mind_control || force_topic ) ) {

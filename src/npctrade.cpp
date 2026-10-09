@@ -305,6 +305,11 @@ bool npc_trading::trade( npc &np, int cost, const std::string &deal )
 
     if( trade_result.traded ) {
         tradeui.reset();
+        // The second player's character agrees to it, or not (mp/).
+        if( mp::remote_trade::partner_refuses( np, trade_result.items_you,
+                                               trade_result.items_trader ) ) {
+            return false;
+        }
 
         std::list<item_location *> from_map;
 
