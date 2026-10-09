@@ -52,6 +52,7 @@
 #include "translations.h"
 #include "uilist.h"
 #include "ui_manager.h"
+#include "uistate.h"
 #include "worldfactory.h"
 
 #if defined(TILES)
@@ -611,6 +612,14 @@ void run_join_screen()
             } );
             ui.invalidate_ui();
         }
+        if( state.character_loaded && !state.lost && !state.step_pending ) {
+            const size_t messages_before = Messages::size();
+            remote_actions::reopen_menu();
+            const size_t count = Messages::size() - std::min( Messages::size(), messages_before );
+            for( const std::pair<std::string, std::string> &m : Messages::recent_messages( count ) ) {
+                state.add_log( m.second );
+            }
+        }
         // As on the host, a held key moves one step per frame: the next key
         // is read only when the host has answered the step (or is slow).
         if( state.step_pending && !state.lost &&
@@ -631,6 +640,8 @@ void run_join_screen()
             }
             continue;
         }
+        // Another action instead of waiting for the menu to come back.
+        uistate.open_menu.reset();
         if( !handle_action( state, action, ctxt ) ) {
             break;
         }

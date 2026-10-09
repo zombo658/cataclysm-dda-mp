@@ -66,6 +66,9 @@ void run( action_id act );
 // Hook in Character::assign_activity(): what the host's code assigned to the
 // copy of the character goes to the host instead. True if it did.
 bool forward_activity( const Character &who, const player_activity &act );
+// A menu left to let an activity run (advanced inventory, inventory) opens
+// again when the host has done it.
+void reopen_menu();
 
 // Hooks in Character::(de)activate_bionic() and (de)activate_mutation():
 // switching them on the copy goes to the host. True if it did.

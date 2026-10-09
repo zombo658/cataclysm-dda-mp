@@ -1,11 +1,13 @@
 #include "mp/remote_actions.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <exception>
 #include <functional>
 #include <optional>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -42,6 +44,7 @@
 #include "string_input_popup.h"
 #include "translations.h"
 #include "uilist.h"
+#include "uistate.h"
 #include "visitable.h"
 
 namespace mp::remote_actions
@@ -51,6 +54,21 @@ namespace
 {
 
 bool client_on = false;
+
+// An activity went to the host and its result (a new copy of the character)
+// hasn't come yet.
+bool awaiting_host = false;
+std::chrono::steady_clock::time_point forwarded_at;
+
+// Activities that only keep a menu open between turns (the eat menu...):
+// the screen is this client's, the host has nothing to do.
+bool menu_activity( const player_activity &act )
+{
+    static const std::set<std::string> menus = { "ACT_EAT_MENU", "ACT_CONSUME_FOOD_MENU",
+                                                 "ACT_CONSUME_DRINK_MENU", "ACT_CONSUME_MEDS_MENU"
+                                               };
+    return menus.count( act.id().str() ) > 0;
+}
 
 item_location read_location( const JsonObject &request, const std::string &name )
 {
@@ -691,6 +709,7 @@ bool load_character( const std::string &data )
         get_avatar().deserialize( value.get_object() );
         get_avatar().view_offset = view_offset;
         get_avatar().facing = facing;
+        awaiting_host = false;
     } catch( const std::exception &err ) {
         debugmsg( "Can't load the character from the host: %s", err.what() );
         return false;
@@ -1026,10 +1045,32 @@ bool forward_activity( const Character &who, const player_activity &act )
     if( !client_on || &who != &get_avatar() || !act ) {
         return false;
     }
+    if( menu_activity( act ) ) {
+        return true;
+    }
     send( "activity", [&]( JsonOut & json ) {
         json.member( "data", act );
     } );
+    awaiting_host = true;
+    forwarded_at = std::chrono::steady_clock::now();
     return true;
+}
+
+void reopen_menu()
+{
+    if( !client_on || !uistate.open_menu ) {
+        return;
+    }
+    // handle_action.cpp: the menu comes back when the activity is over.
+    if( awaiting_host && std::chrono::steady_clock::now() - forwarded_at < std::chrono::seconds( 3 ) ) {
+        return;
+    }
+    if( get_avatar().activity ) {
+        return;
+    }
+    std::optional<std::function<void()>> open_menu = std::nullopt;
+    std::swap( uistate.open_menu, open_menu );
+    open_menu.value()();
 }
 
 bool forward_bionic( const Character &who, const bionic &bio, const bool on )
