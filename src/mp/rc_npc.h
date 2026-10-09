@@ -3,6 +3,7 @@
 #define CATA_SRC_MP_RC_NPC_H
 
 #include <functional>
+#include <string>
 
 #include "action.h"
 #include "coordinates.h"
@@ -44,6 +45,9 @@ void push_command( const npc &guy, const command &cmd );
 // The remote NPC that network commands go to: the first one in the reality
 // bubble. nullptr if there is none.
 npc *network_npc();
+// A character the second player made on their client (avatar::store() JSON):
+// a new NPC next to the host for them. nullptr and `error` if it can't be.
+npc *partner_from_client( const std::string &data, std::string &error );
 bool has_commands( const npc &guy );
 
 // Hook for npc::move(): runs queued commands instead of the AI.

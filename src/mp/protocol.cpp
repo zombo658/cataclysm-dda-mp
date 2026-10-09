@@ -212,6 +212,8 @@ void handle_line_from( const std::string &line, const bool from_queue )
     int batch = 1;
     // For "say".
     std::string say_text;
+    // For "new_character".
+    std::string character_data;
     // For "tile_action".
     std::optional<tripoint_rel_ms> tile_dir;
     try {
@@ -227,6 +229,9 @@ void handle_line_from( const std::string &line, const bool from_queue )
         action = obj.get_string( "action", "" );
         say_text = obj.get_string( "text", "" );
         recipe = obj.get_string( "recipe", "" );
+        if( cmd_name == "new_character" ) {
+            character_data = obj.get_string( "data", "" );
+        }
         if( obj.has_array( "offset" ) ) {
             JsonArray d = obj.get_array( "offset" );
             const int x = d.next_int();
@@ -242,6 +247,16 @@ void handle_line_from( const std::string &line, const bool from_queue )
 
     if( cmd_name == "screen" ) {
         client_native_screen = action == "native";
+        return;
+    }
+    if( cmd_name == "new_character" ) {
+        std::string error;
+        if( const npc *made = partner_from_client( character_data, error ) ) {
+            send_welcome();
+            send_state( *made );
+        } else {
+            send_error( error );
+        }
         return;
     }
     npc *guy = network_npc();
@@ -466,6 +481,9 @@ void send_welcome()
         const npc *guy = network_npc();
         if( guy != nullptr ) {
             json.member( "npc", guy->get_name() );
+        } else {
+            // The second player makes one (new_character).
+            json.member( "create", true );
         }
     } ) );
 }

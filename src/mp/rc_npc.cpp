@@ -7,6 +7,8 @@
 #include <functional>
 #include <iterator>
 #include <list>
+#include <exception>
+#include <optional>
 #include <map>
 #include <set>
 #include <string>
@@ -28,6 +30,7 @@
 #include "item.h"
 #include "item_location.h"
 #include "item_search.h"
+#include "json_loader.h"
 #include "json.h"
 #include "map.h"
 #include "map_selector.h"
@@ -43,6 +46,7 @@
 #include "vpart_position.h"
 #include "vehicle.h"
 #include "player_activity.h"
+#include "profession.h"
 #include "output.h"
 #include "string_formatter.h"
 #include "translations.h"
@@ -672,26 +676,23 @@ static void make_partner( npc &guy )
     set_remote( guy, true );
 }
 
-// A new random character next to the host, for the second player.
-static npc *spawn_partner()
+// A free tile next to the host for a new character.
+static std::optional<tripoint_bub_ms> spot_near_host()
 {
     map &here = get_map();
     const avatar &host = get_avatar();
-    std::optional<tripoint_bub_ms> spot;
     for( const tripoint_bub_ms &p : closest_points_first( host.pos_bub( here ), 1, 5 ) ) {
         if( here.passable( p ) && g->is_empty( p ) ) {
-            spot = p;
-            break;
+            return p;
         }
     }
-    if( !spot ) {
-        popup( _( "There is no free place for a new character next to you." ) );
-        return nullptr;
-    }
-    shared_ptr_fast<npc> guy = make_shared_fast<npc>();
-    guy->normalize();
-    guy->randomize();
-    guy->spawn_at_precise( here.get_abs( *spot ) );
+    return std::nullopt;
+}
+
+// Puts a new character at `spot` as the host's follower.
+static npc *place_partner( const shared_ptr_fast<npc> &guy, const tripoint_bub_ms &spot )
+{
+    guy->spawn_at_precise( get_map().get_abs( spot ) );
     overmap_buffer.insert_npc( guy );
     guy->mission = NPC_MISSION_NULL;
     guy->set_fac( faction_your_followers );
@@ -699,6 +700,70 @@ static npc *spawn_partner()
     g->load_npcs();
     g->add_npc_follower( guy->getID() );
     return guy.get();
+}
+
+// A new random character next to the host, for the second player.
+static npc *spawn_partner()
+{
+    const std::optional<tripoint_bub_ms> spot = spot_near_host();
+    if( !spot ) {
+        popup( _( "There is no free place for a new character next to you." ) );
+        return nullptr;
+    }
+    shared_ptr_fast<npc> guy = make_shared_fast<npc>();
+    guy->normalize();
+    guy->randomize();
+    return place_partner( guy, *spot );
+}
+
+npc *partner_from_client( const std::string &data, std::string &error )
+{
+    if( network_npc() != nullptr ) {
+        error = "you already have a character";
+        return nullptr;
+    }
+    const std::optional<tripoint_bub_ms> spot = spot_near_host();
+    if( !spot ) {
+        error = "there is no free place next to the host";
+        return nullptr;
+    }
+    // An NPC's own parts (personality, faction...) as for any new NPC, then
+    // the character made on the client (newcharacter.cpp, avatar::store()).
+    shared_ptr_fast<npc> guy = make_shared_fast<npc>();
+    guy->normalize();
+    guy->randomize();
+    const character_id id = guy->getID();
+    try {
+        const JsonValue value = json_loader::from_string( data );
+        const JsonObject obj = value.get_object();
+        obj.allow_omitted_members();
+        guy->Character::load( obj );
+        // avatar::load(): what only the avatar keeps.
+        std::string prof_ident;
+        if( obj.read( "profession", prof_ident ) && profession_id( prof_ident ).is_valid() ) {
+            guy->prof = &profession_id( prof_ident ).obj();
+        } else {
+            guy->prof = profession::generic();
+        }
+        guy->hobbies.clear();
+        std::vector<profession_id> hobby_ids;
+        obj.read( "hobbies", hobby_ids );
+        for( const profession_id &hobby : hobby_ids ) {
+            if( hobby.is_valid() ) {
+                guy->hobbies.insert( &hobby.obj() );
+            }
+        }
+    } catch( const std::exception &err ) {
+        error = std::string( "bad character: " ) + err.what();
+        return nullptr;
+    }
+    guy->setID( id, true );
+    // game::start_game(): the starting items, made here.
+    guy->add_profession_items();
+    npc *made = place_partner( guy, *spot );
+    make_partner( *made );
+    add_msg( m_info, _( "The second player has made %s." ), made->get_name() );
+    return made;
 }
 
 static void choose_partner()
@@ -712,7 +777,9 @@ static void choose_partner()
         nearby.push_back( &guy );
     }
     const int new_character = static_cast<int>( nearby.size() );
-    menu.addentry( new_character, true, 'n', _( "A new character" ) );
+    menu.addentry( new_character, true, 'n', _( "A new random character" ) );
+    // No choice here: they make a character when they connect.
+    menu.addentry( new_character + 1, true, 'c', _( "The second player creates a character" ) );
     menu.query();
     npc *chosen = nullptr;
     if( menu.ret == new_character ) {
@@ -772,7 +839,7 @@ static void start_hosting()
                         "or forward TCP port %1$d)." ), net::default_port );
     add_msg( m_info, partner != nullptr ?
              string_format( _( "They will play %s." ), partner->get_name() ) :
-             _( "No character is chosen for them yet." ) );
+             _( "They will create a character when they connect." ) );
 }
 
 static void toggle_remote_menu()

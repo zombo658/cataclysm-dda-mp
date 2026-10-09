@@ -97,6 +97,8 @@ struct client_state {
     // screens on the client's avatar); run when the character comes.
     std::optional<action_id> character_action;
     bool character_loaded = false;
+    // The host has no character for this player: they make one.
+    bool create_character = false;
     // Questions of the host's game, answered in the main loop.
     std::vector<std::string> prompts;
     // Map updates that came before the game data was loaded.
@@ -149,7 +151,9 @@ void handle_message( client_state &state, const std::string &line )
         } else if( type == "welcome" ) {
             state.character = msg.get_string( "npc", "" );
             state.instant = msg.get_bool( "instant", false );
-            if( msg.has_array( "mods" ) ) {
+            state.create_character = msg.get_bool( "create", false );
+            // Again after the second player made a character: the data is loaded.
+            if( msg.has_array( "mods" ) && state.mods.empty() ) {
                 for( const std::string mod : msg.get_array( "mods" ) ) {
                     state.mods.push_back( mod );
                 }
@@ -160,7 +164,7 @@ void handle_message( client_state &state, const std::string &line )
                 state.add_log( _( "Warning: the host runs a different version of the game." ), c_yellow );
             }
             state.add_log( state.character.empty() ?
-                           _( "Connected.  The host hasn't chosen your character yet." ) :
+                           _( "Connected.  Make your character." ) :
                            string_format( _( "Connected.  You play %s." ), state.character ), c_light_green );
         } else if( type == "log" ) {
             for( const std::string text : msg.get_array( "lines" ) ) {
@@ -222,6 +226,32 @@ void handle_message( client_state &state, const std::string &line )
         }
     } catch( const JsonError &err ) {
         state.add_log( string_format( _( "Bad message from the host: %s" ), err.what() ), c_red );
+    }
+}
+
+// The game's character creation (as for a new game) with the host's data;
+// the host makes the character next to its own. False if the player gave up.
+bool make_character()
+{
+    while( true ) {
+        avatar &u = get_avatar();
+        u = avatar();
+        if( u.create( character_type::CUSTOM ) ) {
+            std::ostringstream data;
+            JsonOut data_json( data );
+            u.serialize( data_json );
+            std::ostringstream os;
+            JsonOut json( os );
+            json.start_object();
+            json.member( "cmd", "new_character" );
+            json.member( "data", data.str() );
+            json.end_object();
+            net::client_send_line( os.str() );
+            return true;
+        }
+        if( query_yn( _( "Leave the game?" ) ) ) {
+            return false;
+        }
     }
 }
 
@@ -589,6 +619,13 @@ void run_join_screen()
                 remote_prompt::answer( value.get_object() );
             } catch( const JsonError &err ) {
                 state.add_log( string_format( _( "Bad message from the host: %s" ), err.what() ), c_red );
+            }
+            ui.invalidate_ui();
+        }
+        if( state.create_character && state.data_loaded && !state.lost ) {
+            state.create_character = false;
+            if( !make_character() ) {
+                break;
             }
             ui.invalidate_ui();
         }
