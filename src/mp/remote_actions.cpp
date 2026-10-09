@@ -438,6 +438,15 @@ std::string setting( npc &guy, const JsonObject &request )
         guy.martial_arts_data->set_style( style );
         return std::string();
     }
+    if( what == "worn_order" ) {
+        std::vector<int> order;
+        for( const int i : request.get_array( "order" ) ) {
+            order.push_back( i );
+        }
+        guy.worn.reorder( order );
+        guy.calc_encumbrance();
+        return std::string();
+    }
     if( what == "fire_mode" ) {
         item_location weapon = guy.get_wielded_item();
         if( !weapon || !weapon->is_gun() ) {
@@ -537,6 +546,7 @@ bool uses_character( const action_id act )
         case ACTION_RECRAFT:
         case ACTION_LONGCRAFT:
         case ACTION_CHAT:
+        case ACTION_SORT_ARMOR:
             return true;
         default:
             return runs_host_code( act ) || changes_move_mode( act );
@@ -784,6 +794,25 @@ void run( const action_id act )
         case ACTION_LOOK:
             g->look_around();
             break;
+        case ACTION_SORT_ARMOR: {
+            // The host's screen on the copy; the new order goes to the host
+            // (wearing and taking off from it go through the hooks).
+            const std::vector<const item *> before = you.worn.items_in_order();
+            you.worn.sort_armor( you );
+            std::vector<int> order;
+            for( const item *it : you.worn.items_in_order() ) {
+                const auto found = std::find( before.begin(), before.end(), it );
+                if( found != before.end() ) {
+                    order.push_back( static_cast<int>( found - before.begin() ) );
+                }
+            }
+            send( "setting", [&]( JsonOut & json ) {
+                json.member( "what", "worn_order" );
+                json.member( "value", "" );
+                json.member( "order", order );
+            } );
+            break;
+        }
         case ACTION_CHAT: {
             // game::chat(): who to talk to, among the NPCs in sight.
             std::vector<npc *> available;
@@ -942,6 +971,15 @@ bool forward_mutation( const Character &who, const trait_id &mut, const bool on 
         json.member( "id", mut.str() );
         json.member( "on", on );
     } );
+    return true;
+}
+
+bool forward_item_from_copy( const Character &who, const item_location &loc, const int key )
+{
+    if( !client_on || &who != &get_avatar() || !loc ) {
+        return false;
+    }
+    send_item( key, loc );
     return true;
 }
 

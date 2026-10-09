@@ -203,6 +203,11 @@ class outfit
                             std::list<item> &worn_remains, bool &armor_destroyed );
         /** Draws the UI and handles player input for the armor re-ordering window */
         void sort_armor( Character &guy );
+        // The second player's client sorts its copy, the host repeats the
+        // order (mp/remote_actions.h): the worn items in order, and setting
+        // that order by indices into it.
+        std::vector<const item *> items_in_order() const;
+        void reorder( const std::vector<int> &order );
         /*
          * when you break out of a grab you have a chance to lose some things from your pockets
          * that are hanging off your character

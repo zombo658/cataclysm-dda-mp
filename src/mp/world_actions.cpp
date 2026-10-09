@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "activity_actor_definitions.h"
+#include "avatar.h"
 #include "character.h"
 #include "creature_tracker.h"
 #include "game.h"
@@ -209,6 +210,16 @@ bool run( const action_id act )
             return false;
     }
     if( const std::optional<tripoint_rel_ms> dir = choose_direction( question ) ) {
+        // A vehicle: its menu runs on the client's copy (game::examine()),
+        // what it starts goes to the host as an activity.
+        map &here = get_map();
+        const tripoint_bub_ms p = get_avatar().pos_bub() + *dir;
+        if( action == "examine" ) {
+            if( const optional_vpart_position vp = here.veh_at( p ) ) {
+                vp->vehicle().interact_with( &here, p, act == ACTION_EXAMINE_AND_PICKUP );
+                return true;
+            }
+        }
         send_command( action, *dir );
     }
     return true;

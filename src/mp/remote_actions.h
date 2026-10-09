@@ -72,6 +72,10 @@ bool forward_activity( const Character &who, const player_activity &act );
 bool forward_bionic( const Character &who, const bionic &bio, bool on );
 bool forward_mutation( const Character &who, const trait_id &mut, bool on );
 
+// Hooks in Character::wear(), takeoff() and change_side(): on the copy
+// they go to the host as the item menu's 'W', 'T', 'c'. True if they did.
+bool forward_item_from_copy( const Character &who, const item_location &loc, int key );
+
 // Hook in place_construction(): the chosen construction and place go to the
 // host. True if they did.
 bool forward_construction( const construction_id &id, const tripoint_abs_ms &where );

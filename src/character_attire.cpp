@@ -37,6 +37,7 @@
 #include "map.h"
 #include "melee.h"
 #include "messages.h"
+#include "mp/remote_actions.h"
 #include "mutation.h"
 #include "output.h"
 #include "pimpl.h"
@@ -257,6 +258,10 @@ Character::wear( int pos, bool interactive )
 std::optional<std::list<item>::iterator>
 Character::wear( item_location item_wear, bool interactive )
 {
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( mp::remote_actions::forward_item_from_copy( *this, item_wear, 'W' ) ) {
+        return std::nullopt;
+    }
     item &to_wear = *item_wear;
 
     // Need to account for case where we're trying to wear something that belongs to someone else
@@ -517,6 +522,10 @@ ret_val<void> Character::can_takeoff( const item &it, const std::list<item> *res
 
 bool Character::takeoff( item_location loc, std::list<item> *res )
 {
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( mp::remote_actions::forward_item_from_copy( *this, loc, 'T' ) ) {
+        return false;
+    }
     const std::string name = loc->tname();
     const bool success = worn.takeoff( loc, res, *this );
 
@@ -800,6 +809,10 @@ bool Character::change_side( item &it, bool interactive )
 
 bool Character::change_side( item_location &loc, bool interactive )
 {
+    // On the second player's client the host does it (mp/remote_actions.h).
+    if( mp::remote_actions::forward_item_from_copy( *this, loc, 'c' ) ) {
+        return false;
+    }
     if( !loc || !is_worn( *loc ) ) {
         if( interactive ) {
             add_msg_player_or_npc( m_info,
@@ -2653,4 +2666,32 @@ void outfit::organize_items_menu()
         to_organize.push_back( &i );
     }
     pocket_management_menu( _( "Inventory Organization" ), to_organize );
+}
+
+std::vector<const item *> outfit::items_in_order() const
+{
+    std::vector<const item *> result;
+    for( const item &it : worn ) {
+        result.push_back( &it );
+    }
+    return result;
+}
+
+void outfit::reorder( const std::vector<int> &order )
+{
+    std::vector<std::list<item>::iterator> by_index;
+    for( auto it = worn.begin(); it != worn.end(); ++it ) {
+        by_index.push_back( it );
+    }
+    std::list<item> sorted;
+    std::vector<bool> taken( by_index.size(), false );
+    for( const int i : order ) {
+        if( i >= 0 && static_cast<size_t>( i ) < by_index.size() && !taken[i] ) {
+            sorted.splice( sorted.end(), worn, by_index[i] );
+            taken[i] = true;
+        }
+    }
+    // Anything not mentioned keeps its relative place at the end.
+    sorted.splice( sorted.end(), worn );
+    worn.swap( sorted );
 }
