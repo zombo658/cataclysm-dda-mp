@@ -31,13 +31,16 @@ bool write_overmap( JsonOut &json, const npc &guy );
 // Members of a "world" message: time and weather.
 void write_world( JsonOut &json );
 // The character as the client loads it into its avatar; empty if unchanged
-// since last time (or always, with force).
-std::string character_if_changed( const npc &guy, bool force );
+// since last time (or always, with force). Also empty, with `moved` set,
+// when only its position changed: a step needs no whole character.
+std::string character_if_changed( const npc &guy, bool force, bool *moved = nullptr );
 
 // ---- Client ----
 
 void read( const JsonObject &message );
 void read_creatures( const JsonObject &message );
+// A "position" message: the character stepped.
+void read_position( const JsonObject &message );
 void read_world( const JsonObject &message );
 void read_overmap( const JsonObject &message );
 // Keeps the client's map around its avatar (the copy of the character).

@@ -30,6 +30,7 @@
 #include "mapdata.h"
 #include "messages.h"
 #include "mp/net.h"
+#include "mp/npc_grab.h"
 #include "mp/protocol.h"
 #include "npc.h"
 #include "vpart_position.h"
@@ -186,14 +187,36 @@ static void do_move( npc &guy, const point_rel_ms &dir )
         guy.melee_attack( *critter, true );
         return;
     }
+    // Pushing a grabbed thing goes into its tile, game::walk_move() order.
+    const tripoint_rel_ms dp( dir, 0 );
+    bool may_enter = false;
+    npc_grab::prepare_step( guy, dp, may_enter );
     // npc::move_to() would spend the whole turn bumping into a wall.
-    if( here.impassable( dest ) && !here.has_flag( ter_furn_flag::TFLAG_DOOR, dest ) &&
+    if( !may_enter && here.impassable( dest ) && !here.has_flag( ter_furn_flag::TFLAG_DOOR, dest ) &&
         !here.has_flag_ter_or_furn( ter_furn_flag::TFLAG_CLIMBABLE, dest ) ) {
         reject( guy, _( "the way is blocked" ) );
         return;
     }
+    if( npc_grab::drag( guy, dp ) ) {
+        return;
+    }
     const tripoint_bub_ms old_pos = guy.pos_bub( here );
+    const FacingDirection facing = guy.facing;
+    // The follower's rules would close and lock doors behind the player.
+    const npc_follower_rules rules = guy.rules;
+    for( const ally_rule rule : { ally_rule::close_doors, ally_rule::lock_doors } ) {
+        guy.rules.clear_flag( rule );
+        guy.rules.disable_override( rule );
+    }
     guy.move_to( dest, true );
+    guy.rules = rules;
+    // As avatar_action::move(): a step up or down keeps the facing,
+    // npc::move_to() would turn the sprite left.
+    if( dir.x() == 0 ) {
+        guy.facing = facing;
+    } else {
+        guy.facing = dir.x() > 0 ? FacingDirection::RIGHT : FacingDirection::LEFT;
+    }
     if( guy.is_hauling() && guy.pos_bub( here ) != old_pos ) {
         start_hauling( guy, old_pos );
     }

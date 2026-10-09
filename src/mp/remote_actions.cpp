@@ -682,9 +682,11 @@ bool load_character( const std::string &data )
         // and things the new data doesn't mention. Where the view looks is
         // this client's own.
         const tripoint_rel_ms view_offset = get_avatar().view_offset;
+        const FacingDirection facing = get_avatar().facing;
         get_avatar() = avatar();
         get_avatar().deserialize( value.get_object() );
         get_avatar().view_offset = view_offset;
+        get_avatar().facing = facing;
     } catch( const std::exception &err ) {
         debugmsg( "Can't load the character from the host: %s", err.what() );
         return false;

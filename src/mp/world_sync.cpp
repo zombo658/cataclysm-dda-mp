@@ -13,6 +13,7 @@
 #include "json.h"
 #include "map.h"
 #include "mapbuffer.h"
+#include "mp/npc_grab.h"
 #include "mp/remote_actions.h"
 #include "avatar.h"
 #include "creature_tracker.h"
@@ -43,6 +44,8 @@ size_t sent_overmap = 0;
 // a few tiles each way, the overmap screen more).
 constexpr int overmap_radius = 12;
 size_t sent_character = 0;
+// The same without the position.
+size_t sent_character_still = 0;
 
 template<typename T>
 std::string to_text( const T &thing )
@@ -86,39 +89,50 @@ void reset()
     sent.clear();
     sent_creatures = 0;
     sent_character = 0;
+    sent_character_still = 0;
     sent_overmap = 0;
 }
 
 bool write_creatures( JsonOut &json, const npc &guy )
 {
     std::vector<std::pair<std::string, std::string>> list;
+    // Which way sprites face is not saved with the creature.
+    std::vector<bool> left;
+    const auto add = [&]( const std::string & kind, const Creature & critter, std::string text ) {
+        list.emplace_back( kind, std::move( text ) );
+        left.push_back( critter.facing == FacingDirection::LEFT );
+    };
     for( const monster &mon : g->all_monsters() ) {
         if( guy.sees( get_map(), mon ) ) {
-            list.emplace_back( "monster", to_text( mon ) );
+            add( "monster", mon, to_text( mon ) );
         }
     }
     for( const npc &other : g->all_npcs() ) {
         if( &other != &guy && guy.sees( get_map(), other ) ) {
-            list.emplace_back( "npc", to_text( other ) );
+            add( "npc", other, to_text( other ) );
         }
     }
     // The host: an NPC on the client.
     if( guy.sees( get_map(), get_avatar() ) ) {
-        list.emplace_back( "host", to_text( get_avatar() ) );
+        add( "host", get_avatar(), to_text( get_avatar() ) );
     }
-    size_t hash = list.size();
-    for( const auto &e : list ) {
-        hash = hash * 31 + std::hash<std::string>()( e.second );
+    const bool self_left = guy.facing == FacingDirection::LEFT;
+    size_t hash = list.size() * 2 + ( self_left ? 1 : 0 );
+    for( size_t i = 0; i < list.size(); i++ ) {
+        hash = hash * 31 + std::hash<std::string>()( list[i].second ) + ( left[i] ? 7 : 0 );
     }
     if( hash == sent_creatures ) {
         return false;
     }
     sent_creatures = hash;
+    json.member( "self_left", self_left );
     json.member( "list" );
     json.start_array();
-    for( const auto &e : list ) {
+    for( size_t i = 0; i < list.size(); i++ ) {
+        const auto &e = list[i];
         json.start_object();
         json.member( "kind", e.first );
+        json.member( "left", static_cast<bool>( left[i] ) );
         json.member( "data" );
         write_raw( json, e.second );
         json.end_object();
@@ -168,18 +182,42 @@ void write_world( JsonOut &json )
     json.member( "lightning", weather.lightning_active );
 }
 
-std::string character_if_changed( const npc &guy, const bool force )
+// The character's JSON without its "location" member.
+static std::string without_location( const std::string &data )
 {
+    const size_t start = data.find( "\"location\":[" );
+    if( start == std::string::npos ) {
+        return data;
+    }
+    const size_t end = data.find( ']', start );
+    if( end == std::string::npos ) {
+        return data;
+    }
+    return data.substr( 0, start ) + data.substr( end + 1 );
+}
+
+std::string character_if_changed( const npc &guy, const bool force, bool *moved )
+{
+    if( moved != nullptr ) {
+        *moved = false;
+    }
     std::string data = to_text( guy );
     // The client loads it into an avatar, which also wants a scenario.
     if( !data.empty() && data[0] == '{' && get_scenario() != nullptr ) {
         data.insert( 1, "\"scenario\":\"" + get_scenario()->ident().str() + "\"," );
     }
+    npc_grab::add_to_json( data, guy );
     const size_t hash = std::hash<std::string>()( data );
     if( !force && hash == sent_character ) {
         return std::string();
     }
+    const size_t still = std::hash<std::string>()( without_location( data ) );
     sent_character = hash;
+    if( !force && moved != nullptr && still == sent_character_still ) {
+        *moved = true;
+        return std::string();
+    }
+    sent_character_still = still;
     return data;
 }
 
@@ -230,6 +268,18 @@ bool write_changed( JsonOut &json, const npc &guy )
     return true;
 }
 
+// The host's do_turn() does this every turn. The client's map is centred
+// on the character, so its position in the map rarely changes and
+// map::update_visibility_cache() would never notice the move.
+static void invalidate_view()
+{
+    map &here = get_map();
+    for( int z = -OVERMAP_DEPTH; z <= OVERMAP_HEIGHT; z++ ) {
+        here.invalidate_map_cache( z );
+    }
+    here.invalidate_visibility_cache();
+}
+
 void read( const JsonObject &message )
 {
     message.allow_omitted_members();
@@ -266,6 +316,7 @@ void read( const JsonObject &message )
     const tripoint_abs_sm center( x, y, z );
     // The character in the middle of the map, as the host's bubble has its avatar.
     get_map().load( center - point_rel_sm( HALF_MAPSIZE, HALF_MAPSIZE ), true );
+    invalidate_view();
 }
 
 void read_creatures( const JsonObject &message )
@@ -275,12 +326,17 @@ void read_creatures( const JsonObject &message )
     // Only copies live here: replaced by the new ones.
     tracker.clear();
     tracker.clear_npcs();
+    get_avatar().facing = message.get_bool( "self_left", false ) ? FacingDirection::LEFT :
+                          FacingDirection::RIGHT;
     for( JsonObject e : message.get_array( "list" ) ) {
         e.allow_omitted_members();
         const std::string kind = e.get_string( "kind", "" );
+        const FacingDirection facing = e.get_bool( "left", false ) ? FacingDirection::LEFT :
+                                       FacingDirection::RIGHT;
         if( kind == "monster" ) {
             auto mon = make_shared_fast<monster>();
             mon->deserialize( e.get_object( "data" ) );
+            mon->facing = facing;
             tracker.add( mon );
         } else if( kind == "npc" || kind == "host" ) {
             auto guy = make_shared_fast<npc>();
@@ -289,9 +345,21 @@ void read_creatures( const JsonObject &message )
                 // The other player: an ally, not a stranger.
                 guy->set_attitude( NPCATT_FOLLOW );
             }
+            guy->facing = facing;
             tracker.add_npc( guy );
         }
     }
+}
+
+void read_position( const JsonObject &message )
+{
+    message.allow_omitted_members();
+    JsonArray at = message.get_array( "at" );
+    const int x = at.next_int();
+    const int y = at.next_int();
+    const int z = at.next_int();
+    get_avatar().setpos( tripoint_abs_ms( x, y, z ), false );
+    follow_avatar();
 }
 
 void read_world( const JsonObject &message )
@@ -307,6 +375,8 @@ void read_world( const JsonObject &message )
     weather.windspeed = message.get_int( "windspeed", 0 );
     weather.winddirection = message.get_int( "winddirection", 0 );
     weather.lightning_active = message.get_bool( "lightning", false );
+    // Daylight changes what is seen.
+    get_map().invalidate_visibility_cache();
 }
 
 void read_overmap( const JsonObject &message )
@@ -336,12 +406,14 @@ void read_overmap( const JsonObject &message )
 void follow_avatar()
 {
     map &here = get_map();
+    get_avatar().recalc_sight_limits();
     const tripoint_abs_sm at = project_to<coords::sm>( get_avatar().pos_abs() );
     const tripoint_abs_sm center = here.get_abs_sub() + point_rel_sm( HALF_MAPSIZE, HALF_MAPSIZE );
     if( at.xy() != center.xy() || at.z() != here.get_abs_sub().z() ) {
         here.load( tripoint_abs_sm( at.xy() - point_rel_sm( HALF_MAPSIZE, HALF_MAPSIZE ), at.z() ),
                    true );
     }
+    invalidate_view();
 }
 
 bool fill_missing( const tripoint_abs_sm &omt_base )

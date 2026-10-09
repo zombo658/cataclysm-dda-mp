@@ -1,6 +1,7 @@
 #include "mp/client_ui.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <deque>
 #include <map>
@@ -8,6 +9,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <utility>
 
 #include "action.h"
@@ -71,6 +73,9 @@ struct client_state {
     std::string character;
     std::string status;
     bool my_turn = false;
+    // A step was sent and the host hasn't answered yet.
+    bool step_pending = false;
+    std::chrono::steady_clock::time_point step_sent;
     // The host runs with instant actions: no turns to wait for.
     bool instant = false;
     bool attack_pending = false;
@@ -132,6 +137,9 @@ void handle_message( client_state &state, const std::string &line )
         if( type == "view" ) {
             state.grid = view::read( msg );
         } else if( type == "your_turn" || type == "status" || type == "state" ) {
+            if( type != "status" ) {
+                state.step_pending = false;
+            }
             state.status = format_status( msg.get_object( "status" ) );
             if( type == "your_turn" ) {
                 state.my_turn = true;
@@ -159,6 +167,7 @@ void handle_message( client_state &state, const std::string &line )
                 Messages::add_msg( text );
             }
         } else if( type == "rejected" ) {
+            state.step_pending = false;
             state.add_log( string_format( _( "Can't do that: %s" ), msg.get_string( "reason", "" ) ),
                            c_light_red );
         } else if( type == "personal" ) {
@@ -166,13 +175,16 @@ void handle_message( client_state &state, const std::string &line )
             state.add_log( msg.get_string( "text", "" ), c_white );
         } else if( type == "prompt" ) {
             state.prompts.push_back( line );
-        } else if( type == "submaps" || type == "creatures" || type == "world" || type == "overmap" ) {
+        } else if( type == "submaps" || type == "creatures" || type == "world" || type == "overmap" ||
+                   type == "position" ) {
             if( !state.data_loaded ) {
                 state.pending_submaps.push_back( line );
             } else if( type == "submaps" ) {
                 world_sync::read( msg );
             } else if( type == "creatures" ) {
                 world_sync::read_creatures( msg );
+            } else if( type == "position" ) {
+                world_sync::read_position( msg );
             } else if( type == "overmap" ) {
                 world_sync::read_overmap( msg );
             } else {
@@ -220,6 +232,10 @@ void send_command( client_state &state, const std::string &cmd, const std::strin
     net::client_send_line( os.str() );
     if( cmd != "status" && cmd != "inventory" && cmd != "character" ) {
         state.my_turn = false;
+    }
+    if( cmd == "move" ) {
+        state.step_pending = true;
+        state.step_sent = std::chrono::steady_clock::now();
     }
 }
 
@@ -284,7 +300,54 @@ bool handle_action( client_state &state, const std::string &action, const input_
             show_messages( state );
             break;
         case ACTION_MAIN_MENU:
+        case ACTION_ACTIONMENU: {
+            if( !state.data_loaded || !state.character_loaded ) {
+                return act == ACTION_MAIN_MENU ? !query_yn( _( "Leave the game?" ) ) : true;
+            }
+            // The host's menus (game::handle_action()), on the copy.
+            const action_id chosen = act == ACTION_MAIN_MENU ? handle_main_menu() :
+                                     handle_action_menu( get_map() );
+            if( chosen == ACTION_NULL || chosen == act ) {
+                return true;
+            }
+            return handle_action( state, action_ident( chosen ), ctxt );
+        }
+        case ACTION_SAVE:
+        case ACTION_QUICKSAVE:
+            // The host saves the world; the second player can only leave.
             return !query_yn( _( "Leave the game?" ) );
+        case ACTION_KEYBINDINGS: {
+            input_context keys = get_default_mode_input_context();
+            keys.display_menu();
+            break;
+        }
+        // This client's own settings and view: the host's code as it is.
+        case ACTION_OPTIONS:
+        case ACTION_AUTOPICKUP:
+        case ACTION_AUTONOTES:
+        case ACTION_SAFEMODE:
+        case ACTION_DISTRACTION_MANAGER:
+        case ACTION_COLOR:
+        case ACTION_WORLD_MODS:
+        case ACTION_TOGGLE_FULLSCREEN:
+        case ACTION_TOGGLE_PIXEL_MINIMAP:
+        case ACTION_TOGGLE_PANEL_ADM:
+        case ACTION_RELOAD_TILESET:
+        case ACTION_TOGGLE_AUTO_FEATURES:
+        case ACTION_TOGGLE_AUTO_PULP_BUTCHER:
+        case ACTION_TOGGLE_AUTO_MINING:
+        case ACTION_TOGGLE_AUTO_FORAGING:
+        case ACTION_TOGGLE_AUTO_PICKUP:
+        case ACTION_TOGGLE_HOUR_TIMER:
+        case ACTION_TOGGLE_PREVENT_OCCLUSION:
+        case ACTION_ZOOM_IN:
+        case ACTION_ZOOM_OUT:
+            if( state.data_loaded ) {
+                g->do_action_for_mirror( act );
+            } else if( act == ACTION_OPTIONS ) {
+                get_options().show( false );
+            }
+            break;
         case ACTION_NULL:
         case ACTION_TIMEOUT:
             break;
@@ -477,6 +540,12 @@ void run_join_screen()
     h.on_line = [&]( const std::string & line ) {
         handle_message( state, line );
         ui.invalidate_ui();
+        // Every step its own frame, as the host sees it, even when several
+        // arrive at once.
+        if( game_screen && line.find( R"("type":"state")" ) != std::string::npos ) {
+            ui_manager::redraw();
+            refresh_display();
+        }
     };
     h.on_disconnect = [&]() {
         state.lost = true;
@@ -503,6 +572,8 @@ void run_join_screen()
         }
         if( !game_screen && state.data_loaded && state.character_loaded && !state.lost ) {
             game_screen = g->create_or_get_main_ui_adaptor();
+            // The host can stop sending the simple screen's data.
+            net::client_send_line( R"({"cmd":"screen","action":"native"})" );
         }
         while( !state.prompts.empty() && !state.lost ) {
             const std::string line = state.prompts.front();
@@ -535,6 +606,14 @@ void run_join_screen()
             } );
             ui.invalidate_ui();
         }
+        // As on the host, a held key moves one step per frame: the next key
+        // is read only when the host has answered the step (or is slow).
+        if( state.step_pending && !state.lost &&
+            std::chrono::steady_clock::now() - state.step_sent < std::chrono::seconds( 1 ) ) {
+            std::this_thread::sleep_for( std::chrono::milliseconds( 5 ) );
+            continue;
+        }
+        state.step_pending = false;
         ui_manager::redraw();
         const std::string action = ctxt.handle_input();
         if( action == "TIMEOUT" ) {

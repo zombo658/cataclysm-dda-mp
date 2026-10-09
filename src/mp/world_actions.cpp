@@ -17,6 +17,7 @@
 #include "mapdata.h"
 #include "messages.h"
 #include "mp/net.h"
+#include "mp/npc_grab.h"
 #include "npc.h"
 #include "string_formatter.h"
 #include "translations.h"
@@ -196,6 +197,8 @@ std::string act( npc &guy, const std::string &action, const tripoint_rel_ms &dir
         }
         guy.melee_attack( *best, true );
         return std::string();
+    } else if( action == "grab" ) {
+        return npc_grab::toggle( guy, dir );
     } else if( action == "smash" ) {
         return smash( guy, p );
     } else if( action == "examine" ) {
@@ -220,6 +223,18 @@ bool run( const action_id act )
             return true;
         case ACTION_CONTROL_VEHICLE:
             send_command( "drive", tripoint_rel_ms::zero );
+            return true;
+        case ACTION_GRAB:
+            // handle_action.cpp, grab(): a held thing is let go of.
+            if( get_avatar().get_grab_type() != object_type::NONE ) {
+                send_command( "grab", tripoint_rel_ms::zero );
+                return true;
+            }
+            if( const std::optional<tripoint_bub_ms> p = choose_adjacent( _( "Grab where?" ) ) ) {
+                send_command( "grab", *p - get_avatar().pos_bub() );
+            } else {
+                add_msg( _( "Never mind." ) );
+            }
             return true;
         case ACTION_OPEN:
             action = "open";

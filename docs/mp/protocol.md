@@ -33,6 +33,8 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `{"cmd":"tile_action","action":"up"}` / `"down"` | подняться/спуститься по лестнице под персонажем (`offset` не нужен) |
 | `{"cmd":"setting","what":"style","value":"style_karate"}` | стиль боя; `"what":"fire_mode"` — режим огня оружия в руках; `"what":"worn_order","order":[…]` — новый порядок надетого (номера в прежнем порядке); `"what":"haul"` (`hauling`, `autohaul`, `filter`, `items`) — что тащить по земле; `"what":"default_ammo"` (`ammo`; нет — сбросить) — боеприпас по умолчанию |
 | `{"cmd":"tile_action","action":"autoattack"}` | ударить ближайшего врага рядом |
+| `{"cmd":"tile_action","action":"grab","offset":[0,1,0]}` | схватить мебель/машину рядом для волочения; если уже держит что-то (или `offset` нулевой) — отпустить. Дальше `move` толкает/тянет её, как у хоста |
+| `{"cmd":"screen","action":"native"}` | клиент показывает настоящий экран игры: хост перестаёт слать `view` и `sidebar` (это была большая часть трафика на каждый шаг) |
 | `{"cmd":"tile_action","action":"drive"}` | взять/отпустить управление машиной (на месте водителя); пока управляет, `move` рулит и газует |
 | `{"cmd":"power","what":"bionic","index":2,"on":true}` | включить/выключить бионику (номер в списке бионик персонажа); `"what":"mutation","id":"…"` — мутацию |
 | `{"cmd":"talk","target":[x,y,z]}` | заговорить с NPC в этой точке; дальше реплики приходят как `prompt` вида `dialogue` |
@@ -58,9 +60,10 @@ TCP, порт 7777. Каждое сообщение — один JSON-объек
 | `submaps` | в `state`, если изменились субкарты вокруг персонажа (радиус 3 субкарты, z±1) | `turn` (ход игры), `center` (субкарта персонажа), `list`: субкарты в формате сохранения (`version`, `coordinates`, …) — клиент кладёт их в свою карту |
 | `prompt` | игра хоста задаёт вопрос, выполняя команду второго игрока; хост ждёт `prompt_answer` с тем же `id` (до 5 минут, игра хоста стоит) | `id`, `kind`: `uilist` (`title`, `text`, `entries`: `retval`, `enabled`, `txt`, `desc`, `ctxt`, `color`), `popup` (`text`, `actions`, `category`, `cancel`, `anykey`), `direction` (`text`, `vertical`), `string` (`title`, `description`, `text`, `width`, `only_digits`), `message` (`text`; `id` 0, ответа не ждут), `dialogue` (`conversation`, `npc`, `line`, `speaker`, `speaker_color`, `responses`: `text`, `hotkey`, `color`, `selectable`; ответ — `ret`, номер ответа или -1 — уйти) |
 | `world` | в каждом `state` | `turn`, `weather`, `temperature` (К), `windspeed`, `winddirection`, `lightning` |
-| `creatures` | в `state`, если изменились | `list`: `[{kind: "monster"/"npc"/"host", data}]` — кого видит персонаж, в формате сохранения; `host` — аватар хоста (клиент показывает его как NPC-союзника) |
+| `creatures` | в `state`, если изменились | `self_left` (персонаж смотрит влево), `list`: `[{kind: "monster"/"npc"/"host", left, data}]` (`left` — спрайт смотрит влево; направление не сохраняется в `data`) — кого видит персонаж, в формате сохранения; `host` — аватар хоста (клиент показывает его как NPC-союзника) |
 | `overmap` | в `state`, если изменилась | `center`, `radius` (12), `ids` (oter id по строкам), `seen` (уровень разведки) |
-| `character` | ответ на `character`; также в `state`, если персонаж изменился | `data`: строка JSON персонажа (`npc::serialize`, плюс `scenario`); клиент грузит её в свой аватар |
+| `character` | ответ на `character`; также в `state`, если персонаж изменился | `data`: строка JSON персонажа (`npc::serialize`, плюс `scenario`, плюс `grab_point`/`grab_type`, если он что-то держит); клиент грузит её в свой аватар |
+| `position` | в `state` вместо `character`, если у персонажа изменилось только место (обычный шаг) | `at`: `[x, y, z]` в абсолютных клетках |
 | `recipes` | ответ на `recipes` | `ids` |
 | `recipe_states` | ответ на `recipe_states` | `items`: `[id, batch, можно_сделать, хватает_навыка, цвет, цвет_выделенного, цвет_описания]`, цвета — имена CDDA |
 | `recipe_info` | ответ на `recipe_info` | `recipe`, `batch`, `width`, `result_width` (как в запросе), `lines` (строки с цветовыми тегами), `indicator_color`, `indicator`, `result` |

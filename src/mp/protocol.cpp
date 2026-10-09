@@ -48,6 +48,9 @@ std::string to_line( const Writer &write )
 
 // When the client last got the view and the status.
 std::chrono::steady_clock::time_point last_state_sent;
+// The client shows the game's own screen from the copies: the simple view
+// and sidebar are not needed any more (they are most of a step's traffic).
+bool client_native_screen = false;
 
 // The newest message of the host's log already sent to the client.
 std::optional<std::pair<std::string, std::string>> last_sent_message;
@@ -197,6 +200,10 @@ void handle_line( const std::string &line )
         return;
     }
 
+    if( cmd_name == "screen" ) {
+        client_native_screen = action == "native";
+        return;
+    }
     npc *guy = network_npc();
     if( guy == nullptr ) {
         send_error( "the host has no remote-controlled NPC nearby" );
@@ -411,6 +418,9 @@ void send_welcome()
 
 void send_view( const npc &guy )
 {
+    if( client_native_screen ) {
+        return;
+    }
     net::send_line( to_line( [&]( JsonOut & json ) {
         json.member( "type", "view" );
         view::write( json, guy );
@@ -420,10 +430,12 @@ void send_view( const npc &guy )
 void send_state( const npc &guy )
 {
     send_new_messages();
-    net::send_line( to_line( [&]( JsonOut & json ) {
-        json.member( "type", "sidebar" );
-        remote_sidebar::write( json, guy );
-    } ) );
+    if( !client_native_screen ) {
+        net::send_line( to_line( [&]( JsonOut & json ) {
+            json.member( "type", "sidebar" );
+            remote_sidebar::write( json, guy );
+        } ) );
+    }
     send_view( guy );
     // The map around the character, for the game's own screens on the client.
     bool submaps_changed = false;
@@ -438,7 +450,19 @@ void send_state( const npc &guy )
         json.member( "type", "world" );
         world_sync::write_world( json );
     } ) );
-    const std::string character = world_sync::character_if_changed( guy, false );
+    bool moved = false;
+    const std::string character = world_sync::character_if_changed( guy, false, &moved );
+    if( moved ) {
+        net::send_line( to_line( [&]( JsonOut & json ) {
+            json.member( "type", "position" );
+            json.member( "at" );
+            json.start_array();
+            json.write( guy.pos_abs().x() );
+            json.write( guy.pos_abs().y() );
+            json.write( guy.pos_abs().z() );
+            json.end_array();
+        } ) );
+    }
     if( !character.empty() ) {
         net::send_line( to_line( [&]( JsonOut & json ) {
             json.member( "type", "character" );
@@ -507,6 +531,7 @@ void poll()
         add_msg( m_info, _( "The second player has connected." ) );
         skip_old_messages();
         world_sync::reset();
+        client_native_screen = false;
         send_welcome();
         // Something to look at right away, not after the first action.
         if( const npc *guy = network_npc() ) {

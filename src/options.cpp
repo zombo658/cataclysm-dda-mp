@@ -25,6 +25,7 @@
 #include "lang_stats.h"
 #include "line.h"
 #include "mapsharing.h"
+#include "mp/remote_actions.h"
 #include "output.h"
 #include "path_info.h"
 #include "point.h"
@@ -3894,7 +3895,8 @@ std::string options_manager::show( bool ingame, const bool world_options_only, b
             refresh_display();
 
             save();
-            if( ingame && world_options_changed ) {
+            // The second player's world is the host's: nothing to save.
+            if( ingame && world_options_changed && !mp::remote_actions::client_active() ) {
                 world_generator->active_world->WORLD_OPTIONS = ACTIVE_WORLD_OPTIONS;
                 world_generator->active_world->save();
             }
