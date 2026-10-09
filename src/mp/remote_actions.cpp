@@ -39,6 +39,7 @@
 #include "string_formatter.h"
 #include "translations.h"
 #include "uilist.h"
+#include "visitable.h"
 
 namespace mp::remote_actions
 {
@@ -168,6 +169,32 @@ std::string do_item_action( npc &guy, item_location loc, const int key, const Js
                 pocket->settings.set_collapse( key == '>' );
             }
             break;
+        case '=': {
+            // avatar::reassign_item(): the letter goes to this item only.
+            const int invlet = request.get_int( "invlet", 0 );
+            if( invlet != 0 ) {
+                guy.visit_items( [&]( item * it, item * ) {
+                    if( it != loc.get_item() && it->invlet == invlet ) {
+                        it->invlet = 0;
+                    }
+                    return VisitResponse::NEXT;
+                } );
+            }
+            loc->invlet = invlet;
+            break;
+        }
+        case 'v': {
+            // The pocket settings chosen on the client, pocket by pocket.
+            std::vector<item_pocket *> pockets = loc->get_all_standard_pockets();
+            size_t i = 0;
+            for( JsonObject settings : request.get_array( "pockets" ) ) {
+                if( i < pockets.size() ) {
+                    pockets[i]->settings.deserialize( settings );
+                }
+                i++;
+            }
+            break;
+        }
         default:
             return string_format( "unknown item action '%c'", static_cast<char>( key ) );
     }
@@ -970,6 +997,35 @@ bool forward_item_action( const item_location &loc, const int key )
             // Done on both sides: the inventory stays open on this copy.
             send_item( key, loc );
             return false;
+        case '=': {
+            item_location target = loc;
+            game_menus::inv::reassign_letter( *target );
+            send( "item_action", [&]( JsonOut & json ) {
+                json.member( "key", key );
+                json.member( "item", loc );
+                json.member( "invlet", static_cast<int>( loc->invlet ) );
+            } );
+            // Done here already; the inventory reopens on the copy, as on the host.
+            return true;
+        }
+        case 'v': {
+            if( !loc->is_container() ) {
+                return false;
+            }
+            item_location target = loc;
+            target->favorite_settings_menu();
+            send( "item_action", [&]( JsonOut & json ) {
+                json.member( "key", key );
+                json.member( "item", loc );
+                json.member( "pockets" );
+                json.start_array();
+                for( const item_pocket *pocket : target->get_all_standard_pockets() ) {
+                    pocket->settings.serialize( json );
+                }
+                json.end_array();
+            } );
+            return true;
+        }
         case 't': {
             // avatar_action::plthrow() from the item menu.
             item_location thrown = loc;
