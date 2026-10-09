@@ -88,6 +88,7 @@
 #include "morale.h"
 #include "move_mode.h"
 #include "mp/remote_actions.h"
+#include "mp/remote_log.h"
 #include "mtype.h"
 #include "mutation.h"
 #include "npc.h"
@@ -905,17 +906,21 @@ std::string Character::skin_name() const
 //message related stuff
 void Character::add_msg_if_player( const std::string &msg ) const
 {
+    // Not for the second player's log (mp/remote_log.h).
+    mp::remote_log::host_only( *this, msg );
     Messages::add_msg( msg );
 }
 
 void Character::add_msg_player_or_npc( const std::string &player_msg,
                                        const std::string &/*npc_msg*/ ) const
 {
+    mp::remote_log::host_only( *this, player_msg );
     Messages::add_msg( player_msg );
 }
 
 void Character::add_msg_if_player( const game_message_params &params, const std::string &msg ) const
 {
+    mp::remote_log::host_only( *this, msg );
     Messages::add_msg( params, msg );
 }
 
@@ -923,6 +928,7 @@ void Character::add_msg_player_or_npc( const game_message_params &params,
                                        const std::string &player_msg,
                                        const std::string &/*npc_msg*/ ) const
 {
+    mp::remote_log::host_only( *this, player_msg );
     Messages::add_msg( params, player_msg );
 }
 

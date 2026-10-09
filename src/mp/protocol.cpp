@@ -16,6 +16,7 @@
 #include "mp/rc_npc.h"
 #include "mp/remote_actions.h"
 #include "mp/remote_crafting.h"
+#include "mp/remote_log.h"
 #include "mp/remote_prompt.h"
 #include "mp/remote_inventory.h"
 #include "mp/remote_sidebar.h"
@@ -83,7 +84,7 @@ void send_new_messages()
     }
     std::vector<std::string> lines;
     for( size_t i = first_new; i < recent.size(); i++ ) {
-        if( !is_host_only( recent[i].second ) ) {
+        if( !is_host_only( recent[i].second ) && remote_log::is_shared( recent[i].second ) ) {
             lines.push_back( recent[i].second );
         }
     }

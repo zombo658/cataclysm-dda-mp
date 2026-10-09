@@ -55,6 +55,7 @@
 #include "messages.h"
 #include "mission.h"
 #include "monster.h"
+#include "mp/remote_log.h"
 #include "mtype.h"
 #include "mutation.h"
 #include "npc_class.h"
@@ -3187,9 +3188,23 @@ void npc::add_msg_if_npc( const std::string &msg ) const
     add_msg( replace_with_npc_name( msg ) );
 }
 
-void npc::add_msg_player_or_npc( const std::string &/*player_msg*/,
+void npc::add_msg_if_player( const std::string &msg ) const
+{
+    // The second player's character tells them (mp/remote_log.h).
+    mp::remote_log::to_second_player( *this, msg );
+}
+
+void npc::add_msg_if_player( const game_message_params &params, const std::string &msg ) const
+{
+    mp::remote_log::to_second_player( *this, msg, params.type );
+}
+
+void npc::add_msg_player_or_npc( const std::string &player_msg,
                                  const std::string &npc_msg ) const
 {
+    if( mp::remote_log::to_second_player( *this, player_msg ) ) {
+        mp::remote_log::told_already( replace_with_npc_name( npc_msg ) );
+    }
     add_msg_if_player_sees( *this, replace_with_npc_name( npc_msg ) );
 }
 
@@ -3199,25 +3214,34 @@ void npc::add_msg_if_npc( const game_message_params &params, const std::string &
 }
 
 void npc::add_msg_player_or_npc( const game_message_params &params,
-                                 const std::string &/*player_msg*/,
+                                 const std::string &player_msg,
                                  const std::string &npc_msg ) const
 {
     const map &here = get_map();
+    if( mp::remote_log::to_second_player( *this, player_msg, params.type ) ) {
+        mp::remote_log::told_already( replace_with_npc_name( npc_msg ) );
+    }
 
     if( get_player_view().sees( here, *this ) ) {
         add_msg( params, replace_with_npc_name( npc_msg ) );
     }
 }
 
-void npc::add_msg_player_or_say( const std::string &/*player_msg*/,
+void npc::add_msg_player_or_say( const std::string &player_msg,
                                  const std::string &npc_speech ) const
 {
+    if( mp::remote_log::to_second_player( *this, player_msg ) ) {
+        return;
+    }
     say( npc_speech );
 }
 
-void npc::add_msg_player_or_say( const game_message_params &/*params*/,
-                                 const std::string &/*player_msg*/, const std::string &npc_speech ) const
+void npc::add_msg_player_or_say( const game_message_params &params,
+                                 const std::string &player_msg, const std::string &npc_speech ) const
 {
+    if( mp::remote_log::to_second_player( *this, player_msg, params.type ) ) {
+        return;
+    }
     say( npc_speech );
 }
 
