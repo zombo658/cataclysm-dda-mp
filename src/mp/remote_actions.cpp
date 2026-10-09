@@ -17,6 +17,7 @@
 #include "bodygraph.h"
 #include "creature_tracker.h"
 #include "debug.h"
+#include "flag.h"
 #include "game.h"
 #include "game_inventory.h"
 #include "item.h"
@@ -438,6 +439,14 @@ std::string setting( npc &guy, const JsonObject &request )
         guy.martial_arts_data->set_style( style );
         return std::string();
     }
+    if( what == "default_ammo" ) {
+        item_location ammo = read_location( request, "ammo" );
+        if( ammo && ammo.carrier() != &guy ) {
+            return _( "You need to keep that ammo on you to select it as default ammo." );
+        }
+        guy.ammo_location = ammo;
+        return std::string();
+    }
     if( what == "haul" ) {
         // The state the haul menu left on the client's copy.
         guy.hauling = request.get_bool( "hauling", false );
@@ -558,6 +567,7 @@ bool uses_character( const action_id act )
         case ACTION_FIRE_BURST:
         case ACTION_SELECT_FIRE_MODE:
         case ACTION_PICK_STYLE:
+        case ACTION_SELECT_DEFAULT_AMMO:
         case ACTION_RECRAFT:
         case ACTION_LONGCRAFT:
         case ACTION_CHAT:
@@ -767,6 +777,33 @@ void run( const action_id act )
                 } else {
                     add_msg( m_info, _( "Your %s has only one firing mode." ), weapon->tname() );
                 }
+            }
+            break;
+        }
+        case ACTION_SELECT_DEFAULT_AMMO: {
+            // handle_action.cpp, on the copy; the choice goes to the host.
+            item_location weapon = you.get_wielded_item();
+            if( !weapon || !weapon->is_gun() || weapon->is_gunmod() ||
+                !( weapon->has_flag( flag_RELOAD_ONE ) || weapon->has_flag( flag_RELOAD_AND_SHOOT ) ) ) {
+                add_msg( m_info, _( "Default ammo can be selected for guns that load one round at a time." ) );
+                break;
+            }
+            const item::reload_option opt = you.select_ammo( weapon, false );
+            if( !opt ) {
+                break;
+            }
+            const bool clear = you.ammo_location && opt.ammo == you.ammo_location;
+            send( "setting", [&]( JsonOut & json ) {
+                json.member( "what", "default_ammo" );
+                json.member( "value", "" );
+                if( !clear ) {
+                    json.member( "ammo", opt.ammo );
+                }
+            } );
+            if( clear ) {
+                add_msg( _( "Cleared ammo preferences for %s." ), weapon->tname() );
+            } else {
+                add_msg( _( "Selected %s as default ammo for %s." ), opt.ammo->tname(), weapon->tname() );
             }
             break;
         }
